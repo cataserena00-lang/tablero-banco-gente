@@ -25,5 +25,18 @@ Probar el pipeline local: `pip install -r pipelines/requirements.txt && python p
 3. Crear `app/<base>/page.tsx` y una tarjeta en `app/page.tsx`.
 Si una base llega a cientos de MB o necesita consultas dinámicas, esa salida pasa a Vercel Blob o Postgres (Neon) sin cambiar el resto.
 
-## Barrios
-Se toman del domicilio (texto posterior al último " - ") solo para Córdoba Capital. Variantes se unifican en `pipelines/banco_gente/barrios_alias.csv`. La lista `data/banco_gente/barrios_revisar.json` muestra barrios poco frecuentes o sin dato para depurar.
+## Barrios y circuitos (Capital)
+El barrio se toma del domicilio (texto posterior al último " - ") solo para Córdoba Capital y se concilia con la base oficial `pipelines/banco_gente/barrios_cordoba.xlsx` (hoja "Barrios") en `pipelines/banco_gente/barrios_match.py`. Capas, en orden:
+1. **alias**: overrides manuales de `barrios_alias.csv` (`variante,barrio`), prioridad máxima.
+2. **exacto**: coincidencia tras normalizar (mayúsculas, sin tildes ni puntuación).
+3. **limpieza**: se quitan prefijos/sufijos (`B°`, `BARRIO`, `SECTOR`, `ANEXO`, `I`, `II`, `2`…); antes de descartar `VILLA` se prueba el nombre completo contra la base.
+4. **fuzzy** (rapidfuzz, umbral 90): no mezcla números, meses ni puntos cardinales distintos y no asigna si hay dos candidatos cercanos.
+
+Si un nombre está repetido en la base se prefiere el barrio oficial; si quedan circuitos distintos queda **ambiguo** (no se elige al azar). Lo que no concilia queda **sin clasificar** (conserva su nombre original en la tabla de barrios y no se pinta en el mapa de circuitos).
+
+El log del Action imprime el % de barrios y de créditos por método. `data/banco_gente/barrios_revisar.json` lista no conciliados y dudosos (con candidatos sugeridos), ordenados por créditos, y `barrios_conciliacion.json` guarda el resumen. Para corregir: completar `barrios_alias.csv` y volver a correr el Action con "forzar".
+
+Tests: `pip install pytest && python -m pytest pipelines/banco_gente/tests`.
+
+### Mapa de circuitos
+`pipelines/banco_gente/geo/build_circuitos_paths.py` (script único, ya ejecutado) convierte `circuitos_cordoba.json` (TopoJSON) en `circuitos_paths.json`. Si cambia el TopoJSON, volver a correrlo y commitear el resultado.

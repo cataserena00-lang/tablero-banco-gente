@@ -125,6 +125,17 @@ svg text{font-family:inherit}
 /* buscar barrio */
 .buscar-barrio input{font:inherit;font-size:14px;color:var(--tx);border:1px solid var(--borde);background:#fff;border-radius:8px;padding:8px 12px;width:200px}
 .buscar-barrio input::placeholder{color:var(--tx2)}
+/* volver + título de vista */
+.volver{display:inline-flex;align-items:center;gap:8px;font:inherit;font-size:15px;font-weight:600;color:#fff;background:var(--primario);border:0;border-radius:8px;padding:10px 16px;margin-bottom:14px;cursor:pointer}
+.volver:hover{background:var(--primario-hover)}
+.vista-titulo{margin:18px 0 0;font-size:20px;font-weight:600;letter-spacing:-.01em}
+.vista-titulo:focus{outline:none}
+.vista-titulo:focus-visible{outline:2px solid var(--celeste-osc);outline-offset:4px;border-radius:4px}
+/* mapa de circuitos */
+.mapa-circ .mapa{max-width:640px;margin:0 auto}
+.mapa-circ .dep{stroke-width:.75}
+.mapa-circ .dep:hover,.mapa-circ .dep.sel{stroke-width:2}
+.dep:focus-visible{stroke:var(--primario);stroke-width:2.5;outline:none}
 /* responsive */
 @media(max-width:1020px){.kpis{grid-template-columns:repeat(2,1fr)}.kpis .kpi:last-child{grid-column:span 2}.kpis.kpis-3{grid-template-columns:repeat(3,1fr)}.grid{grid-template-columns:1fr}.th-lineas,.td-lineas{display:none}}
 @media(max-width:560px){.wrap{padding:0 14px}.card{padding:16px 14px}.rank li{grid-template-columns:96px 1fr 104px;font-size:13px;gap:8px}.logo{width:110px}.limpiar{margin-left:0}.actualiz{text-align:left;width:100%}.kpis.kpis-3{grid-template-columns:1fr}.buscar-barrio input{width:100%}.tabla-detalle{font-size:13px}.tabla-detalle th,.tabla-detalle td{padding:8px 8px}}

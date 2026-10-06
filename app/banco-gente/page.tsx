@@ -1,12 +1,12 @@
 import { cargar } from "@/lib/datos";
 import Tablero from "@/components/Tablero";
-import type { Cubo, CuboCapital, GeoData } from "@/components/Tablero";
+import type { Cubo, CuboCapital, CircuitosGeo, GeoData } from "@/components/Tablero";
 
 export const metadata = { title: "Banco de la Gente – Pendientes de entrega" };
 
-// deptos_paths.json es un asset estático (pipelines/banco_gente/); si falta, el tablero se muestra sin mapa.
-function cargarGeo(d: string): GeoData | null {
-  try { return cargar<GeoData>(d, "deptos_paths"); } catch { return null; }
+// Los mapas (deptos_paths / circuitos_paths) son assets estáticos que copia el pipeline; si faltan, el tablero se muestra sin ellos.
+function cargarGeo<T>(d: string, archivo: string): T | null {
+  try { return cargar<T>(d, archivo); } catch { return null; }
 }
 
 export default function Pagina() {
@@ -15,7 +15,8 @@ export default function Pagina() {
     <Tablero
       cubo={cargar<Cubo>(d, "cubo")}
       cuboCap={cargar<CuboCapital>(d, "cubo_capital")}
-      geo={cargarGeo(d)}
+      geo={cargarGeo<GeoData>(d, "deptos_paths")}
+      circ={cargarGeo<CircuitosGeo>(d, "circuitos_paths")}
       actualizado={cargar<{ actualizado: string }>(d, "meta").actualizado}
     />
   );

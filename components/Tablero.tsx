@@ -13,11 +13,18 @@ export interface CuboCapital {
   f: string[];      // fechas ISO (mismas que cubo principal)
   bar: string[];    // barrios
   lin: string[];    // líneas de crédito
+  cir?: { c: string; n: string }[]; // circuitos con barrios asignados (código, nombre)
+  bar_cir?: number[];               // por barrio: índice en `cir`, o -1 si no tiene circuito
   rows: number[][]; // [f_idx, bar_idx, lin_idx, n, m]
 }
 export interface GeoData {
   w: number; h: number;
   deptos: { nombre: string; d: string; bbox: number[] }[];
+}
+
+export interface CircuitosGeo {
+  w: number; h: number;
+  items: { codigo: string; nombre: string; d: string; bbox: number[] }[];
 }
 
 type Vista = "panorama" | "localidades" | "barrios";
@@ -73,8 +80,8 @@ function nombreLinea(s: string) {
 }
 
 /* ── Componente principal ── */
-export default function Tablero({ cubo, cuboCap, geo, actualizado }: {
-  cubo: Cubo; cuboCap: CuboCapital; geo: GeoData | null; actualizado: string;
+export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
+  cubo: Cubo; cuboCap: CuboCapital; geo: GeoData | null; circ: CircuitosGeo | null; actualizado: string;
 }) {
   const F0 = cubo.f[0], F1 = cubo.f[cubo.f.length-1];
 
@@ -87,10 +94,15 @@ export default function Tablero({ cubo, cuboCap, geo, actualizado }: {
   const [dep, setDep] = useState<string|null>(null);
   const [mes, setMes] = useState<string|null>(null);
   const [busqBarrio, setBusqBarrio] = useState("");
+  const [metC, setMetC] = useState<Met>("m");
+  const [circSel, setCircSel] = useState<string|null>(null);
 
   const chartRef = useRef<HTMLDivElement>(null);
   const tipGRef = useRef<HTMLDivElement>(null);
   const tipMRef = useRef<HTMLDivElement>(null);
+  const tipCRef = useRef<HTMLDivElement>(null);
+  const tituloRef = useRef<HTMLHeadingElement>(null);
+  const primeraVista = useRef(true);
 
   /* Navegación */
   const irADep = useCallback((nombre: string) => {
@@ -99,8 +111,17 @@ export default function Tablero({ cubo, cuboCap, geo, actualizado }: {
     else setVista("localidades");
   }, []);
   const irAPanorama = useCallback(() => {
-    setVista("panorama"); setDep(null); setBusqBarrio("");
+    setVista("panorama"); setDep(null); setBusqBarrio(""); setCircSel(null);
   }, []);
+
+  /* Al cambiar de vista: arriba de todo y foco en el título (no en la primera carga).
+     Los filtros de fecha viven en este componente, así que se mantienen. */
+  useEffect(() => {
+    if (primeraVista.current) { primeraVista.current = false; return; }
+    const quieto = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: quieto ? "auto" : "smooth" });
+    tituloRef.current?.focus({ preventScroll: true });
+  }, [vista]);
 
   /* Atajo de fecha */
   const aplicarAtajo = useCallback((k: string) => {
@@ -220,11 +241,35 @@ export default function Tablero({ cubo, cuboCap, geo, actualizado }: {
     return porDep[dep] || { n: 0, m: 0 };
   }, [dep, porDep]);
 
+  /* ── Circuitos (Capital): código de circuito de un barrio, o null si no tiene ── */
+  const codigoCircuito = useCallback((barIdx: number) => {
+    const i = cuboCap.bar_cir?.[barIdx] ?? -1;
+    return i >= 0 ? cuboCap.cir?.[i]?.c ?? null : null;
+  }, [cuboCap]);
+
+  /* Valores por circuito (respeta fechas, no el buscador ni el circuito elegido) */
+  const { porCirc, sinClasif } = useMemo(() => {
+    const porCirc: Record<string, { n: number; m: number }> = {};
+    const sinClasif = { n: 0, m: 0 };
+    for (const r of filasCapital) {
+      const c = codigoCircuito(r[1]);
+      const v = c ? (porCirc[c] ??= { n: 0, m: 0 }) : sinClasif;
+      v.n += r[3]; v.m += r[4];
+    }
+    return { porCirc, sinClasif };
+  }, [filasCapital, codigoCircuito]);
+
+  const circVals = useMemo(() => {
+    const vals = (circ?.items ?? []).map(c => porCirc[c.codigo]?.[metC] || 0);
+    return { vals, max: Math.max(1, ...vals) };
+  }, [circ, porCirc, metC]);
+
   /* ── Datos vista Barrios (Capital) ── */
   const datosBarrios = useMemo(() => {
     if (vista !== "barrios") return [];
     const porBar: Record<string, { n: number; m: number; lineas: Record<string, { n: number; m: number }> }> = {};
     for (const r of filasCapital) {
+      if (circSel && codigoCircuito(r[1]) !== circSel) continue;
       const bar = cuboCap.bar[r[1]];
       const pb = porBar[bar] ??= { n: 0, m: 0, lineas: {} };
       pb.n += r[3]; pb.m += r[4];
@@ -243,7 +288,7 @@ export default function Tablero({ cubo, cuboCap, geo, actualizado }: {
       arr = arr.filter(x => x.bar.includes(q));
     }
     return arr;
-  }, [vista, filasCapital, cuboCap, busqBarrio]);
+  }, [vista, filasCapital, cuboCap, busqBarrio, circSel, codigoCircuito]);
 
   const totCapital = useMemo(() => {
     if (vista !== "barrios") return { n: 0, m: 0 };
@@ -255,6 +300,10 @@ export default function Tablero({ cubo, cuboCap, geo, actualizado }: {
   if (desde !== F0 || hasta !== F1)
     chips.push({ label: `Aprobación: ${fmtF(desde)} a ${fmtF(hasta)}`, clear: () => aplicarAtajo("todo") });
   if (mes) chips.push({ label: `Mes: ${MESES[+mes.slice(5,7)-1]} ${mes.slice(0,4)}`, clear: () => setMes(null) });
+  if (circSel && vista === "barrios") {
+    const nom = circ?.items.find(c => c.codigo === circSel)?.nombre ?? cuboCap.cir?.find(c => c.c === circSel)?.n ?? "";
+    chips.push({ label: `Circuito: ${circSel}${nom ? " – " + nombreDep(nom) : ""}`, clear: () => setCircSel(null) });
+  }
   if (dep && vista === "panorama") chips.push({ label: `Departamento: ${nombreDep(dep)}`, clear: () => setDep(null) });
 
   /* ── SVG Gráfico ── */
@@ -286,8 +335,8 @@ export default function Tablero({ cubo, cuboCap, geo, actualizado }: {
     return { vals, max };
   }, [geo, porDep, metM]);
 
-  const fmtLeyenda = (v: number) =>
-    metM === "m" ? (v >= 1e6 ? "$ "+(v/1e6).toLocaleString("es-AR",{maximumFractionDigits:0})+" M" : peso(v)) : miles(v);
+  const fmtLeyenda = (v: number, met: Met = metM) =>
+    met === "m" ? (v >= 1e6 ? "$ "+(v/1e6).toLocaleString("es-AR",{maximumFractionDigits:0})+" M" : peso(v)) : miles(v);
 
   /* ── Desglose por línea (mini tabla) ── */
   const LineaDesglose = ({ lineasArr }: { lineasArr: [string, { n: number; m: number }][] }) => (
@@ -327,7 +376,7 @@ export default function Tablero({ cubo, cuboCap, geo, actualizado }: {
           }} /></div>
         </div>
         <button className="limpiar" type="button" style={{visibility: chips.length ? "visible":"hidden"}}
-          onClick={() => { setDep(null); aplicarAtajo("todo"); }}>Limpiar filtros</button>
+          onClick={() => { setDep(null); setCircSel(null); aplicarAtajo("todo"); }}>Limpiar filtros</button>
       </section>
       {chips.length > 0 && (
         <div className="chips" aria-live="polite">
@@ -349,6 +398,18 @@ export default function Tablero({ cubo, cuboCap, geo, actualizado }: {
       <span className="bc-current">{vista === "barrios" ? "Capital – Barrios" : nombreDep(dep!)}</span>
     </nav>
   ) : null;
+
+  /* ── Volver (vistas de detalle) y título de vista (recibe el foco al navegar) ── */
+  const botonVolver = vista !== "panorama" ? (
+    <button type="button" className="volver" onClick={irAPanorama}>
+      <span aria-hidden="true">←</span> Volver al resumen general
+    </button>
+  ) : null;
+  const tituloVista = (
+    <h2 className="vista-titulo" ref={tituloRef} tabIndex={-1}>
+      {vista === "panorama" ? "Resumen general" : vista === "barrios" ? "Capital – Barrios y circuitos" : `Departamento ${nombreDep(dep!)}`}
+    </h2>
+  );
 
   /* ════════════════════════════════════════════════════════════════
      VISTA: PANORAMA
@@ -577,6 +638,63 @@ export default function Tablero({ cubo, cuboCap, geo, actualizado }: {
         <div className="kpi"><span>Barrios</span><b>{miles(datosBarrios.length)}</b></div>
       </section>
 
+      {/* Mapa de circuitos (coroplético) */}
+      {circ && cuboCap.cir && (
+        <section className="card" style={{marginTop:20}}>
+          <header>
+            <div><h2>Circuitos de Córdoba Capital</h2>
+              <p className="sub">Suma de los barrios de cada circuito · hacé clic en un circuito para filtrar la tabla de barrios</p></div>
+            <div className="seg" role="group" aria-label="Métrica del mapa de circuitos">
+              <button type="button" aria-pressed={metC==="m"} onClick={() => setMetC("m")}>Monto</button>
+              <button type="button" aria-pressed={metC==="n"} onClick={() => setMetC("n")}>Cantidad</button>
+            </div>
+          </header>
+          <div className="chartbox mapa-circ" style={{position:"relative"}}>
+            <svg className="mapa" viewBox={`0 0 ${circ.w} ${circ.h}`} role="group" aria-label="Mapa de circuitos de Córdoba Capital">
+              {circ.items.map((c, i) => {
+                const col = colorMapa(circVals.vals[i], circVals.max);
+                const v = porCirc[c.codigo] || { n: 0, m: 0 };
+                const nom = `Circuito ${c.codigo} ${nombreDep(c.nombre)}`;
+                const elegir = () => setCircSel(circSel === c.codigo ? null : c.codigo);
+                return <path key={c.codigo} d={c.d} fillRule="evenodd"
+                  className={`dep${col?"":" vacio"}${circSel===c.codigo?" sel":""}`}
+                  fill={col || "#E5E7EB"}
+                  tabIndex={col ? 0 : -1}
+                  role={col ? "button" : "img"}
+                  aria-pressed={col ? circSel === c.codigo : undefined}
+                  aria-label={col ? `${nom}: ${miles(v.n)} créditos, ${peso(v.m)}` : `${nom}: sin datos`}
+                  onClick={() => { if (col) elegir(); }}
+                  onKeyDown={e => { if (col && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); elegir(); } }}
+                  onMouseMove={e => {
+                    const tip = tipCRef.current;
+                    const box = (e.currentTarget as SVGPathElement).closest(".chartbox") as HTMLElement;
+                    if (!tip || !box) return;
+                    const r = box.getBoundingClientRect();
+                    tip.style.display = "block";
+                    tip.innerHTML = `<b>${nom.replace(/[<>&]/g, "")}</b><div><span>Créditos</span><span>${miles(v.n)}</span></div><div><span>Monto</span><span>${peso(v.m)}</span></div>`;
+                    tip.style.left = Math.min(e.clientX-r.left+14, r.width-170)+"px";
+                    tip.style.top = (e.clientY-r.top+14)+"px";
+                  }}
+                  onMouseLeave={() => { if (tipCRef.current) tipCRef.current.style.display = "none"; }}
+                />;
+              })}
+            </svg>
+            <div className="tip" ref={tipCRef} />
+          </div>
+          <div className="leyenda">
+            <span>{fmtLeyenda(0, metC)}</span>
+            <div className="escala" />
+            <span>{fmtLeyenda(circVals.max, metC)}</span>
+            <span style={{marginLeft:8}}>
+              <i style={{display:"inline-block",width:12,height:12,background:"#E5E7EB",borderRadius:3,verticalAlign:-2}} /> Sin datos
+            </span>
+          </div>
+          {sinClasif.n > 0 && (
+            <p className="nota">{miles(sinClasif.n)} créditos ({peso(sinClasif.m)}) no se pudieron asignar a un circuito (barrio sin clasificar o ambiguo) y no se pintan en el mapa; sí figuran en la tabla de barrios.</p>
+          )}
+        </section>
+      )}
+
       {/* Buscador + tabla de barrios */}
       <section className="card" style={{marginTop:20}}>
         <header>
@@ -640,8 +758,10 @@ export default function Tablero({ cubo, cuboCap, geo, actualizado }: {
       </div></header>
 
       <main className="dash"><div className="wrap">
+        {botonVolver}
         {filtrosUI}
         {breadcrumb}
+        {tituloVista}
         {vista === "panorama" && vistaPanorama}
         {vista === "localidades" && vistaLocalidades}
         {vista === "barrios" && vistaBarrios}

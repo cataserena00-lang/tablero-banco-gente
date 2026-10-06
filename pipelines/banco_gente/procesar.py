@@ -9,6 +9,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 import pandas as pd, yaml
 
+sys.path.insert(0, str(Path(__file__).parent))
+import barrios_match as bm
+
 AQUI = Path(__file__).parent
 SALIDA = AQUI.parent.parent / "data" / "banco_gente"
 
@@ -65,7 +68,11 @@ def agrupar(df: pd.DataFrame, claves: list[str]) -> list[dict]:
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--input")
+    ap.add_argument("--salida", help="carpeta de salida (por defecto data/banco_gente); útil para probar sin tocar data/")
     a = ap.parse_args()
+    global SALIDA
+    if a.salida:
+        SALIDA = Path(a.salida)
     cfg = yaml.safe_load((AQUI / "config.yaml").read_text(encoding="utf-8"))
     c = cfg["columnas"]
 
@@ -95,13 +102,21 @@ def main():
         "domicilio": df[c["domicilio"]].map(norm),
     })
 
-    alias = pd.read_csv(AQUI / "barrios_alias.csv")
-    alias = dict(zip(alias.variante.map(norm), alias.barrio.map(norm)))
-
     es_cap = (d.localidad == cfg["capital"]["localidad"]) & \
              (d.departamento == cfg["capital"]["departamento"])
     cap = d[es_cap].copy()
-    cap["barrio"] = cap.domicilio.map(extraer_barrio).map(lambda b: alias.get(b, b))
+
+    # ── Conciliación de barrios con la base oficial (barrio oficial + circuito) ──
+    base_barrios = bm.BaseBarrios.desde_excel(AQUI / "barrios_cordoba.xlsx")
+    alias = bm.cargar_alias(AQUI / "barrios_alias.csv")
+    cap["barrio_crudo"] = cap.domicilio.map(extraer_barrio)
+    matches = bm.conciliar(cap.barrio_crudo.unique(), base_barrios, alias)
+    # Nombre mostrado: el barrio oficial; lo que no concilia conserva su nombre original
+    cap["barrio"] = [matches[b].barrio_oficial or b for b in cap.barrio_crudo]
+    cred_crudo = cap.barrio_crudo.value_counts().to_dict()
+    monto_crudo = cap.groupby("barrio_crudo").monto.sum().round(0).astype(int).to_dict()
+    reporte = bm.resumen(matches, cred_crudo)
+    print(bm.texto_resumen(reporte))
 
     d["mes"] = d.fecha.dt.strftime("%Y-%m").fillna("SIN DATO")
     out = {
@@ -164,7 +179,19 @@ def main():
         cap_rows.append([f_idx[fecha], bar_idx[barrio], lin_idx.get(lin, -1),
                          int(g.shape[0]), int(g.monto.sum())])
 
-    cubo_cap = {"f": fechas, "bar": barrios_uniq, "lin": lineas, "rows": cap_rows}
+    # Circuito de cada barrio (mismo orden que "bar"); -1 = sin clasificar / ambiguo.
+    circ_de_barrio = {}
+    for m in matches.values():
+        if m.con_circuito:
+            circ_de_barrio[m.barrio_oficial] = (m.codigo_circuito, m.circuito)
+    cir = sorted({v for v in circ_de_barrio.values()})
+    cir_idx = {c: i for i, (c, _) in enumerate(cir)}
+    cubo_cap = {
+        "f": fechas, "bar": barrios_uniq, "lin": lineas,
+        "cir": [{"c": c, "n": n} for c, n in cir],
+        "bar_cir": [cir_idx[circ_de_barrio[b][0]] if b in circ_de_barrio else -1 for b in barrios_uniq],
+        "rows": cap_rows,
+    }
 
     SALIDA.mkdir(parents=True, exist_ok=True)
     for k, v in out.items():
@@ -173,15 +200,17 @@ def main():
     (SALIDA / "cubo.json").write_text(json.dumps(cubo, ensure_ascii=False), encoding="utf-8")
     (SALIDA / "cubo_capital.json").write_text(json.dumps(cubo_cap, ensure_ascii=False), encoding="utf-8")
 
-    # Copiar deptos_paths.json a data/ para que Next.js lo lea
-    geo_src = AQUI / "deptos_paths.json"
-    if geo_src.exists():
-        import shutil
-        shutil.copy2(geo_src, SALIDA / "deptos_paths.json")
+    # Mapas (deptos y circuitos) a data/ para que Next.js los lea
+    import shutil
+    for nombre, origen in [("deptos_paths.json", AQUI / "deptos_paths.json"),
+                           ("circuitos_paths.json", AQUI / "circuitos_paths.json")]:
+        if origen.exists():
+            shutil.copy2(origen, SALIDA / nombre)
 
-    # Barrios para revisar: poco frecuentes o sin dato (se corrigen en barrios_alias.csv)
-    rev = [r for r in out["barrios"] if r["creditos"] <= 2 or r["barrio"] == "SIN DATO"]
+    # Barrios para revisar: no conciliados y dudosos (se corrigen en barrios_alias.csv)
+    rev = bm.filas_revisar(matches, cred_crudo, monto_crudo)
     (SALIDA / "barrios_revisar.json").write_text(json.dumps(rev, ensure_ascii=False), encoding="utf-8")
+    (SALIDA / "barrios_conciliacion.json").write_text(json.dumps(reporte, ensure_ascii=False), encoding="utf-8")
     (SALIDA / "meta.json").write_text(json.dumps({
         "huella": huella, "filas": int(len(d)),
         "actualizado": datetime.now(timezone.utc).isoformat(timespec="seconds"),
