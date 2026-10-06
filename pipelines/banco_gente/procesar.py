@@ -119,9 +119,65 @@ def main():
         "lineas": agrupar(d, ["linea"]),
         "meses": sorted(agrupar(d, ["mes"]), key=lambda r: r["mes"]),
     }
+    # ── Cubo compacto para filtrado client-side ──────────────────────
+    fechas = sorted(d.fecha.dropna().dt.strftime("%Y-%m-%d").unique())
+    deptos = sorted(d.departamento.unique())
+    locs = sorted(d.localidad.unique())
+    f_idx = {f: i for i, f in enumerate(fechas)}
+    d_idx = {x: i for i, x in enumerate(deptos)}
+    l_idx = {x: i for i, x in enumerate(locs)}
+
+    rows = []
+    for (fecha, dep, loc), g in d.groupby(
+        [d.fecha.dt.strftime("%Y-%m-%d"), "departamento", "localidad"], dropna=False
+    ):
+        if pd.isna(fecha) or fecha not in f_idx:
+            continue
+        rows.append([f_idx[fecha], d_idx[dep], l_idx[loc],
+                     int(g.shape[0]), int(g.monto.sum())])
+
+    # Agregar líneas de crédito al cubo principal
+    lineas = sorted(d.linea.unique())
+    lin_idx = {x: i for i, x in enumerate(lineas)}
+
+    rows_lin = []
+    for (fecha, dep, loc, lin), g in d.groupby(
+        [d.fecha.dt.strftime("%Y-%m-%d"), "departamento", "localidad", "linea"], dropna=False
+    ):
+        if pd.isna(fecha) or fecha not in f_idx:
+            continue
+        rows_lin.append([f_idx[fecha], d_idx[dep], l_idx[loc], lin_idx[lin],
+                         int(g.shape[0]), int(g.monto.sum())])
+
+    cubo = {"f": fechas, "dep": deptos, "loc": locs, "lin": lineas, "rows": rows_lin}
+
+    # ── Cubo Capital (barrios × línea) ──────────────────────
+    barrios_uniq = sorted(cap["barrio"].unique())
+    bar_idx = {b: i for i, b in enumerate(barrios_uniq)}
+
+    cap_rows = []
+    for (fecha, barrio, lin), g in cap.groupby(
+        [cap.fecha.dt.strftime("%Y-%m-%d"), "barrio", "linea"], dropna=False
+    ):
+        if pd.isna(fecha) or fecha not in f_idx:
+            continue
+        cap_rows.append([f_idx[fecha], bar_idx[barrio], lin_idx.get(lin, -1),
+                         int(g.shape[0]), int(g.monto.sum())])
+
+    cubo_cap = {"f": fechas, "bar": barrios_uniq, "lin": lineas, "rows": cap_rows}
+
     SALIDA.mkdir(parents=True, exist_ok=True)
     for k, v in out.items():
         (SALIDA / f"{k}.json").write_text(json.dumps(v, ensure_ascii=False), encoding="utf-8")
+
+    (SALIDA / "cubo.json").write_text(json.dumps(cubo, ensure_ascii=False), encoding="utf-8")
+    (SALIDA / "cubo_capital.json").write_text(json.dumps(cubo_cap, ensure_ascii=False), encoding="utf-8")
+
+    # Copiar geo/deptos_paths.json a data/ para que Next.js lo lea
+    geo_src = AQUI / "geo" / "deptos_paths.json"
+    if geo_src.exists():
+        import shutil
+        shutil.copy2(geo_src, SALIDA / "deptos_paths.json")
 
     # Barrios para revisar: poco frecuentes o sin dato (se corrigen en barrios_alias.csv)
     rev = [r for r in out["barrios"] if r["creditos"] <= 2 or r["barrio"] == "SIN DATO"]
@@ -130,7 +186,7 @@ def main():
         "huella": huella, "filas": int(len(d)),
         "actualizado": datetime.now(timezone.utc).isoformat(timespec="seconds"),
     }), encoding="utf-8")
-    print(f"OK: {len(d)} créditos, {len(cap)} en Capital, {out['barrios'].__len__()} barrios.")
+    print(f"OK: {len(d)} créditos, {len(cap)} en Capital, {len(out['barrios'])} barrios, cubo: {len(rows)} filas.")
 
 
 if __name__ == "__main__":
