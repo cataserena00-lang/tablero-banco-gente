@@ -7,8 +7,11 @@ Uso (desde la raíz del repo):
 - Proyecta a plano con corrección por cos(latitud media): x = (lon - lon0) * cos(lat0), y = lat1 - lat.
 - Simplifica con Douglas-Peucker POR ARCO (los arcos son compartidos entre circuitos vecinos, así los
   bordes siguen coincidiendo y no aparecen huecos). Busca la menor tolerancia que deje el JSON < 150 KB.
+- Calcula el límite de la ciudad como el contorno exterior de la unión de todos los circuitos
+  (los 119 circuitos cubren el ejido: ~561 km²). Requiere `pip install shapely` (solo para
+  regenerar este archivo; no hace falta en el pipeline ni en Vercel).
 - Escribe pipelines/banco_gente/circuitos_paths.json y lo copia a data/banco_gente/
-  (convención de deptos_paths.json: {w, h, items:[{codigo, nombre, d, bbox}]}).
+  (convención de deptos_paths.json: {w, h, items:[{codigo, nombre, d, bbox}], limite}).
 """
 import json
 import math
@@ -96,6 +99,28 @@ def construir(eps: float, topo: dict, proy_arcos: list[list]) -> dict:
     return items
 
 
+def limite_ciudad(topo: dict, proy_arcos: list[list], eps: float) -> str:
+    """Path SVG del contorno exterior de la unión de los circuitos."""
+    try:
+        from shapely.geometry import Polygon
+        from shapely.ops import unary_union
+    except ImportError:
+        sys.exit("Falta shapely para calcular el límite: pip install shapely")
+    simp = [douglas_peucker(a, eps) for a in proy_arcos]
+    polis = []
+    for g in topo["objects"][OBJETO]["geometries"]:
+        for poli in (g["arcs"] if g["type"] == "MultiPolygon" else [g["arcs"]]):
+            anillos = [anillo(simp, r) for r in poli]
+            polis.append(Polygon(anillos[0], anillos[1:]).buffer(0))
+    # Los circuitos no comparten bordes exactos (cuantización ~4 m): se cierran los huecos mínimos
+    # entre ellos con un buffer de ida y vuelta antes de quedarse con el contorno exterior.
+    union = unary_union(polis).buffer(0.4).buffer(-0.4)
+    if union.geom_type == "MultiPolygon":
+        union = max(union.geoms, key=lambda g: g.area)
+    pts = douglas_peucker(list(union.exterior.coords), 0.25)
+    return "M" + "L".join(f"{x:.1f} {y:.1f}" for x, y in pts[:-1]) + "Z"
+
+
 def main():
     topo = json.loads(ENTRADA.read_text(encoding="utf-8"))
     arcos = decodificar_arcos(topo)
@@ -112,7 +137,7 @@ def main():
     elegido = None
     for eps in [0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.75, 1.0, 1.5, 2.0]:
         items = construir(eps, topo, proy)
-        out = {"w": ANCHO, "h": round(alto), "items": items}
+        out = {"w": ANCHO, "h": round(alto), "items": items, "limite": limite_ciudad(topo, proy, eps)}
         txt = json.dumps(out, ensure_ascii=False, separators=(",", ":"))
         if len(txt.encode()) < MAX_BYTES:
             elegido = (eps, txt, items)
