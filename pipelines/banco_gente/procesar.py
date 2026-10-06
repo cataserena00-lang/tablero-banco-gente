@@ -173,8 +173,8 @@ def main():
     (SALIDA / "cubo.json").write_text(json.dumps(cubo, ensure_ascii=False), encoding="utf-8")
     (SALIDA / "cubo_capital.json").write_text(json.dumps(cubo_cap, ensure_ascii=False), encoding="utf-8")
 
-    # Copiar geo/deptos_paths.json a data/ para que Next.js lo lea
-    geo_src = AQUI / "geo" / "deptos_paths.json"
+    # Copiar deptos_paths.json a data/ para que Next.js lo lea
+    geo_src = AQUI / "deptos_paths.json"
     if geo_src.exists():
         import shutil
         shutil.copy2(geo_src, SALIDA / "deptos_paths.json")
