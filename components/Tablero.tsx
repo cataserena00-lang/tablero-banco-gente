@@ -74,7 +74,7 @@ function nombreLinea(s: string) {
 
 /* ── Componente principal ── */
 export default function Tablero({ cubo, cuboCap, geo, actualizado }: {
-  cubo: Cubo; cuboCap: CuboCapital; geo: GeoData; actualizado: string;
+  cubo: Cubo; cuboCap: CuboCapital; geo: GeoData | null; actualizado: string;
 }) {
   const F0 = cubo.f[0], F1 = cubo.f[cubo.f.length-1];
 
@@ -281,7 +281,7 @@ export default function Tablero({ cubo, cuboCap, geo, actualizado }: {
   /* ── Mapa ── */
   const mapaVals = useMemo(() => {
     const met = metM;
-    const vals = geo.deptos.map(d => (porDep[d.nombre]?.[met]) || 0);
+    const vals = (geo?.deptos ?? []).map(d => (porDep[d.nombre]?.[met]) || 0);
     const max = Math.max(1, ...vals);
     return { vals, max };
   }, [geo, porDep, metM]);
@@ -437,6 +437,7 @@ export default function Tablero({ cubo, cuboCap, geo, actualizado }: {
 
       {/* Mapa + Ranking */}
       <div className="grid" style={{marginTop:20}}>
+        {geo && (
         <section className="card">
           <header>
             <div><h2>Departamentos de Córdoba</h2><p className="sub">Hacé clic en un departamento para ver el detalle</p></div>
@@ -485,6 +486,7 @@ export default function Tablero({ cubo, cuboCap, geo, actualizado }: {
             <p className="nota">{miles(sinDatos.n)} créditos ({peso(sinDatos.m)}) no tienen departamento asignado en la base y no se pintan en el mapa.</p>
           )}
         </section>
+        )}
 
         <section className="card">
           <header><div><h2>Ranking de departamentos</h2>
