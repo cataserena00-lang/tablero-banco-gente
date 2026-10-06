@@ -25,6 +25,7 @@ export interface GeoData {
 export interface CircuitosGeo {
   w: number; h: number;
   items: { codigo: string; nombre: string; d: string; bbox: number[] }[];
+  limite?: string;  // contorno exterior de la ciudad (path SVG)
 }
 
 type Vista = "panorama" | "localidades" | "barrios";
@@ -308,12 +309,16 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
 
   /* ── SVG Gráfico ── */
   const [chartW, setChartW] = useState(1000);
+  // El contenedor del gráfico solo existe en el panorama: se desmonta al entrar a un departamento
+  // y se crea uno nuevo al volver, así que hay que volver a observarlo y medirlo (depende de `vista`).
   useEffect(() => {
     const el = chartRef.current;
     if (!el) return;
-    const obs = new ResizeObserver(() => setChartW(Math.max(300, el.clientWidth)));
+    const medir = () => { if (el.clientWidth > 0) setChartW(Math.max(300, el.clientWidth)); };
+    medir();
+    const obs = new ResizeObserver(medir);
     obs.observe(el); return () => obs.disconnect();
-  }, []);
+  }, [vista]);
 
   const grafSvg = useMemo(() => {
     const W = chartW, H = 290, pl = W < 520 ? 60 : 66, pb = 30, pt = 14, pr = 8;
@@ -678,6 +683,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
                   onMouseLeave={() => { if (tipCRef.current) tipCRef.current.style.display = "none"; }}
                 />;
               })}
+              {circ.limite && <path className="limite-ciudad" d={circ.limite} aria-hidden="true" />}
             </svg>
             <div className="tip" ref={tipCRef} />
           </div>
@@ -688,6 +694,9 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
             <span style={{marginLeft:8}}>
               <i style={{display:"inline-block",width:12,height:12,background:"#E5E7EB",borderRadius:3,verticalAlign:-2}} /> Sin datos
             </span>
+            {circ.limite && <span style={{marginLeft:8}}>
+              <i className="limite-muestra" aria-hidden="true" /> Límite de la ciudad
+            </span>}
           </div>
           {sinClasif.n > 0 && (
             <p className="nota">{miles(sinClasif.n)} créditos ({peso(sinClasif.m)}) no se pudieron asignar a un circuito (barrio sin clasificar o ambiguo) y no se pintan en el mapa; sí figuran en la tabla de barrios.</p>

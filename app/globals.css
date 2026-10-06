@@ -135,6 +135,8 @@ svg text{font-family:inherit}
 .mapa-circ .mapa{max-width:640px;margin:0 auto}
 .mapa-circ .dep{stroke-width:.75}
 .mapa-circ .dep:hover,.mapa-circ .dep.sel{stroke-width:2}
+.limite-ciudad{fill:none;stroke:#1F2937;stroke-width:1.75;stroke-linejoin:round;vector-effect:non-scaling-stroke;pointer-events:none}
+.limite-muestra{display:inline-block;width:18px;border-top:2px solid #1F2937;vertical-align:3px}
 .dep:focus-visible{stroke:var(--primario);stroke-width:2.5;outline:none}
 /* responsive */
 @media(max-width:1020px){.kpis{grid-template-columns:repeat(2,1fr)}.kpis .kpi:last-child{grid-column:span 2}.kpis.kpis-3{grid-template-columns:repeat(3,1fr)}.grid{grid-template-columns:1fr}.th-lineas,.td-lineas{display:none}}
