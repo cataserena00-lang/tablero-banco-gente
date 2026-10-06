@@ -1,0 +1,12 @@
+dataset: banco_gente
+drive_file_id_env: BG_DRIVE_FILE_ID   # secret/variable en GitHub
+columnas:
+  monto: "Monto Prestable"
+  fecha: "Fecha Aprobación"
+  domicilio: "Domicilio"
+  localidad: "Localidad"
+  departamento: "Departamento"
+  linea: "Línea"
+capital:
+  localidad: "CORDOBA"
+  departamento: "CAPITAL"

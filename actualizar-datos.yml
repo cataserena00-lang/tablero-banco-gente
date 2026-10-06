@@ -1,0 +1,35 @@
+name: Actualizar datos
+
+on:
+  schedule:
+    - cron: "0 9 * * 1"     # lunes 06:00 hora Argentina (09:00 UTC)
+  workflow_dispatch:         # botón "Run workflow" para correrlo a mano
+    inputs:
+      forzar:
+        description: "Regenerar aunque el archivo no haya cambiado"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  banco-gente:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip, cache-dependency-path: pipelines/requirements.txt }
+      - run: pip install -r pipelines/requirements.txt
+      - name: Procesar Banco de la Gente
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          BG_DRIVE_FILE_ID: ${{ vars.BG_DRIVE_FILE_ID }}
+          FORZAR: ${{ inputs.forzar && '1' || '' }}
+        run: python pipelines/banco_gente/procesar.py
+      - name: Commit de datos (dispara el deploy en Vercel)
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@users.noreply.github.com"
+          git add data
+          git diff --staged --quiet || (git commit -m "Actualización automática de datos" && git push)
