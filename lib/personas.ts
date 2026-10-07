@@ -1,4 +1,5 @@
 import { neon } from "@neondatabase/serverless";
+import { MAX_EXPORTACION } from "@/lib/personasComun";
 
 /* Acceso a la base de PERSONAS (datos nominales) en Neon. Solo se importa desde el servidor
    (rutas /api y componentes de servidor), siempre después de exigirRol("completo").
@@ -87,7 +88,24 @@ export async function facetas(departamento?: string) {
     distintos("departamento"), departamento ? distintos("localidad", departamento) : Promise.resolve([] as string[]),
     distintos("estado"), distintos("linea"),
   ]);
-  return { departamentos, localidades, estados, lineas };
+  return { departamentos, localidades, estados, lineas, columnas: cols.filter(c => c !== "id" && c !== "busqueda") };
+}
+
+/** Personas que cumplen los filtros, con las columnas pedidas (solo las que existen), para el PDF.
+    Si superan MAX_EXPORTACION no devuelve filas: el llamador pide acotar los filtros. */
+export async function exportarPersonas(f: Filtros, columnas: string[]) {
+  const sql = conexion();
+  if (!sql) throw new Error("sin_base");
+  const cols = await columnasTabla(sql);
+  const elegidas = [...new Set(columnas)].filter(c => c !== "id" && c !== "busqueda" && cols.includes(c));
+  if (!elegidas.length) throw new Error("sin_columnas");
+  const { sql: where, params } = condiciones(f, cols);
+  const total = (await consulta<{ n: number }>(sql, `SELECT count(*)::int AS n FROM personas ${where}`, params))[0]?.n ?? 0;
+  if (total > MAX_EXPORTACION) return { total, columnas: elegidas, filas: [] as Fila[], excede: true };
+  const filas = await consulta<Fila>(sql,
+    `SELECT ${elegidas.map(c => `"${c}"`).join(", ")} FROM personas ${where} ORDER BY nombre NULLS LAST, id LIMIT ${MAX_EXPORTACION}`,
+    params);
+  return { total, columnas: elegidas, filas, excede: false };
 }
 
 /** Ficha completa de una persona (todas las columnas del CSV). */
@@ -100,7 +118,7 @@ export async function ficha(id: number) {
 }
 
 /** Deja constancia de quién consultó qué. Si falla no interrumpe la consulta, y nunca se imprime el contenido. */
-export async function registrarAcceso(usuario: string, rol: string, accion: "busqueda" | "ficha", detalle: unknown, resultados?: number) {
+export async function registrarAcceso(usuario: string, rol: string, accion: "busqueda" | "ficha" | "exportacion", detalle: unknown, resultados?: number) {
   try {
     const sql = conexion();
     if (!sql) return;

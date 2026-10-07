@@ -1,19 +1,16 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { COLUMNAS_TABLA, MAX_EXPORTACION, etiquetaColumna as etiqueta } from "@/lib/personasComun";
 
 /* Vista nominal: listado de personas con filtros y buscador. Los datos se piden a /api/personas, que verifica el
-   rol en el servidor en cada solicitud. No hay exportación: se ve de a 50 por página. */
+   rol en el servidor en cada solicitud. Se ve de a 50 por página y se puede exportar a PDF (hasta 5.000 personas). */
 
 type Fila = Record<string, string | number | null>;
 interface Respuesta { filas: Fila[]; total: number; pagina: number; porPagina: number; columnas: string[] }
-interface Facetas { departamentos: string[]; localidades: string[]; estados: string[]; lineas: string[] }
+interface Facetas { departamentos: string[]; localidades: string[]; estados: string[]; lineas: string[]; columnas?: string[] }
 interface Filtros { q: string; departamento: string; localidad: string; estado: string; linea: string }
 const VACIOS: Filtros = { q: "", departamento: "", localidad: "", estado: "", linea: "" };
 
-const ETIQUETAS: Record<string, string> = {
-  nombre: "Nombre", cuil: "CUIL", nro_doc: "Documento", departamento: "Departamento", localidad: "Localidad", estado: "Estado", linea: "Línea",
-};
-const etiqueta = (c: string) => ETIQUETAS[c] ?? (c.charAt(0).toUpperCase() + c.slice(1).replace(/_/g, " "));
 const miles = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 const dato = (v: string | number | null | undefined) => v === null || v === undefined || v === "" ? "—" : String(v);
 
@@ -27,6 +24,8 @@ export default function VistaPersonas() {
   const [error, setError] = useState<string | null>(null);
   const [ficha, setFicha] = useState<{ id: number; datos: Fila | null; error?: boolean } | null>(null);
   const cerrarRef = useRef<HTMLButtonElement>(null);
+  const [exp, setExp] = useState<{ abierto: boolean; cols: string[]; generando: boolean; error: string | null }>(
+    { abierto: false, cols: COLUMNAS_TABLA, generando: false, error: null });
 
   // Pausa al escribir para no consultar en cada tecla
   useEffect(() => {
@@ -74,6 +73,31 @@ export default function VistaPersonas() {
     window.addEventListener("keydown", esc);
     return () => window.removeEventListener("keydown", esc);
   }, [ficha]);
+
+  const todasCols = fac.columnas?.length ? fac.columnas : COLUMNAS_TABLA;
+  const alternarCol = (c: string) => setExp(e => ({ ...e, cols: e.cols.includes(c) ? e.cols.filter(x => x !== c) : [...e.cols, c] }));
+  const excede = !!datos && datos.total > MAX_EXPORTACION;
+  const exportar = async () => {
+    const cols = todasCols.filter(c => exp.cols.includes(c));
+    if (!cols.length || excede || !datos?.total) return;
+    const p = new URLSearchParams({ columnas: cols.join(",") });
+    (Object.keys(f) as (keyof Filtros)[]).forEach(k => f[k] && p.set(k, f[k]));
+    setExp(e => ({ ...e, generando: true, error: null }));
+    try {
+      const r = await fetch(`/api/personas/exportar?${p}`);
+      if (!r.ok) throw r.status;
+      const url = URL.createObjectURL(await r.blob());
+      const a = document.createElement("a");
+      a.href = url; a.download = `personas-${new Date().toISOString().slice(0, 10)}.pdf`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      setExp(e => ({ ...e, generando: false }));
+    } catch (er) {
+      setExp(e => ({ ...e, generando: false, error: er === 403 ? "No tenés permiso para exportar."
+        : er === 413 ? `Hay más de ${miles(MAX_EXPORTACION)} personas: acotá los filtros.`
+        : er === 503 ? "La base de personas no está disponible todavía." : "No se pudo generar el PDF. Probá de nuevo." }));
+    }
+  };
 
   const paginas = datos ? Math.max(1, Math.ceil(datos.total / datos.porPagina)) : 1;
   const opciones = (vals: string[], actual: string) => (actual && !vals.includes(actual) ? [actual, ...vals] : vals);
@@ -124,7 +148,29 @@ export default function VistaPersonas() {
           <div><h2>Personas</h2>
             <p className="sub">{error ? "—" : datos ? `${miles(datos.total)} ${datos.total === 1 ? "persona" : "personas"}` : "Cargando…"}
               {cargando && datos ? " · actualizando…" : ""}</p></div>
+          <button type="button" className="limpiar" aria-expanded={exp.abierto}
+            onClick={() => setExp(e => ({ ...e, abierto: !e.abierto }))}>Exportar PDF</button>
         </header>
+        {exp.abierto && (
+          <div className="exportar-panel" role="group" aria-label="Exportar a PDF">
+            <p className="sub">Se exportan las personas que cumplen los filtros actuales ({datos ? miles(datos.total) : "…"}). Elegí las columnas:</p>
+            <div className="exportar-cols">
+              <button type="button" className="limpiar" onClick={() => setExp(e => ({ ...e, cols: todasCols }))}>Todas</button>
+              <button type="button" className="limpiar" onClick={() => setExp(e => ({ ...e, cols: COLUMNAS_TABLA.filter(c => todasCols.includes(c)) }))}>Las de la tabla</button>
+              <button type="button" className="limpiar" onClick={() => setExp(e => ({ ...e, cols: [] }))}>Ninguna</button>
+            </div>
+            <ul className="exportar-lista">
+              {todasCols.map(c => (
+                <li key={c}><label><input type="checkbox" checked={exp.cols.includes(c)} onChange={() => alternarCol(c)} /> {etiqueta(c)}</label></li>
+              ))}
+            </ul>
+            {excede && <p className="nota" role="alert">Hay más de {miles(MAX_EXPORTACION)} personas con estos filtros. Acotalos (por ejemplo, elegí una localidad) para exportar.</p>}
+            {exp.error && <p className="nota" role="alert">{exp.error}</p>}
+            <button type="button" className="acto-link" disabled={exp.generando || excede || !exp.cols.length || !datos?.total} onClick={exportar}>
+              {exp.generando ? "Generando…" : "Descargar PDF"}</button>
+            <p className="nota">La exportación queda registrada. El PDF contiene datos personales: usalo solo para tareas del Banco.</p>
+          </div>
+        )}
         {error ? <p className="nota">{error}</p> : datos && datos.filas.length === 0 ? (
           <p className="nota">No hay personas con esos filtros.</p>
         ) : datos && (

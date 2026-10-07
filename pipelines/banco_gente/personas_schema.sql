@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS accesos (
   creado    timestamptz NOT NULL DEFAULT now(),
   usuario   text NOT NULL,
   rol       text NOT NULL,
-  accion    text NOT NULL,          -- 'busqueda' | 'ficha'
+  accion    text NOT NULL,          -- 'busqueda' | 'ficha' | 'exportacion'
   detalle   jsonb,                  -- filtros usados o id de la ficha
   resultados integer
 );
