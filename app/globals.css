@@ -253,3 +253,18 @@ main.dash{width:100%}
 .ficha-persona dl div{display:grid;grid-template-columns:140px 1fr;gap:8px;padding:7px 0;border-bottom:1px solid var(--borde);font-size:14px}
 .ficha-persona dt{color:var(--tx2)}
 .ficha-persona dd{margin:0;overflow-wrap:anywhere}
+.exportar-panel{border-top:1px solid var(--borde,#d9dee7);margin-top:12px;padding-top:12px}
+.exportar-cols{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+.exportar-cols .limpiar{margin-left:0}
+.exportar-lista{list-style:none;margin:0 0 8px;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:4px 12px;font-size:14px}
+.exportar-lista label{display:flex;gap:6px;align-items:center;cursor:pointer}
+.exportar-panel .acto-link:disabled{opacity:.5;cursor:not-allowed}
+.exportar-zonas{list-style:none;margin:8px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:6px 12px}
+.exportar-zonas label{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 10px;border:1px solid var(--borde,#d9dee7);border-radius:8px;cursor:pointer}
+.exportar-zonas label:has(input:checked){background:#eef4fb;border-color:var(--primario)}
+.exportar-zonas .acto-zona{flex:1}
+.exportar-chips{list-style:none;margin:0 0 8px;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.exportar-chips button{font:inherit;font-size:13px;border:1px solid var(--primario);background:#eef4fb;color:var(--primario);border-radius:999px;padding:4px 10px;cursor:pointer}
+.hojas-impresion{display:none}
+.acto-link:disabled{opacity:.5;cursor:not-allowed}
+@media print{body:has(.hojas-impresion) .pie-gob{display:none}.solo-pantalla{display:none!important}.hojas-impresion{display:block}.hoja{break-after:page;page-break-after:always}.hoja:last-child{break-after:auto;page-break-after:auto}}

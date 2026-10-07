@@ -788,6 +788,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado, verPers
         <div className="titulo"><h1>Banco de la Gente</h1><p>Créditos aprobados pendientes de entrega</p></div>
         <div className="actualiz">Datos actualizados el<b>{fmtF(actualizado)}</b></div>
         <Link href="/banco-gente/planificacion" className="acto-link">Planificación de entregas</Link>
+        <Link href="/banco-gente/exportar" className="acto-link">Exportar fichas</Link>
         {verPersonas && <Link href="/banco-gente/personas" className="acto-link">Vista de personas</Link>}
         <form method="post" action="/api/logout"><button className="salir" type="submit">Salir</button></form>
       </div></header>

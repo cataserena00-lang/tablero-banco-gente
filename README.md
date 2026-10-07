@@ -41,7 +41,11 @@ Pantalla `/banco-gente/personas` con todos los créditos (`ESTADOS CREDITOS BG.c
   3. GitHub (Settings > Secrets and variables > Actions): secreto `NEON_DATABASE_URL_CARGA` (conexión del rol `carga`) y, si cambia el archivo, la variable `BG_ESTADOS_FILE_ID`. La cuenta de servicio de Drive debe tener acceso de lectura al CSV.
   4. Vercel: variable `DATABASE_URL_LECTURA` (conexión del rol `lectura`, solo lectura), tipo *sensitive*.
   5. Correr el workflow *Actualizar personas*. Con la opción `solo_encabezado` muestra las columnas del CSV sin cargar nada.
-- **Seguridad:** consultas parametrizadas, 50 filas por página y sin exportación, `Cache-Control: no-store`, y cada búsqueda o ficha queda registrada en la tabla `accesos` (usuario, rol, acción, filtros). El rol `lectura` solo puede leer `personas` e insertar en `accesos`.
+- **Seguridad:** consultas parametrizadas, 50 filas por página, `Cache-Control: no-store`, y cada búsqueda, ficha o exportación queda registrada en la tabla `accesos` (usuario, rol, acción, filtros). El rol `lectura` solo puede leer `personas` e insertar en `accesos`.
+- **Exportar a PDF:** botón «Exportar PDF» en la vista de personas. Exporta las personas que cumplen los filtros actuales, con las columnas que se tildan al exportar, hasta 5.000 por PDF (si hay más pide acotar los filtros). Se genera en el servidor (`/api/personas/exportar`, `lib/pdfPersonas.ts`, solo perfil completo) y queda registrado en `accesos` con acción `exportacion`.
+
+## Exportar fichas (datos agregados, todos los perfiles)
+Pantalla `/banco-gente/exportar` (botón «Exportar fichas» en el tablero): se tildan departamentos, localidades y/o barrios de Córdoba (con buscadores) y se imprime una ficha por zona, más una página de resumen total si hay más de una. Usa la misma ficha de `FichaZona` y el diálogo de impresión del navegador («Guardar como PDF»). El total no cuenta dos veces una zona contenida en otra elegida (`lib/exportarFichas.ts`). Máximo 300 zonas por PDF.
 - **Sin la base configurada** (sin `DATABASE_URL_LECTURA`) la pantalla avisa que no está conectada y la API responde 503.
 
 ## Barrios y circuitos (Capital)
