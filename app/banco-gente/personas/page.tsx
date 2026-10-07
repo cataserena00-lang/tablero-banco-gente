@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { LogoBanco } from "@/components/Marca";
 import VistaPersonas from "@/components/VistaPersonas";
 import { exigirRol } from "@/lib/sesion";
@@ -16,10 +15,9 @@ export default async function Pagina() {
       <header className="top"><div className="wrap">
         <LogoBanco />
         <div className="titulo"><h1>Banco de la Gente</h1><p>Vista de personas · todos los créditos</p></div>
-        <form method="post" action="/api/logout"><button className="salir" type="submit">Salir</button></form>
+        <form method="post" action="/api/logout" className="salir-form"><button className="salir" type="submit">Salir</button></form>
       </div></header>
       <main className="dash"><div className="wrap">
-        <Link href="/banco-gente" className="volver">← Volver al tablero</Link>
         {s ? (
           <>
             <h2 className="vista-titulo">Vista de personas</h2>
