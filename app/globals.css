@@ -234,3 +234,22 @@ main.dash{width:100%}
   .col-prom{display:none}
   .td-loc,.td-loc .enlace-zona{overflow-wrap:anywhere}
 }
+
+/* vista de personas (nominal) */
+.filtros-personas{margin-top:20px}
+.filtro-buscar input{font:inherit;font-size:14px;color:var(--tx);border:1px solid var(--borde);background:#fff;border-radius:8px;padding:8px 10px;min-width:260px;max-width:100%}
+.filtro-sel select:disabled{background:var(--surface);color:var(--tx2)}
+.fila-persona{cursor:pointer}
+.fila-persona:focus-visible{outline:2px solid var(--celeste-osc);outline-offset:-2px}
+.paginacion{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:14px;font-size:14px}
+.paginacion button{font:inherit;font-size:14px;color:var(--tx);background:#fff;border:1px solid var(--borde);border-radius:8px;padding:7px 12px;cursor:pointer}
+.paginacion button:disabled{color:var(--tx2);cursor:default;opacity:.6}
+.ficha-fondo{position:fixed;inset:0;background:rgba(31,41,55,.35);z-index:1000;display:flex;justify-content:flex-end}
+.ficha-persona{background:#fff;width:min(460px,100%);height:100%;overflow:auto;padding:20px 22px;box-shadow:-2px 0 12px rgba(31,41,55,.15)}
+.ficha-persona header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
+.ficha-persona h2{margin:0;font-size:18px}
+.ficha-persona header button{font:inherit;font-size:22px;line-height:1;border:0;background:none;cursor:pointer;color:var(--tx2);padding:0 6px}
+.ficha-persona dl{margin:0}
+.ficha-persona dl div{display:grid;grid-template-columns:140px 1fr;gap:8px;padding:7px 0;border-bottom:1px solid var(--borde);font-size:14px}
+.ficha-persona dt{color:var(--tx2)}
+.ficha-persona dd{margin:0;overflow-wrap:anywhere}

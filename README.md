@@ -31,6 +31,19 @@ Probar el pipeline local: `pip install -r pipelines/requirements.txt && python p
 3. Crear `app/<base>/page.tsx` y una tarjeta en `app/page.tsx`.
 Si una base llega a cientos de MB o necesita consultas dinámicas, esa salida pasa a Vercel Blob o Postgres (Neon) sin cambiar el resto.
 
+## Vista de personas (nominal)
+Pantalla `/banco-gente/personas` con todos los créditos (`ESTADOS CREDITOS BG.csv`), filtros por departamento, localidad, estado y línea, buscador por nombre, CUIL o documento y ficha por persona. Es solo para el perfil **completo**; el rol se verifica en el servidor en cada solicitud (página y `/api/personas*`) y los usuarios `agregado` reciben 403.
+
+- **Dónde viven los datos:** en una base Postgres (Neon), nunca en el repo ni en `data/`. La carga (`pipelines/banco_gente/cargar_personas.py`, workflow *Actualizar personas*) baja el CSV de Drive con la cuenta de servicio y reconstruye la tabla `personas` entera en una tabla de paso que se intercambia al final (la vista no se corta). No imprime filas en los logs.
+- **Puesta en marcha (una sola vez):**
+  1. Crear el proyecto en Neon (región São Paulo) y, desde su consola, los roles `carga` y `lectura`.
+  2. Ejecutar `pipelines/banco_gente/personas_schema.sql` como propietario de la base (extensión de búsqueda, permisos y tabla `accesos`).
+  3. GitHub (Settings > Secrets and variables > Actions): secreto `NEON_DATABASE_URL_CARGA` (conexión del rol `carga`) y, si cambia el archivo, la variable `BG_ESTADOS_FILE_ID`. La cuenta de servicio de Drive debe tener acceso de lectura al CSV.
+  4. Vercel: variable `DATABASE_URL_LECTURA` (conexión del rol `lectura`, solo lectura), tipo *sensitive*.
+  5. Correr el workflow *Actualizar personas*. Con la opción `solo_encabezado` muestra las columnas del CSV sin cargar nada.
+- **Seguridad:** consultas parametrizadas, 50 filas por página y sin exportación, `Cache-Control: no-store`, y cada búsqueda o ficha queda registrada en la tabla `accesos` (usuario, rol, acción, filtros). El rol `lectura` solo puede leer `personas` e insertar en `accesos`.
+- **Sin la base configurada** (sin `DATABASE_URL_LECTURA`) la pantalla avisa que no está conectada y la API responde 503.
+
 ## Barrios y circuitos (Capital)
 El barrio se toma del domicilio (texto posterior al último "-") solo para Córdoba Capital y se concilia con la base oficial `pipelines/banco_gente/barrios_cordoba.xlsx` (hoja "Barrios"):
 

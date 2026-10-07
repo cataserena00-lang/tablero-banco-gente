@@ -4,3 +4,4 @@ pyyaml>=6
 google-api-python-client>=2.120
 google-auth>=2.29
 rapidfuzz>=3.6
+psycopg[binary]>=3.2
