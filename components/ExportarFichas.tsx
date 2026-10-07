@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Cubo, CuboCapital } from "./Tablero";
 import FichaZona, { plural } from "./FichaZona";
-import { LogoBanco } from "./Marca";
+import { CabeceraHoja, LogoBanco, PieHoja } from "./Marca";
 import { fmtF, nombreDep, peso } from "@/lib/formato";
 import { BARRIO_VACIO } from "@/lib/acto";
 import {
@@ -157,15 +157,19 @@ export default function ExportarFichas({ cubo, cuboCap, actualizado }: { cubo: C
         <div className="hojas-impresion">
           {elegidas.length > 1 && (
             <div className="hoja">
+              <CabeceraHoja actualizado={fmtF(actualizado)} />
               <FichaZona ficha={total} titulo="Resumen total" id="ficha-total"
                 sub={`${elegidas.length} zonas seleccionadas`}
                 notas={[`Zonas incluidas: ${nombresResumen}.`, hayRepetidas && "Las zonas contenidas en otra elegida (por ejemplo, una localidad dentro de un departamento) se cuentan una sola vez."]}
                 actualizado={actualizado} />
+              <PieHoja />
             </div>
           )}
           {fichas.map(({ z, ficha }) => (
             <div className="hoja" key={z.clave}>
+              <CabeceraHoja actualizado={fmtF(actualizado)} />
               <FichaZona ficha={ficha} titulo={mostrar(z)} sub={subZona(z)} actualizado={actualizado} id={`ficha-${z.clave.replace(/\W/g, "-")}`} />
+              <PieHoja />
             </div>
           ))}
         </div>

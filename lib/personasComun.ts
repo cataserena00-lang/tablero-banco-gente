@@ -7,7 +7,10 @@ export const COLUMNAS_TABLA = ["nombre", "cuil", "nro_doc", "departamento", "loc
 
 const ETIQUETAS: Record<string, string> = {
   nombre: "Nombre", cuil: "CUIL", nro_doc: "Documento", departamento: "Departamento", localidad: "Localidad", estado: "Estado", linea: "Línea",
-  nro_formulario: "Formulario", ano: "Año", mes: "Mes", solicitudes: "Solicitudes", ultima: "Última solicitud",
+  nro_formulario: "Formulario", monto_prestable: "Monto prestable", plazo_devolucion: "Plazo de devolución",
+  fecha_pago_emitido: "Fecha de pago emitido", fecha_aprobado: "Fecha de aprobación", fecha_pago_banco: "Fecha de pago en banco",
+  valor_cuota: "Valor de la cuota", monto_deuda: "Monto de la deuda", deuda_vencida: "Deuda vencida",
+  fec_ultima_cta_cancelada: "Fecha de la última cuota cancelada", no_ultima_cta_cancelada: "N.º de la última cuota cancelada", monto_recupero: "Monto de recupero", ano: "Año", mes: "Mes", solicitudes: "Solicitudes", ultima: "Última solicitud",
 };
 export const etiquetaColumna = (c: string) => ETIQUETAS[c] ?? (c.charAt(0).toUpperCase() + c.slice(1).replace(/_/g, " "));
 

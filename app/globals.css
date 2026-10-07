@@ -284,3 +284,20 @@ main.dash{width:100%}
 .hojas-impresion{display:none}
 .acto-link:disabled{opacity:.5;cursor:not-allowed}
 @media print{body:has(.hojas-impresion) .pie-gob{display:none}.solo-pantalla{display:none!important}.hojas-impresion{display:block}.hoja{break-after:page;page-break-after:always}.hoja:last-child{break-after:auto;page-break-after:auto}}
+/* Hojas impresas de las fichas: cabecera con logo del Banco y pie con la marca de Gobierno (solo al imprimir) */
+.hoja-cab{margin-bottom:14px}
+.hoja-cab .franja{height:5px;margin-bottom:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.hoja-cab-fila{display:flex;align-items:center;gap:14px}
+.hoja-cab-fila .logo-banco{height:52px}
+.hoja-cab-fila b{display:block;font-size:16px;font-weight:700;color:var(--primario)}
+.hoja-cab-fila span{font-size:11px;color:var(--tx2)}
+.hoja-pie{display:flex;align-items:center;gap:12px;margin-top:18px;padding-top:8px;border-top:1px solid var(--dorado);font-size:10px;color:var(--tx2)}
+.hoja-pie img{height:22px;width:auto}
+/* En la hoja impresa la ficha se compacta para que cada zona entre en una página A4 */
+.hoja .card{margin:0;padding:14px 16px;break-inside:auto}
+.hoja .acto-ficha .kpis{gap:8px;margin-bottom:8px}
+.hoja .acto-ficha .kpi{padding:8px 12px}
+.hoja .acto-ficha .tabla-detalle th,.hoja .acto-ficha .tabla-detalle td{padding:5px 8px}
+.hoja .acto-ficha .acto-sub{margin:12px 0 4px}
+.hoja-cab-fila .logo-banco{height:44px}
+.hoja-cab{margin-bottom:10px}
