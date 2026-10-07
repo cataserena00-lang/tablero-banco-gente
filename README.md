@@ -16,7 +16,7 @@ Drive (.xlsx) ─► GitHub Actions (semanal) ─► pipelines/<base>/procesar.p
    - `DASHBOARD_USERS` = `usuario:hash,otro:hash`. Cada hash se genera con
      `AUTH_SECRET=<el mismo secreto> npm run hash -- "la clave"`.
    - Opcional: `DASHBOARD_USERS_EXTRA` = más usuarios (mismo formato `usuario:hash`). Acepta hashes que no dependen de
-     `AUTH_SECRET`, generados con `node scripts/hash-password.mjs --pbkdf2 "la clave"` (queda `usuario:pbkdf2$...`).
+     `AUTH_SECRET`, generados con `node scripts/hash-password.mjs --pbkdf2 "la clave"` (queda `usuario:pbkdf2.100000.sal.hash`; se evita el `$` porque algunas herramientas lo interpretan como variable).
      Sirve para sumar un usuario sin tener que volver a escribir `DASHBOARD_USERS` (en Vercel las variables
      *sensitive* no se pueden leer). Después de cambiar variables hay que volver a desplegar.
    - Al iniciar sesión se entra directo a `/banco-gente`.
