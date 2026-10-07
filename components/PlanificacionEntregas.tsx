@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import type { Cubo, CuboCapital } from "./Tablero";
 import FichaZona, { plural } from "./FichaZona";
+import { LogoBanco } from "./Marca";
 import { fmtF, miles, nombreDep, peso } from "@/lib/formato";
 import {
   BARRIO_VACIO, fichaBarrio, fichaLocalidad, fichaSinAsignar, notaBarrio, subBarrio,
@@ -74,7 +75,7 @@ export default function PlanificacionEntregas({ cubo, cuboCap, actualizado }: {
     <>
       <div className="franja" />
       <header className="top"><div className="wrap">
-        <div className="logo" role="img" aria-label="Espacio reservado para el logo">Espacio para logo<br />Gobierno de Córdoba</div>
+        <LogoBanco />
         <div className="titulo"><h1>Banco de la Gente</h1><p>Planificación de entregas · créditos aprobados pendientes de entrega</p></div>
         <div className="actualiz">Datos actualizados el<b>{fmtF(actualizado)}</b></div>
         <form method="post" action="/api/logout"><button className="salir" type="submit">Salir</button></form>

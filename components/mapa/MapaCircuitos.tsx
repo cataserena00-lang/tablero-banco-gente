@@ -28,7 +28,7 @@ const ATRIBUCION = process.env.NEXT_PUBLIC_TILES_ATTRIBUTION ||
   '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors';
 
 // Mismos colores que app/globals.css (Leaflet necesita valores literales)
-const BORDE = "#FFFFFF", PRIMARIO = "#C0183A", GRIS = "#E5E7EB";
+const BORDE = "#FFFFFF", PRIMARIO = "#BC1734", GRIS = "#E5E7EB";
 const OPACIDAD_RELLENO = 0.65;
 
 type Capa = L.Polygon & { feature: { properties: { codigo: string } } };
