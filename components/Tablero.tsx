@@ -1,5 +1,9 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import FichaZona, { plural } from "./FichaZona";
+import { fmtF, miles, nombreDep, nombreLinea, peso } from "@/lib/formato";
+import { BARRIO_VACIO, fichaBarrio, fichaDepartamento, fichaLocalidad, notaBarrio, subBarrio, zonasInterior } from "@/lib/acto";
 import MapaCircuitosCarga from "./mapa/MapaCircuitosCarga";
 import type { CircuitosGeo, InfoCircuito } from "./mapa/MapaCircuitos";
 
@@ -34,24 +38,6 @@ type Met = "n" | "m";
 
 /* ── Helpers ── */
 const MESES = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"];
-const TILDES: Record<string,string> = {
-  "COLON":"Colón","RIO CUARTO":"Río Cuarto","RIO PRIMERO":"Río Primero",
-  "RIO SECO":"Río Seco","RIO SEGUNDO":"Río Segundo","JUAREZ CELMAN":"Juárez Celman",
-  "MARCOS JUAREZ":"Marcos Juárez","ISCHILIN":"Ischilín",
-  "GENERAL SAN MARTIN":"General San Martín","UNION":"Unión",
-  "PRESIDENTE ROQUE SAENZ PENA":"Presidente Roque Sáenz Peña",
-  "SANTA MARIA":"Santa María","CORDOBA":"Córdoba",
-  "SIN ASIGNAR":"Sin asignar","SIN DATO":"Sin dato",
-};
-function nombreDep(s: string) {
-  return TILDES[s] || s.toLowerCase()
-    .replace(/(^|[\s])(\p{L})/gu, (_, a, b) => a + b.toUpperCase())
-    .replace(/ De | Del /g, x => x.toLowerCase());
-}
-const miles = (n: number) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-const peso = (n: number) => "$ " + miles(n);
-const fmtF = (iso: string) => iso.slice(8,10)+"/"+iso.slice(5,7)+"/"+iso.slice(0,4);
-
 function sumaMeses(iso: string, k: number) {
   let y = +iso.slice(0,4), m = +iso.slice(5,7)-1+k;
   y += Math.floor(m/12); m = ((m%12)+12)%12;
@@ -68,17 +54,6 @@ function colorMapa(v: number, max: number) {
   const hex = (c: string) => [1,3,5].map(j => parseInt(c.slice(j,j+2),16));
   const a = hex(ESC[i]), b = hex(ESC[Math.min(i+1, ESC.length-1)]);
   return "rgb("+a.map((x,j) => Math.round(x+(b[j]-x)*frac)).join(",")+")";
-}
-
-function nombreLinea(s: string) {
-  const map: Record<string,string> = {
-    "LIBRE DISPONIBILIDAD": "Libre Disponibilidad",
-    "POTENCIAR EMPRENDIMIENTO": "Potenciar Emprendimiento",
-    "PE": "PE",
-    "L2": "L2",
-    "L4.": "L4",
-  };
-  return map[s] || s;
 }
 
 /* ── Componente principal ── */
@@ -99,7 +74,8 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
   const [metC, setMetC] = useState<Met>("m");
   const [circSel, setCircSel] = useState<string|null>(null);
   const [catBarrio, setCatBarrio] = useState<CatBarrio>("todos");
-  const [locSel, setLocSel] = useState<string|null>(null);   // filtro de localidad (departamentos que no son Capital)
+  const [locFicha, setLocFicha] = useState<number|null>(null);       // ficha de localidad abierta (índice en cubo.loc)
+  const [barrioFicha, setBarrioFicha] = useState<number|null>(null); // ficha de barrio abierta (índice en cuboCap.bar)
 
   const chartRef = useRef<HTMLDivElement>(null);
   const tipGRef = useRef<HTMLDivElement>(null);
@@ -109,12 +85,12 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
 
   /* Navegación */
   const irADep = useCallback((nombre: string) => {
-    setDep(nombre); setLocSel(null);
+    setDep(nombre); setLocFicha(null); setBarrioFicha(null);
     if (nombre === "CAPITAL") setVista("barrios");
     else setVista("localidades");
   }, []);
   const irAPanorama = useCallback(() => {
-    setVista("panorama"); setDep(null); setBusqBarrio(""); setCircSel(null); setCatBarrio("todos"); setLocSel(null);
+    setVista("panorama"); setDep(null); setBusqBarrio(""); setCircSel(null); setCatBarrio("todos"); setLocFicha(null); setBarrioFicha(null);
   }, []);
 
   /* Al cambiar de vista: arriba de todo y foco en el título (no en la primera carga).
@@ -124,7 +100,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
     const quieto = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     window.scrollTo({ top: 0, behavior: quieto ? "auto" : "smooth" });
     tituloRef.current?.focus({ preventScroll: true });
-  }, [vista]);
+  }, [vista, locFicha, barrioFicha]);
 
   /* Atajo de fecha */
   const aplicarAtajo = useCallback((k: string) => {
@@ -215,47 +191,20 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
     }), { n: 0, m: 0 }),
   [porDep]);
 
-  /* ── Datos vista Localidades (para un departamento seleccionado) ── */
-  const localidadesDep = useMemo(() => {
-    if (vista !== "localidades" || !dep) return [];
-    const depIdx = cubo.dep.indexOf(dep);
-    if (depIdx < 0) return [];
-    const filtrado = filas.filter(r => r[1] === depIdx);
-    // Agrupar por localidad, con desglose por línea
-    const porLoc: Record<string, { n: number; m: number; lineas: Record<string, { n: number; m: number }> }> = {};
-    for (const r of filtrado) {
-      const loc = cubo.loc[r[2]];
-      const pl = porLoc[loc] ??= { n: 0, m: 0, lineas: {} };
-      pl.n += r[4]; pl.m += r[5];
-      const lin = cubo.lin[r[3]];
-      const ll = pl.lineas[lin] ??= { n: 0, m: 0 };
-      ll.n += r[4]; ll.m += r[5];
-    }
-    return Object.entries(porLoc)
-      .map(([loc, v]) => ({
-        loc, ...v,
-        lineasArr: Object.entries(v.lineas).sort((a,b) => b[1].m - a[1].m),
-      }))
-      .sort((a,b) => b.m - a.m);
-  }, [vista, dep, filas, cubo]);
-
-  // Con el filtro de localidad activo la tabla y los indicadores muestran solo esa localidad
-  const datosLocalidades = useMemo(
-    () => locSel ? localidadesDep.filter(r => r.loc === locSel) : localidadesDep,
-    [localidadesDep, locSel]);
-
-  const totDep = useMemo(() => {
-    if (!dep) return { n: 0, m: 0 };
-    if (locSel) return datosLocalidades.reduce((a, r) => ({ n: a.n + r.n, m: a.m + r.m }), { n: 0, m: 0 });
-    return porDep[dep] || { n: 0, m: 0 };
-  }, [dep, porDep, locSel, datosLocalidades]);
-
-  // Opciones del select de localidad (alfabéticas); la elegida se mantiene aunque las fechas la dejen sin datos
-  const opcionesLocalidad = useMemo(() => {
-    const l = localidadesDep.map(r => ({ loc: r.loc, n: r.n }));
-    if (locSel && !l.some(x => x.loc === locSel)) l.push({ loc: locSel, n: 0 });
-    return l.sort((a, b) => nombreDep(a.loc).localeCompare(nombreDep(b.loc), "es"));
-  }, [localidadesDep, locSel]);
+  /* ── Vista departamento (ficha): siempre sobre todo el stock, sin filtro de fecha ── */
+  const depIdx = dep ? cubo.dep.indexOf(dep) : -1;
+  const zonasLoc = useMemo(
+    () => depIdx < 0 ? [] : zonasInterior(cubo).filter(z => z.dep === depIdx),
+    [cubo, depIdx]);
+  const fichaDep = useMemo(() => depIdx < 0 ? null : fichaDepartamento(cubo, depIdx), [cubo, depIdx]);
+  const fichaLoc = useMemo(
+    () => depIdx < 0 || locFicha === null ? null : fichaLocalidad(cubo, depIdx, locFicha),
+    [cubo, depIdx, locFicha]);
+  const fichaBar = useMemo(() => barrioFicha === null ? null : fichaBarrio(cuboCap, barrioFicha), [cuboCap, barrioFicha]);
+  const idxBarrio = useMemo(() => new Map(cuboCap.bar.map((b, i) => [b, i] as [string, number])), [cuboCap]);
+  const abrirBarrio = useCallback((b: string) => { const i = idxBarrio.get(b); if (i !== undefined) setBarrioFicha(i); }, [idxBarrio]);
+  const avisoFiltro = (desde !== F0 || hasta !== F1 || mes) ? "El filtro de fecha del resumen no se aplica a la ficha." : null;
+  const enFicha = vista === "localidades" || (vista === "barrios" && barrioFicha !== null);
 
   /* ── Circuitos (Capital): código de circuito de un barrio, o null si no tiene ── */
   const codigoCircuito = useCallback((barIdx: number) => {
@@ -356,7 +305,6 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
   }
   if (catBarrio !== "todos" && vista === "barrios")
     chips.push({ label: catBarrio === "sin" ? "Barrio: sin barrio (dato vacío)" : "Barrio: solo con barrio", clear: () => setCatBarrio("todos") });
-  if (locSel && vista === "localidades") chips.push({ label: `Localidad: ${nombreDep(locSel)}`, clear: () => setLocSel(null) });
   if (dep && vista === "panorama") chips.push({ label: `Departamento: ${nombreDep(dep)}`, clear: () => setDep(null) });
 
   /* ── SVG Gráfico ── */
@@ -433,7 +381,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
           }} /></div>
         </div>
         <button className="limpiar" type="button" style={{visibility: chips.length ? "visible":"hidden"}}
-          onClick={() => { if (vista === "panorama") setDep(null); setCircSel(null); setCatBarrio("todos"); setLocSel(null); aplicarAtajo("todo"); }}>Limpiar filtros</button>
+          onClick={() => { if (vista === "panorama") setDep(null); setCircSel(null); setCatBarrio("todos"); aplicarAtajo("todo"); }}>Limpiar filtros</button>
       </section>
       {chips.length > 0 && (
         <div className="chips" aria-live="polite">
@@ -448,23 +396,42 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
   );
 
   /* ── Breadcrumb ── */
+  const nombreBarrioFicha = barrioFicha === null ? null : cuboCap.bar[barrioFicha] === "" ? BARRIO_VACIO : nombreDep(cuboCap.bar[barrioFicha]);
+  const nombreLocFicha = locFicha === null ? null : nombreDep(cubo.loc[locFicha]);
+  const Sep = () => <span className="bc-sep">›</span>;
   const breadcrumb = vista !== "panorama" ? (
     <nav className="breadcrumb" aria-label="Navegación">
       <button type="button" onClick={irAPanorama}>Córdoba</button>
-      <span className="bc-sep">›</span>
-      <span className="bc-current">{vista === "barrios" ? "Capital – Barrios" : nombreDep(dep!)}</span>
+      <Sep />
+      {vista === "barrios" ? (
+        barrioFicha !== null ? (
+          <><button type="button" onClick={() => setBarrioFicha(null)}>Capital – Barrios</button><Sep />
+            <span className="bc-current">{nombreBarrioFicha}</span></>
+        ) : <span className="bc-current">Capital – Barrios</span>
+      ) : (
+        locFicha !== null ? (
+          <><button type="button" onClick={() => setLocFicha(null)}>{nombreDep(dep!)}</button><Sep />
+            <span className="bc-current">{nombreLocFicha}</span></>
+        ) : <span className="bc-current">{nombreDep(dep!)}</span>
+      )}
     </nav>
   ) : null;
 
-  /* ── Volver (vistas de detalle) y título de vista (recibe el foco al navegar) ── */
+  /* ── Volver (vistas de detalle) y título de vista (recibe el foco al navegar).
+        En las fichas el foco va al nombre de la zona (ver FichaZona). ── */
+  const volver = vista === "barrios" && barrioFicha !== null
+    ? { txt: "Volver a los barrios de Capital", fn: () => setBarrioFicha(null) }
+    : vista === "localidades" && locFicha !== null
+      ? { txt: `Volver a ${nombreDep(dep!)}`, fn: () => setLocFicha(null) }
+      : { txt: "Volver al resumen general", fn: irAPanorama };
   const botonVolver = vista !== "panorama" ? (
-    <button type="button" className="volver" onClick={irAPanorama}>
-      <span aria-hidden="true">←</span> Volver al resumen general
+    <button type="button" className="volver" onClick={volver.fn}>
+      <span aria-hidden="true">←</span> {volver.txt}
     </button>
   ) : null;
   const tituloVista = (
     <h2 className="vista-titulo" ref={tituloRef} tabIndex={-1}>
-      {vista === "panorama" ? "Resumen general" : vista === "barrios" ? "Capital – Barrios y circuitos" : `Departamento ${nombreDep(dep!)}`}
+      {vista === "panorama" ? "Resumen general" : "Capital – Barrios y circuitos"}
     </h2>
   );
 
@@ -627,37 +594,21 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
   /* ════════════════════════════════════════════════════════════════
      VISTA: LOCALIDADES (detalle de un departamento)
      ════════════════════════════════════════════════════════════════ */
-  const vistaLocalidades = dep ? (
-    <>
-      {/* KPIs del departamento */}
-      <section className="kpis kpis-3" aria-label="Indicadores del departamento" style={{marginTop:20}}>
-        <div className="kpi"><span>Créditos en {nombreDep(dep)}</span><b>{miles(totDep.n)}</b></div>
-        <div className="kpi dest"><span>Monto total</span><b>{peso(totDep.m)}</b></div>
-        <div className="kpi"><span>Localidades</span><b>{miles(datosLocalidades.length)}</b></div>
-      </section>
+  const vistaLocalidades = dep && fichaDep ? (
+    locFicha !== null && fichaLoc ? (
+      <FichaZona ficha={fichaLoc} titulo={nombreLocFicha!} sub={`Localidad · Departamento ${nombreDep(dep)}`}
+        notas={[avisoFiltro]} actualizado={actualizado} titleRef={tituloRef} />
+    ) : (
+      <>
+        <FichaZona ficha={fichaDep} titulo={nombreDep(dep)} sub={`Departamento · ${plural(zonasLoc.length, "localidad", "localidades")}`}
+          notas={[avisoFiltro]} actualizado={actualizado} titleRef={tituloRef} />
 
-      {/* Filtro de localidad */}
-      <section className="filtros filtros-capital" aria-label="Filtro de localidad" style={{marginTop:20}}>
-        <div className="filtro-sel">
-          <label htmlFor="f-localidad">Localidad</label>
-          <select id="f-localidad" value={locSel ?? ""} onChange={e => setLocSel(e.target.value || null)}>
-            <option value="">Todas las localidades ({miles(localidadesDep.length)})</option>
-            {opcionesLocalidad.map(o => (
-              <option key={o.loc} value={o.loc}>{nombreDep(o.loc)} ({miles(o.n)})</option>
-            ))}
-          </select>
-        </div>
-      </section>
-
-      {/* Tabla de localidades */}
-      <section className="card" style={{marginTop:20}}>
-        <header>
-          <div><h2>Localidades de {nombreDep(dep)}</h2>
-            <p className="sub">{datosLocalidades.length} {datosLocalidades.length === 1 ? "localidad" : "localidades"} · ordenadas por monto</p></div>
-        </header>
-        {datosLocalidades.length === 0 ? (
-          <p className="nota">No hay datos para este departamento en el rango de fechas seleccionado.</p>
-        ) : (
+        {/* Localidades del departamento */}
+        <section className="card" style={{marginTop:20}}>
+          <header>
+            <div><h2>Localidades de {nombreDep(dep)}</h2>
+              <p className="sub">{plural(zonasLoc.length, "localidad", "localidades")} · ordenadas por cantidad de créditos · elegí una para ver su ficha</p></div>
+          </header>
           <div className="tabla-detalle">
             <table>
               <thead>
@@ -666,52 +617,55 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
                   <th className="th-num">Créditos</th>
                   <th className="th-num">Monto</th>
                   <th className="th-num">Promedio</th>
-                  <th className="th-lineas">Desglose por línea</th>
+                  <th className="th-lineas th-num">Aprobación más antigua</th>
                 </tr>
               </thead>
               <tbody>
-                {datosLocalidades.map(row => (
-                  <tr key={row.loc}>
-                    <td className="td-loc">{nombreDep(row.loc)}</td>
-                    <td className="td-num">{miles(row.n)}</td>
-                    <td className="td-num">{peso(row.m)}</td>
-                    <td className="td-num">{row.n ? peso(row.m / row.n) : "—"}</td>
-                    <td className="td-lineas"><LineaDesglose lineasArr={row.lineasArr} /></td>
+                {zonasLoc.map(z => (
+                  <tr key={z.loc}>
+                    <td className="td-loc"><button type="button" className="enlace-zona" onClick={() => setLocFicha(z.loc)}>{nombreDep(z.nombre)}</button></td>
+                    <td className="td-num">{miles(z.n)}</td>
+                    <td className="td-num">{peso(z.m)}</td>
+                    <td className="td-num">{z.n ? peso(z.m / z.n) : "—"}</td>
+                    <td className="td-lineas td-num">{fmtF(z.masAntigua)}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot>
                 <tr>
                   <td className="td-loc"><b>Total</b></td>
-                  <td className="td-num"><b>{miles(totDep.n)}</b></td>
-                  <td className="td-num"><b>{peso(totDep.m)}</b></td>
-                  <td className="td-num"><b>{totDep.n ? peso(totDep.m / totDep.n) : "—"}</b></td>
-                  <td></td>
+                  <td className="td-num"><b>{miles(fichaDep.n)}</b></td>
+                  <td className="td-num"><b>{peso(fichaDep.m)}</b></td>
+                  <td className="td-num"><b>{fichaDep.n ? peso(fichaDep.m / fichaDep.n) : "—"}</b></td>
+                  <td className="td-lineas"></td>
                 </tr>
               </tfoot>
             </table>
           </div>
-        )}
-      </section>
-    </>
+        </section>
+      </>
+    )
   ) : null;
 
   /* ════════════════════════════════════════════════════════════════
      VISTA: BARRIOS (Capital)
      ════════════════════════════════════════════════════════════════ */
-  const vistaBarrios = (
+  const listaBarrios = (
     <>
       {/* KPIs de Capital */}
       <section className="kpis kpis-4" aria-label="Indicadores de Capital" style={{marginTop:20}}>
         <div className="kpi"><span>Créditos en Capital</span><b>{miles(totCapital.n)}</b></div>
         <div className="kpi dest"><span>Monto total</span><b>{peso(totCapital.m)}</b></div>
         <div className="kpi"><span>Barrios</span><b>{miles(datosBarrios.filter(x => x.bar).length)}</b></div>
-        <button type="button" className="kpi kpi-btn" aria-pressed={catBarrio === "sin"}
-          onClick={() => setCatBarrio(c => c === "sin" ? "todos" : "sin")}>
+        <div className="kpi">
           <span>Sin barrio (dato vacío)</span><b>{miles(sinBarrio.n)}</b>
           <small>{totCapFechas.n ? `${(100 * sinBarrio.n / totCapFechas.n).toLocaleString("es-AR", { maximumFractionDigits: 1 })} % de Capital` : "—"} · {peso(sinBarrio.m)}</small>
-          <small className="kpi-accion">{catBarrio === "sin" ? "Quitar filtro" : "Ver solo estos"}</small>
-        </button>
+          <small className="kpi-acciones">
+            <button type="button" className="enlace-zona" aria-pressed={catBarrio === "sin"}
+              onClick={() => setCatBarrio(c => c === "sin" ? "todos" : "sin")}>{catBarrio === "sin" ? "Quitar filtro" : "Ver solo estos"}</button>
+            <button type="button" className="enlace-zona" onClick={() => abrirBarrio("")}>Ver ficha de zona</button>
+          </small>
+        </div>
       </section>
 
       {/* Filtros de Capital: circuito y categoría de barrio */}
@@ -795,7 +749,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
               <tbody>
                 {datosBarrios.map(row => (
                   <tr key={row.bar}>
-                    <td className="td-loc">{row.bar ? nombreDep(row.bar) : <em className="sin-barrio">Sin barrio (dato vacío)</em>}</td>
+                    <td className="td-loc"><button type="button" className="enlace-zona" onClick={() => abrirBarrio(row.bar)}>{row.bar ? nombreDep(row.bar) : <em className="sin-barrio">Sin barrio (dato vacío)</em>}</button></td>
                     <td className="td-num">{miles(row.n)}</td>
                     <td className="td-num">{peso(row.m)}</td>
                     <td className="td-num">{row.n ? peso(row.m / row.n) : "—"}</td>
@@ -818,6 +772,10 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
       </section>
     </>
   );
+  const vistaBarrios = barrioFicha !== null && fichaBar ? (
+    <FichaZona ficha={fichaBar} titulo={nombreBarrioFicha!} sub={subBarrio(cuboCap, barrioFicha)}
+      notas={[notaBarrio(cuboCap.bar[barrioFicha]), avisoFiltro]} actualizado={actualizado} titleRef={tituloRef} />
+  ) : listaBarrios;
 
   /* ── RENDER ── */
   return (
@@ -827,14 +785,15 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
         <div className="logo" role="img" aria-label="Espacio reservado para el logo">Espacio para logo<br/>Gobierno de Córdoba</div>
         <div className="titulo"><h1>Banco de la Gente</h1><p>Créditos aprobados pendientes de entrega</p></div>
         <div className="actualiz">Datos actualizados el<b>{fmtF(actualizado)}</b></div>
+        <Link href="/banco-gente/planificacion" className="acto-link">Planificación de entregas</Link>
         <form method="post" action="/api/logout"><button className="salir" type="submit">Salir</button></form>
       </div></header>
 
       <main className="dash"><div className="wrap">
         {botonVolver}
-        {filtrosUI}
+        {!enFicha && filtrosUI}
         {breadcrumb}
-        {tituloVista}
+        {!enFicha && tituloVista}
         {vista === "panorama" && vistaPanorama}
         {vista === "localidades" && vistaLocalidades}
         {vista === "barrios" && vistaBarrios}
