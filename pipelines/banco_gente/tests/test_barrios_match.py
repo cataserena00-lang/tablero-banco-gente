@@ -1,148 +1,148 @@
 import sys
 from pathlib import Path
 
+import openpyxl
 import pytest
 
 AQUI = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(AQUI))
 
-from barrios_match import (BaseBarrios, RegistroBase, cargar_alias, conciliar, conciliar_uno,  # noqa: E402
-                           filas_revisar, normalizar, resumen)
+import depurar_barrios as dep  # noqa: E402
+from barrios_match import Conciliador, filas_revisar, resumen, texto_resumen  # noqa: E402
+
+CABECERA = ["ID barrio", "Barrio", "Tipo de barrio", "Circuito principal"]
+OF, NO = "BarrioOficial", "BarrioNoOficial"
+FILAS = [
+    (1, "ALBERDI", OF, "0003 - SECCIONAL TERCERA"),
+    (2, "VILLA ALBERDI", OF, "011K - VILLA GRAL URQUIZA"),
+    (3, "ALTO ALBERDI", OF, "011A - ALTO ALBERDI"),
+    (4, "BETANIA", OF, "0012 - AVELLANEDA"),            # repetido: oficial en 0012...
+    (5, "BETANIA", NO, "005I - COLINAS DEL SUR"),        # ...y no oficial en otro circuito
+    (6, "COLONIA LOLA", OF, "005A - COLONIA LOLA"),
+    (7, "COLONIA LOLA", NO, "005F - RENACIMIENTO"),
+    (8, "LAS DELICIAS", OF, "011L - COUNTRYS DEL OESTE"),  # dos oficiales con circuitos distintos
+    (9, "LAS DELICIAS", OF, "0011 - AERONAUTICO"),
+    (10, "GENERAL SAVIO", NO, "013J - VILLA AZALAIS"),    # repetido, mismo circuito
+    (11, "GENERAL SAVIO", OF, "013J - VILLA AZALAIS"),
+    (12, "20 DE JUNIO", OF, "013C - LAS PALMAS"),
+    (13, "SANTA ISABEL 1A SECCION", OF, "010J - SANTA ISABEL"),
+    (14, "SANTA ISABEL 2A SECCION", OF, "010J - SANTA ISABEL"),
+    (15, "GENERAL PAZ", OF, "006C - GENERAL PAZ"),
+    (16, "VILLA ESQUIU", OF, "013I - ESQUIU"),
+    (17, "GENERAL PUEYRREDON", OF, "008B - PUEYRREDON"),
+    (18, "SD", OF, None),                                  # se ignora
+]
 
 
-def reg(i, barrio, codigo, oficial=True, circuito="X"):
-    return RegistroBase(i, barrio, oficial, codigo, circuito)
+@pytest.fixture(scope="module")
+def conc(tmp_path_factory):
+    d = tmp_path_factory.mktemp("barrios")
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Barrios"
+    ws.append(CABECERA)
+    for f in FILAS:
+        ws.append(list(f))
+    # depurar_barrios valida que todos sus ALIAS apunten a un barrio de la lista: se agregan los que faltan
+    existentes = {f[1] for f in FILAS}
+    for i, b in enumerate(sorted(set(dep.ALIAS.values()) - existentes), start=100):
+        ws.append([i, b, OF, "999Z - DE RELLENO"])
+    xlsx = d / "barrios.xlsx"
+    wb.save(xlsx)
+    csv = d / "alias.csv"
+    csv.write_text("variante,barrio\nSAVIO GRAL,GENERAL SAVIO\nXX,BARRIO NUEVO\nALBERDI VIEJO,VILLA ALBERDI\n",
+                   encoding="utf-8")
+    return Conciliador(xlsx, csv)
 
 
-@pytest.fixture
-def base():
-    return BaseBarrios([
-        reg(1, "ALBERDI", "0003", circuito="SECCIONAL TERCERA"),
-        reg(2, "VILLA ALBERDI", "011K"),
-        reg(3, "ALTO ALBERDI", "011A"),
-        reg(4, "BETANIA", "0012", True),            # repetido: oficial en 0012...
-        reg(5, "BETANIA", "005I", False),           # ...y no oficial en otro circuito
-        reg(6, "COLONIA LOLA", "005A", True),
-        reg(7, "COLONIA LOLA", "005F", False),
-        reg(8, "LAS DELICIAS", "011L", True),       # dos oficiales en circuitos distintos
-        reg(9, "LAS DELICIAS", "0011", True),
-        reg(10, "GENERAL SAVIO", "013J", False),    # repetido, mismo circuito
-        reg(11, "GENERAL SAVIO", "013J", True),
-        reg(12, "20 DE JUNIO", "013C"),
-        reg(13, "SANTA ISABEL 1A SECCION", "010J"),
-        reg(14, "SANTA ISABEL 2A SECCION", "010J"),
-        reg(15, "TALLERES ESTE", "0013"),
-        reg(16, "TALLERES OESTE", "0013"),
-        reg(17, "GENERAL PAZ", "006C"),
-        reg(18, "VILLA ESQUIU", "013I"),
-    ])
-
-
-def test_normalizar():
-    assert normalizar("B° Alberdí.") == "B ALBERDI"
-    assert normalizar("  1RO. DE   MAYO ") == "1RO DE MAYO"
-    assert normalizar(None) == ""
-
-
-@pytest.mark.parametrize("crudo,barrio,circuito,metodo", [
-    ("ALBERDI", "ALBERDI", "0003", "exacto"),
-    ("alberdi", "ALBERDI", "0003", "exacto"),
-    ("VILLA ALBERDI", "VILLA ALBERDI", "011K", "exacto"),      # el nombre con prefijo oficial gana
-    ("ALTO ALBERDI", "ALTO ALBERDI", "011A", "exacto"),
-    ("ALBERDI I", "ALBERDI", "0003", "limpieza"),
-    ("ALBERDI 2", "ALBERDI", "0003", "limpieza"),
-    ("B° ALBERDI", "ALBERDI", "0003", "limpieza"),
-    ("BARRIO ALBERDI", "ALBERDI", "0003", "limpieza"),
-    ("B° VILLA ALBERDI", "VILLA ALBERDI", "011K", "limpieza"),  # no pierde el VILLA
-    ("VILLA ALBERDI II", "VILLA ALBERDI", "011K", "limpieza"),
-    ("VILLA ESQUIU", "VILLA ESQUIU", "013I", "exacto"),
-    ("ESQUIU", None, None, "sin_clasificar"),                   # no se agrega VILLA por su cuenta
+@pytest.mark.parametrize("crudo,barrio,circuito", [
+    ("ALBERDI", "ALBERDI", "0003"),
+    ("alberdi", "ALBERDI", "0003"),
+    ("VILLA ALBERDI", "VILLA ALBERDI", "011K"),     # el nombre con prefijo oficial gana
+    ("ALTO ALBERDI", "ALTO ALBERDI", "011A"),
+    ("ALBERDI I", "ALBERDI", "0003"),
+    ("ALBERDI 2", "ALBERDI", "0003"),
+    ("B° ALBERDI", "ALBERDI", "0003"),
+    ("BARRIO ALBERDI", "ALBERDI", "0003"),
+    ("B° VILLA ALBERDI", "VILLA ALBERDI", "011K"),  # no pierde el VILLA
+    ("GRAL PAZ", "GENERAL PAZ", "006C"),
+    ("PUEYRREDON", "GENERAL PUEYRREDON", "008B"),   # alias interno de depurar_barrios
+    ("ESQUIU", "VILLA ESQUIU", "013I"),             # sobra/falta VILLA
+    ("VILA ESQUIU", "VILLA ESQUIU", "013I"),        # error de tipeo (aproximado)
 ])
-def test_alberdi_y_prefijos(base, crudo, barrio, circuito, metodo):
-    m = conciliar_uno(crudo, base, {})
-    assert (m.barrio_oficial, m.codigo_circuito, m.metodo) == (barrio, circuito, metodo)
+def test_asigna_barrio_y_circuito(conc, crudo, barrio, circuito):
+    m = conc.conciliar_uno(crudo)
+    assert (m.barrio_oficial, m.codigo_circuito) == (barrio, circuito)
 
 
-def test_villa_se_descarta_solo_como_ultimo_recurso(base):
-    m = conciliar_uno("VILLA GENERAL PAZ", base, {})
-    assert (m.barrio_oficial, m.metodo) == ("GENERAL PAZ", "limpieza")
-    assert m.confianza < 0.9 and m.dudoso
+def test_repetidos_prefiere_oficial(conc):
+    assert conc.conciliar_uno("BETANIA").codigo_circuito == "0012"
+    assert conc.conciliar_uno("COLONIA LOLA").codigo_circuito == "005A"
 
 
-def test_repetido_prefiere_oficial(base):
-    m = conciliar_uno("BETANIA", base, {})
-    assert (m.codigo_circuito, m.metodo) == ("0012", "exacto")
-    assert conciliar_uno("COLONIA LOLA", base, {}).codigo_circuito == "005A"
-
-
-def test_repetido_mismo_circuito_se_asigna(base):
-    m = conciliar_uno("GENERAL SAVIO", base, {})
+def test_repetido_mismo_circuito(conc):
+    m = conc.conciliar_uno("GENERAL SAVIO")
     assert (m.codigo_circuito, m.id_barrio) == ("013J", 11)
 
 
-def test_repetido_con_circuitos_distintos_es_ambiguo(base):
-    m = conciliar_uno("LAS DELICIAS", base, {})
-    assert m.metodo == "ambiguo" and m.codigo_circuito is None and m.barrio_oficial is None
-    assert {c["circuito"] for c in m.candidatos} == {"011L", "0011"}
+def test_repetido_con_circuitos_distintos_asigna_barrio_sin_circuito(conc):
+    m = conc.conciliar_uno("LAS DELICIAS")
+    assert m.barrio_oficial == "LAS DELICIAS" and m.codigo_circuito is None   # no se elige al azar
 
 
-def test_alias_tiene_prioridad_maxima(base):
-    # "ALBERDI" coincide exacto, pero el override manual manda
-    m = conciliar_uno("ALBERDI", base, {"ALBERDI": "VILLA ALBERDI"})
-    assert (m.barrio_oficial, m.metodo, m.codigo_circuito) == ("VILLA ALBERDI", "alias", "011K")
-    m = conciliar_uno("GRAL PAZ", base, {"GRAL PAZ": "GENERAL PAZ"})
-    assert (m.barrio_oficial, m.metodo) == ("GENERAL PAZ", "alias")
+def test_ordinales_no_se_mezclan(conc):
+    assert conc.conciliar_uno("SANTA ISABEL 2DA SECCION").barrio_oficial == "SANTA ISABEL 2A SECCION"
+    assert conc.conciliar_uno("SANTA ISABEL 1RA SECCION").barrio_oficial == "SANTA ISABEL 1A SECCION"
+    assert conc.conciliar_uno("20 DE JULIO").barrio_oficial is None            # != 20 DE JUNIO
 
 
-def test_alias_a_barrio_fuera_de_la_base_no_inventa_circuito(base):
-    m = conciliar_uno("XX", base, {"XX": "BARRIO NUEVO"})
-    assert (m.barrio_oficial, m.codigo_circuito, m.metodo) == ("BARRIO NUEVO", None, "alias")
+def test_alias_csv_tiene_prioridad(conc):
+    m = conc.conciliar_uno("ALBERDI VIEJO")
+    assert (m.barrio_oficial, m.metodo, m.codigo_circuito) == ("VILLA ALBERDI", "ALIAS MANUAL", "011K")
+    assert conc.conciliar_uno("SAVIO GRAL").barrio_oficial == "GENERAL SAVIO"
 
 
-def test_fuzzy_corrige_typos_y_queda_para_revisar(base):
-    m = conciliar_uno("VILLA ESQUIO", base, {})
-    assert (m.barrio_oficial, m.metodo) == ("VILLA ESQUIU", "fuzzy") and m.dudoso
+def test_alias_fuera_de_la_lista_oficial_no_inventa_circuito(conc):
+    m = conc.conciliar_uno("XX")
+    assert (m.barrio_oficial, m.codigo_circuito, m.metodo) == ("BARRIO NUEVO", None, "ALIAS MANUAL")
 
 
-def test_fuzzy_no_mezcla_numeros_meses_ni_puntos_cardinales(base):
-    assert conciliar_uno("20 DE JULIO", base, {}).metodo == "sin_clasificar"
-    assert conciliar_uno("SANTA ISABEL 3A SECCION", base, {}).metodo == "sin_clasificar"
-    assert conciliar_uno("TALLERES NORTE", base, {}).metodo == "sin_clasificar"
-    assert conciliar_uno("SANTA ISABEL 2DA SECCION", base, {}).barrio_oficial == "SANTA ISABEL 2A SECCION"
+def test_parecido_insuficiente_solo_sugiere(conc):
+    m = conc.conciliar_uno("VILLA ESQUIO")               # 89% < umbral: no se asigna, se sugiere
+    assert m.barrio_oficial is None and m.candidatos[0]["barrio"] == "VILLA ESQUIU"
 
 
-def test_fuzzy_con_dos_candidatos_cercanos_no_asigna():
-    b = BaseBarrios([reg(1, "LOMAS BELLAS", "A"), reg(2, "LOMAS BELLOS", "B")])
-    m = conciliar_uno("LOMAS BELLIS", b, {})
-    assert m.metodo == "ambiguo" and m.codigo_circuito is None and len(m.candidatos) == 2
+def test_sin_coincidencia_queda_sin_asignar(conc):
+    m = conc.conciliar_uno("ZZZ INEXISTENTE")
+    assert m.barrio_oficial is None and m.codigo_circuito is None and m.metodo == "SIN COINCIDENCIA"
 
 
-def test_sin_clasificar_y_sin_dato(base):
-    assert conciliar_uno("ZZZ INEXISTENTE", base, {}).metodo == "sin_clasificar"
-    assert conciliar_uno("SIN DATO", base, {}).metodo == "sin_dato"
-    assert conciliar_uno("", base, {}).metodo == "sin_dato"
+@pytest.mark.parametrize("vacio", ["", "   ", "SD", "SIN DATO", "S/D"])
+def test_vacios_quedan_vacios(conc, vacio):
+    m = conc.conciliar_uno(vacio)
+    assert m.barrio_oficial is None and m.metodo == "SIN DATO"
 
 
-def test_resumen_y_revisar(base):
-    cred = {"ALBERDI": 10, "ALBERDI I": 5, "LAS DELICIAS": 3, "ZZZ": 7, "SIN DATO": 2}
-    ms = conciliar(cred, base, {})
+def test_resumen_y_revisar(conc):
+    cred = {"ALBERDI": 10, "ALBERDI I": 5, "LAS DELICIAS": 3, "ZZZ": 7, "": 2, "ESQUIU": 4}
+    ms = conc.conciliar(cred)
     r = resumen(ms, cred)
-    assert r["por_metodo"]["exacto"]["creditos"] == 10 and r["por_metodo"]["limpieza"]["barrios"] == 1
-    assert r["con_circuito"]["creditos"] == 15 and r["creditos"] == 27
+    assert r["creditos"] == 31
+    assert r["con_circuito"]["creditos"] == 19            # ALBERDI + ALBERDI I + ESQUIU
+    assert r["con_barrio_oficial"]["creditos"] == 22      # + LAS DELICIAS (sin circuito)
+    assert r["por_metodo"]["EXACTO"]["creditos"] == 13   # ALBERDI + LAS DELICIAS
+    assert "con circuito asignado" in texto_resumen(r)
     filas = filas_revisar(ms, cred, {})
-    assert [f["barrio"] for f in filas] == ["ZZZ", "LAS DELICIAS"]    # ordenado por créditos; sin SIN DATO
-    assert filas[1]["estado"] == "ambiguo" and filas[1]["candidatos"]
+    assert [(f["barrio"], f["estado"]) for f in filas] == [
+        ("ZZZ", "sin_coincidencia"), ("ALBERDI I", "dudoso"), ("ESQUIU", "dudoso"),
+        ("LAS DELICIAS", "sin_circuito")]
+    assert all(f["barrio"] != "" for f in filas)           # lo vacío no se lista para revisar
 
 
 # ── Contra la base real (barrios_cordoba.xlsx) ──────────────────────────
 @pytest.fixture(scope="module")
-def base_real():
-    return BaseBarrios.desde_excel(AQUI / "barrios_cordoba.xlsx")
-
-
-def test_base_real_se_carga(base_real):
-    assert len(base_real.circuitos) == 111
-    assert all(r.barrio.upper() != "SD" for r in base_real.registros)
+def real():
+    return Conciliador(AQUI / "barrios_cordoba.xlsx", AQUI / "barrios_alias.csv")
 
 
 @pytest.mark.parametrize("crudo,barrio,circuito", [
@@ -153,12 +153,12 @@ def test_base_real_se_carga(base_real):
     ("B° ALBERDI", "ALBERDI", "0003"),
     ("BETANIA", "BETANIA", "0012"),
     ("GENERAL SAVIO", "GENERAL SAVIO", "013J"),
+    ("GRAL PAZ", "GENERAL PAZ", "006C"),
 ])
-def test_base_real(base_real, crudo, barrio, circuito):
-    m = conciliar_uno(crudo, base_real, {})
+def test_base_real(real, crudo, barrio, circuito):
+    m = real.conciliar_uno(crudo)
     assert (m.barrio_oficial, m.codigo_circuito) == (barrio, circuito)
 
 
-def test_alias_csv_actual_se_carga():
-    a = cargar_alias(AQUI / "barrios_alias.csv")
-    assert a["GRAL PAZ"] == "GENERAL PAZ"
+def test_base_real_tiene_111_circuitos(real):
+    assert len(real.base.circuitos) == 111

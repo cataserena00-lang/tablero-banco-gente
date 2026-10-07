@@ -48,13 +48,10 @@ def parsear_fecha(serie: pd.Series) -> pd.Series:
 
 
 def extraer_barrio(dom: str) -> str:
-    """'PUBLICA H 4509 - UNIVERSITARIO DE HORIZONTE' -> 'UNIVERSITARIO DE HORIZONTE'."""
-    if " - " not in dom and not dom.endswith(" -"):
-        return "SIN DATO"
-    b = dom.rsplit("-", 1)[1].strip()
-    if not b or b.isdigit():
-        return "SIN DATO"
-    return b
+    """'PUBLICA H 4509 - UNIVERSITARIO DE HORIZONTE' -> 'UNIVERSITARIO DE HORIZONTE'.
+    Vacío ('') si el domicilio no tiene barrio (o es solo un número)."""
+    b = bm.dep.extraer_barrio(dom).strip()
+    return "" if b.isdigit() else b
 
 
 def agrupar(df: pd.DataFrame, claves: list[str]) -> list[dict]:
@@ -106,12 +103,12 @@ def main():
              (d.departamento == cfg["capital"]["departamento"])
     cap = d[es_cap].copy()
 
-    # ── Conciliación de barrios con la base oficial (barrio oficial + circuito) ──
-    base_barrios = bm.BaseBarrios.desde_excel(AQUI / "barrios_cordoba.xlsx")
-    alias = bm.cargar_alias(AQUI / "barrios_alias.csv")
+    # ── Conciliación de barrios con la base oficial (barrio depurado + circuito) ──
+    conciliador = bm.Conciliador(AQUI / "barrios_cordoba.xlsx", AQUI / "barrios_alias.csv")
     cap["barrio_crudo"] = cap.domicilio.map(extraer_barrio)
-    matches = bm.conciliar(cap.barrio_crudo.unique(), base_barrios, alias)
-    # Nombre mostrado: el barrio oficial; lo que no concilia conserva su nombre original
+    matches = conciliador.conciliar(cap.barrio_crudo.unique())
+    # Nombre mostrado: el barrio depurado si concilia; si no hay coincidencia, el original de la base;
+    # si viene vacío queda vacío (el crédito sigue siendo de Capital, sin barrio).
     cap["barrio"] = [matches[b].barrio_oficial or b for b in cap.barrio_crudo]
     cred_crudo = cap.barrio_crudo.value_counts().to_dict()
     monto_crudo = cap.groupby("barrio_crudo").monto.sum().round(0).astype(int).to_dict()

@@ -640,7 +640,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
       <section className="kpis kpis-3" aria-label="Indicadores de Capital" style={{marginTop:20}}>
         <div className="kpi"><span>Créditos en Capital</span><b>{miles(totCapital.n)}</b></div>
         <div className="kpi dest"><span>Monto total</span><b>{peso(totCapital.m)}</b></div>
-        <div className="kpi"><span>Barrios</span><b>{miles(datosBarrios.length)}</b></div>
+        <div className="kpi"><span>Barrios</span><b>{miles(datosBarrios.filter(x => x.bar).length)}</b></div>
       </section>
 
       {/* Mapa de circuitos (coroplético) */}
@@ -699,7 +699,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
             </span>}
           </div>
           {sinClasif.n > 0 && (
-            <p className="nota">{miles(sinClasif.n)} créditos ({peso(sinClasif.m)}) no se pudieron asignar a un circuito (barrio sin clasificar o ambiguo) y no se pintan en el mapa; sí figuran en la tabla de barrios.</p>
+            <p className="nota">{miles(sinClasif.n)} créditos ({peso(sinClasif.m)}) no se pudieron asignar a un circuito (sin barrio, sin coincidencia con la base oficial o ambiguo) y no se pintan en el mapa; sí figuran en la tabla de barrios.</p>
           )}
         </section>
       )}
@@ -708,7 +708,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
       <section className="card" style={{marginTop:20}}>
         <header>
           <div><h2>Barrios de Córdoba Capital</h2>
-            <p className="sub">{datosBarrios.length} barrios · ordenados por monto</p></div>
+            <p className="sub">{datosBarrios.filter(x => x.bar).length} barrios · ordenados por monto</p></div>
           <div className="buscar-barrio">
             <input type="search" placeholder="Buscar barrio…" value={busqBarrio}
               onChange={e => setBusqBarrio(e.target.value)} aria-label="Buscar barrio" />
@@ -731,7 +731,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
               <tbody>
                 {datosBarrios.map(row => (
                   <tr key={row.bar}>
-                    <td className="td-loc">{nombreDep(row.bar)}</td>
+                    <td className="td-loc">{row.bar ? nombreDep(row.bar) : <em className="sin-barrio">Sin barrio (dato vacío)</em>}</td>
                     <td className="td-num">{miles(row.n)}</td>
                     <td className="td-num">{peso(row.m)}</td>
                     <td className="td-num">{row.n ? peso(row.m / row.n) : "—"}</td>

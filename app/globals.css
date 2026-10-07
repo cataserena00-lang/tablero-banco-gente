@@ -113,6 +113,7 @@ svg text{font-family:inherit}
 .tabla-detalle tbody tr:hover{background:var(--surface)}
 .tabla-detalle td{padding:10px 12px;vertical-align:top}
 .td-loc{font-weight:500;min-width:140px}
+.sin-barrio{font-weight:400;color:var(--tx2)}
 .td-num{font-variant-numeric:tabular-nums;white-space:nowrap}
 .td-lineas{min-width:200px}
 .tabla-detalle tfoot{border-top:2px solid var(--borde)}
