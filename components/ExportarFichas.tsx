@@ -155,6 +155,8 @@ export default function ExportarFichas({ cubo, cuboCap, actualizado }: { cubo: C
 
       {imprimiendo && (
         <div className="hojas-impresion">
+          {/* Sin márgenes del navegador: la franja de colores llega al borde de la hoja y no se imprimen fecha ni URL */}
+          <style>{"@page{size:A4 portrait;margin:0}"}</style>
           {elegidas.length > 1 && (
             <div className="hoja">
               <CabeceraHoja actualizado={fmtF(actualizado)} />

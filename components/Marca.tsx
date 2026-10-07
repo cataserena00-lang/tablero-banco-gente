@@ -18,7 +18,7 @@ export function PieGobierno() {
       <div className="wrap">
         <img className="logo-gob" src={logoGobierno.src} width={logoGobierno.width} height={logoGobierno.height}
           alt="Córdoba, Gobierno de la Provincia. Hacer para crecer" />
-        <p>Ministerio de Producción, Ciencia e Innovación Tecnológica</p>
+        <p>MINISTERIO DE DESARROLLO SOCIAL Y PROMOCIÓN DEL EMPLEO</p>
       </div>
     </footer>
   );
@@ -42,7 +42,7 @@ export function PieHoja() {
     <div className="hoja-pie">
       <img src={logoGobierno.src} width={logoGobierno.width} height={logoGobierno.height}
         alt="Córdoba, Gobierno de la Provincia. Hacer para crecer" />
-      <span>Ministerio de Producción, Ciencia e Innovación Tecnológica</span>
+      <span>MINISTERIO DE DESARROLLO SOCIAL Y PROMOCIÓN DEL EMPLEO</span>
     </div>
   );
 }

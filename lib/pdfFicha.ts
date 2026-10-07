@@ -1,5 +1,5 @@
 import { etiquetaColumna, periodo } from "@/lib/personasComun";
-import { COLOR, cabecera, crearDocumento, envolver, franja, limpiarTexto, pies } from "@/lib/pdfMarca";
+import { ALTO_PIE, COLOR, cabecera, crearDocumento, envolver, franja, limpiarTexto, pies } from "@/lib/pdfMarca";
 
 /* PDF de la ficha de una persona: datos fijos y una tarjeta por solicitud, de la más reciente a la más antigua.
    Se arma en el servidor, solo para el perfil "completo" (ver app/api/personas/[id]/exportar). */
@@ -20,7 +20,7 @@ export async function generarPdfFicha(d: DatosFicha): Promise<Uint8Array> {
   const paginas = [pdf.addPage(A4)];
   let pag = paginas[0];
   let y = cabecera(m, pag, MARGEN, "Ficha de persona", `Generada el ${limpiarTexto(d.fecha)} por ${limpiarTexto(d.usuario)}`) - 10;
-  const piso = MARGEN + 30;
+  const piso = MARGEN + ALTO_PIE;
   const nueva = () => { pag = pdf.addPage(A4); paginas.push(pag); franja(pag); y = A4[1] - MARGEN - 6; };
 
   // Nombre

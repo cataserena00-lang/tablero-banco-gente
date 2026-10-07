@@ -231,6 +231,12 @@ SQL_INTERCAMBIO = [
 ]
 
 
+def debe_omitir(huella_anterior: str | None, huella: str, forzar: bool, tiene_resumen: bool) -> bool:
+    """No se recarga solo si el archivo es el mismo, no se pidió forzar y la estructura actual (personas_resumen) ya existe.
+    Si faltara personas_resumen (por ejemplo, la última carga fue de una versión anterior del cargador), se recarga igual."""
+    return huella_anterior == huella and not forzar and tiene_resumen
+
+
 def cargar(ruta: Path, huella: str, forzar: bool) -> None:
     import psycopg   # se importa acá: --solo-encabezado y los tests no lo necesitan
     url = os.environ.get("NEON_DATABASE_URL_CARGA")
@@ -246,9 +252,13 @@ def cargar(ruta: Path, huella: str, forzar: bool) -> None:
             cur.execute("CREATE TABLE IF NOT EXISTS carga_meta (huella text, filas bigint, cargado_en timestamptz DEFAULT now())")
             cur.execute("SELECT huella FROM carga_meta ORDER BY cargado_en DESC LIMIT 1")
             ultima = cur.fetchone()
-            if ultima and ultima[0] == huella and not forzar:
+            cur.execute("SELECT to_regclass('public.personas_resumen') IS NOT NULL")
+            tiene_resumen = bool(cur.fetchone()[0])
+            if debe_omitir(ultima[0] if ultima else None, huella, forzar, tiene_resumen):
                 print("Sin cambios en el archivo de origen; no se recarga.")
                 return
+            if ultima and ultima[0] == huella and not forzar:
+                print("El archivo no cambió, pero falta personas_resumen: se recarga para crearla.")
             cur.execute("DROP TABLE IF EXISTS personas_paso")
             cur.execute("DROP TABLE IF EXISTS personas_resumen_paso")
             cur.execute(sql_crear_tabla(columnas))
