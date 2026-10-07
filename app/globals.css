@@ -190,14 +190,13 @@ a.volver{text-decoration:none}
 .acto-ficha:focus-within{outline:none}
 .acto-ficha h2:focus{outline:none}
 .acto-ficha h2:focus-visible{outline:2px solid var(--celeste-osc);outline-offset:4px;border-radius:4px}
-.acto-ficha .card h2,.acto-ficha>header h2{font-size:22px;font-weight:900;letter-spacing:-.01em}
+.acto-ficha .card h2,.acto-ficha>header h2{font-size:20px;font-weight:700;letter-spacing:-.01em}
 .acto-sub{margin:22px 0 6px;font-size:14px;font-weight:600;color:var(--tx2);text-transform:uppercase;letter-spacing:.05em}
 .acto-rango{margin:0 0 8px}
 .td-barra{width:22%;min-width:90px}
 .acto-bar{display:block;height:10px;background:var(--celeste-claro);border-radius:5px;overflow:hidden}
 .acto-bar i{display:block;height:100%;background:var(--celeste-osc);border-radius:5px}
 @media(max-width:700px){.acto-lista{grid-template-columns:1fr}.acto-buscar select,.acto-buscar>div{width:100%}.td-barra{display:none}.acto-link{padding:7px 10px}}
-@media(min-width:1500px){.acto-ficha{font-size:16.5px}.acto-ficha .tabla-detalle table{font-size:16px}.acto-lista button{font-size:16px}}
 @media print{.acto-selector,.volver,.acto-link{display:none}}
 @media(max-width:700px){.acto-ficha .col-pct{display:none}.acto-ficha .kpis.kpis-4{grid-template-columns:repeat(2,1fr)}.acto-ficha .kpis.kpis-4 .kpi{padding:12px 12px}.acto-ficha .kpi b{font-size:19px}.acto-ficha .kpi b.chico{font-size:17px}.acto-ficha .tabla-detalle th,.acto-ficha .tabla-detalle td{padding:8px 6px}}
 @media(max-width:700px){.acto-ficha .tabla-detalle th{white-space:normal;font-size:11px}.acto-ficha .tabla-detalle table{font-size:13px}}
@@ -247,7 +246,7 @@ main.dash{width:100%}
 .ficha-fondo{position:fixed;inset:0;background:rgba(31,41,55,.35);z-index:1000;display:flex;justify-content:flex-end}
 .ficha-persona{background:#fff;width:min(460px,100%);height:100%;overflow:auto;padding:20px 22px;box-shadow:-2px 0 12px rgba(31,41,55,.15)}
 .ficha-persona header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
-.ficha-persona h2{margin:0;font-size:18px}
+.ficha-persona h2{margin:0;font-size:20px;font-weight:700;letter-spacing:-.01em}
 .ficha-persona header button{font:inherit;font-size:22px;line-height:1;border:0;background:none;cursor:pointer;color:var(--tx2);padding:0 6px}
 .ficha-persona dl{margin:0}
 .ficha-persona dl div{display:grid;grid-template-columns:140px 1fr;gap:8px;padding:7px 0;border-bottom:1px solid var(--borde);font-size:14px}
