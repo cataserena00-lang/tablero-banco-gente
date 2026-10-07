@@ -16,14 +16,36 @@ function igual(a: string, b: string) {
 }
 const secreto = () => { const s = process.env.AUTH_SECRET; if (!s) throw new Error("Falta AUTH_SECRET"); return s; };
 
+const bytes = (h: string) => new Uint8Array((h.match(/../g) ?? []).map(x => parseInt(x, 16)));
+
+// Hash independiente de AUTH_SECRET: "pbkdf2$<iteraciones>$<sal hex>$<hash hex>" (PBKDF2-SHA256, 256 bits)
+async function pbkdf2(clave: string, saltHex: string, iteraciones: number) {
+  const k = await crypto.subtle.importKey("raw", enc.encode(clave), "PBKDF2", false, ["deriveBits"]);
+  return hex(await crypto.subtle.deriveBits(
+    { name: "PBKDF2", hash: "SHA-256", salt: bytes(saltHex), iterations: iteraciones }, k, 256));
+}
+
+async function coincide(guardado: string, clave: string, hmacClave: string) {
+  if (guardado.startsWith("pbkdf2$")) {
+    const [, iter, sal, hash] = guardado.split("$");
+    const n = Number(iter);
+    if (!sal || !hash || !Number.isInteger(n) || n < 1 || n > 1_000_000) return false;
+    return igual(hash, await pbkdf2(clave, sal, n));
+  }
+  return igual(guardado, hmacClave);   // formato original: HMAC-SHA256(clave) con AUTH_SECRET
+}
+
+// DASHBOARD_USERS = "usuario:hash,otro:hash" (formato original, hash con AUTH_SECRET).
+// DASHBOARD_USERS_EXTRA = más usuarios en el mismo formato; acepta además hashes pbkdf2$... (ver scripts/hash-password.mjs).
 export async function verificarCredenciales(usuario: string, clave: string) {
-  const lista = (process.env.DASHBOARD_USERS ?? "").split(",").map(x => x.trim()).filter(Boolean);
-  const hash = await hmac(clave, secreto());
+  const lista = [process.env.DASHBOARD_USERS, process.env.DASHBOARD_USERS_EXTRA]
+    .flatMap(v => (v ?? "").split(",")).map(x => x.trim()).filter(Boolean);
+  const hmacClave = await hmac(clave, secreto());
   let ok = false;
   for (const par of lista) {
     const i = par.indexOf(":");
-    if (i < 0) continue;
-    if (par.slice(0, i) === usuario && igual(par.slice(i + 1), hash)) ok = true;
+    if (i < 0 || par.slice(0, i) !== usuario) continue;
+    if (await coincide(par.slice(i + 1), clave, hmacClave)) ok = true;
   }
   return ok;
 }
