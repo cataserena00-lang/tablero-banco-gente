@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import FichaZona, { plural } from "./FichaZona";
+import { LogoBanco } from "./Marca";
 import { fmtF, miles, nombreDep, nombreLinea, peso } from "@/lib/formato";
 import { BARRIO_VACIO, fichaBarrio, fichaDepartamento, fichaLocalidad, notaBarrio, subBarrio, zonasInterior } from "@/lib/acto";
 import MapaCircuitosCarga from "./mapa/MapaCircuitosCarga";
@@ -616,7 +617,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
                   <th className="th-loc">Localidad</th>
                   <th className="th-num">Créditos</th>
                   <th className="th-num">Monto</th>
-                  <th className="th-num">Promedio</th>
+                  <th className="th-num col-prom">Promedio</th>
                   <th className="th-lineas th-num">Aprobación más antigua</th>
                 </tr>
               </thead>
@@ -626,7 +627,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
                     <td className="td-loc"><button type="button" className="enlace-zona" onClick={() => setLocFicha(z.loc)}>{nombreDep(z.nombre)}</button></td>
                     <td className="td-num">{miles(z.n)}</td>
                     <td className="td-num">{peso(z.m)}</td>
-                    <td className="td-num">{z.n ? peso(z.m / z.n) : "—"}</td>
+                    <td className="td-num col-prom">{z.n ? peso(z.m / z.n) : "—"}</td>
                     <td className="td-lineas td-num">{fmtF(z.masAntigua)}</td>
                   </tr>
                 ))}
@@ -636,7 +637,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
                   <td className="td-loc"><b>Total</b></td>
                   <td className="td-num"><b>{miles(fichaDep.n)}</b></td>
                   <td className="td-num"><b>{peso(fichaDep.m)}</b></td>
-                  <td className="td-num"><b>{fichaDep.n ? peso(fichaDep.m / fichaDep.n) : "—"}</b></td>
+                  <td className="td-num col-prom"><b>{fichaDep.n ? peso(fichaDep.m / fichaDep.n) : "—"}</b></td>
                   <td className="td-lineas"></td>
                 </tr>
               </tfoot>
@@ -742,7 +743,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
                   <th className="th-loc">Barrio</th>
                   <th className="th-num">Créditos</th>
                   <th className="th-num">Monto</th>
-                  <th className="th-num">Promedio</th>
+                  <th className="th-num col-prom">Promedio</th>
                   <th className="th-lineas">Desglose por línea</th>
                 </tr>
               </thead>
@@ -752,7 +753,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
                     <td className="td-loc"><button type="button" className="enlace-zona" onClick={() => abrirBarrio(row.bar)}>{row.bar ? nombreDep(row.bar) : <em className="sin-barrio">Sin barrio (dato vacío)</em>}</button></td>
                     <td className="td-num">{miles(row.n)}</td>
                     <td className="td-num">{peso(row.m)}</td>
-                    <td className="td-num">{row.n ? peso(row.m / row.n) : "—"}</td>
+                    <td className="td-num col-prom">{row.n ? peso(row.m / row.n) : "—"}</td>
                     <td className="td-lineas"><LineaDesglose lineasArr={row.lineasArr} /></td>
                   </tr>
                 ))}
@@ -762,8 +763,8 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
                   <td className="td-loc"><b>Total</b></td>
                   <td className="td-num"><b>{miles(totCapital.n)}</b></td>
                   <td className="td-num"><b>{peso(totCapital.m)}</b></td>
-                  <td className="td-num"><b>{totCapital.n ? peso(totCapital.m / totCapital.n) : "—"}</b></td>
-                  <td></td>
+                  <td className="td-num col-prom"><b>{totCapital.n ? peso(totCapital.m / totCapital.n) : "—"}</b></td>
+                  <td className="td-lineas"></td>
                 </tr>
               </tfoot>
             </table>
@@ -782,7 +783,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
     <>
       <div className="franja" />
       <header className="top"><div className="wrap">
-        <div className="logo" role="img" aria-label="Espacio reservado para el logo">Espacio para logo<br/>Gobierno de Córdoba</div>
+        <LogoBanco />
         <div className="titulo"><h1>Banco de la Gente</h1><p>Créditos aprobados pendientes de entrega</p></div>
         <div className="actualiz">Datos actualizados el<b>{fmtF(actualizado)}</b></div>
         <Link href="/banco-gente/planificacion" className="acto-link">Planificación de entregas</Link>
