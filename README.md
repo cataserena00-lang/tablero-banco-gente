@@ -26,15 +26,20 @@ Probar el pipeline local: `pip install -r pipelines/requirements.txt && python p
 Si una base llega a cientos de MB o necesita consultas dinámicas, esa salida pasa a Vercel Blob o Postgres (Neon) sin cambiar el resto.
 
 ## Barrios y circuitos (Capital)
-El barrio se toma del domicilio (texto posterior al último " - ") solo para Córdoba Capital y se concilia con la base oficial `pipelines/banco_gente/barrios_cordoba.xlsx` (hoja "Barrios") en `pipelines/banco_gente/barrios_match.py`. Capas, en orden:
-1. **alias**: overrides manuales de `barrios_alias.csv` (`variante,barrio`), prioridad máxima.
-2. **exacto**: coincidencia tras normalizar (mayúsculas, sin tildes ni puntuación).
-3. **limpieza**: se quitan prefijos/sufijos (`B°`, `BARRIO`, `SECTOR`, `ANEXO`, `I`, `II`, `2`…); antes de descartar `VILLA` se prueba el nombre completo contra la base.
-4. **fuzzy** (rapidfuzz, umbral 90): no mezcla números, meses ni puntos cardinales distintos y no asigna si hay dos candidatos cercanos.
+El barrio se toma del domicilio (texto posterior al último "-") solo para Córdoba Capital y se concilia con la base oficial `pipelines/banco_gente/barrios_cordoba.xlsx` (hoja "Barrios"):
 
-Si un nombre está repetido en la base se prefiere el barrio oficial; si quedan circuitos distintos queda **ambiguo** (no se elige al azar). Lo que no concilia queda **sin clasificar** (conserva su nombre original en la tabla de barrios y no se pinta en el mapa de circuitos).
+- **Motor:** `pipelines/banco_gente/depurar_barrios.py` (el script del equipo, sin cambios): normaliza tildes/abreviaturas/ordinales, alias internos, orden de palabras, fonética, VILLA/GENERAL/PARQUE, loteos de Horizonte, texto sobrante y parecido aproximado. También se puede correr solo sobre un Excel: `python pipelines/banco_gente/depurar_barrios.py base.xlsx barrios_cordoba.xlsx salida.xlsx`.
+- **Adaptador:** `barrios_match.py` lo usa en el pipeline y agrega el circuito de cada barrio. Un nombre repetido en el Excel va al circuito del barrio oficial; si quedan circuitos distintos se asigna el barrio sin circuito.
+- **Overrides manuales:** `barrios_alias.csv` (`variante,barrio`) tiene prioridad sobre el motor.
 
-El log del Action imprime el % de barrios y de créditos por método. `data/banco_gente/barrios_revisar.json` lista no conciliados y dudosos (con candidatos sugeridos), ordenados por créditos, y `barrios_conciliacion.json` guarda el resumen. Para corregir: completar `barrios_alias.csv` y volver a correr el Action con "forzar".
+Qué ve el tablero:
+1. Concilia → nombre depurado (barrio oficial) y su circuito.
+2. Sin coincidencia o ambiguo → queda el nombre original que trae la base, sin circuito.
+3. Vacío → queda vacío: el crédito cuenta para Capital, sin barrio ("Sin barrio" en la tabla).
+
+El log del Action imprime el % de barrios y de créditos por método. `data/banco_gente/barrios_revisar.json` lista sin coincidencia, ambiguos, dudosos y asignados sin circuito (con candidatos), por créditos, y `barrios_conciliacion.json` guarda el resumen. Para corregir: completar `barrios_alias.csv` y volver a correr el Action con "forzar".
+
+Si se actualiza `depurar_barrios.py` (por ejemplo con nuevos ALIAS), reemplazar el archivo completo. Ojo: valida que cada ALIAS apunte a un barrio que exista en `barrios_cordoba.xlsx`; si no, el pipeline se detiene con un error claro.
 
 Tests: `pip install pytest && python -m pytest pipelines/banco_gente/tests`.
 
