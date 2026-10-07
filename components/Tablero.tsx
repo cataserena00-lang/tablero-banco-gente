@@ -58,8 +58,9 @@ function colorMapa(v: number, max: number) {
 }
 
 /* ── Componente principal ── */
-export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
+export default function Tablero({ cubo, cuboCap, geo, circ, actualizado, verPersonas = false }: {
   cubo: Cubo; cuboCap: CuboCapital; geo: GeoData | null; circ: CircuitosGeo | null; actualizado: string;
+  verPersonas?: boolean;   // perfil completo: muestra el acceso a la vista nominal (el servidor igual verifica el rol)
 }) {
   const F0 = cubo.f[0], F1 = cubo.f[cubo.f.length-1];
 
@@ -787,6 +788,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
         <div className="titulo"><h1>Banco de la Gente</h1><p>Créditos aprobados pendientes de entrega</p></div>
         <div className="actualiz">Datos actualizados el<b>{fmtF(actualizado)}</b></div>
         <Link href="/banco-gente/planificacion" className="acto-link">Planificación de entregas</Link>
+        {verPersonas && <Link href="/banco-gente/personas" className="acto-link">Vista de personas</Link>}
         <form method="post" action="/api/logout"><button className="salir" type="submit">Salir</button></form>
       </div></header>
 
