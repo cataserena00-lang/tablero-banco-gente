@@ -1,6 +1,6 @@
 import { PDFFont, rgb } from "pdf-lib";
 import { etiquetaColumna } from "@/lib/personasComun";
-import { COLOR, cabecera, crearDocumento, envolver, franja, limpiarTexto, pies } from "@/lib/pdfMarca";
+import { ALTO_PIE, COLOR, cabecera, crearDocumento, envolver, franja, limpiarTexto, pies } from "@/lib/pdfMarca";
 
 /* Arma el PDF de personas en el servidor (pdf-lib). Marca, tipografía (Poppins) y pie: lib/pdfMarca.ts. */
 export { envolver, limpiarTexto };
@@ -72,7 +72,7 @@ export async function generarPdfPersonas(d: DatosPdf): Promise<Uint8Array> {
   };
   encabezado();
 
-  const piso = MARGEN + 22;
+  const piso = MARGEN + ALTO_PIE;
   d.filas.forEach((fila, idx) => {
     const celdas = d.columnas.map((c, i) => envolver(limpiarTexto(fila[c]), fuente, TAM, anchos[i] - PAD * 2));
     const h = alto(Math.max(...celdas.map(c => c.length)));

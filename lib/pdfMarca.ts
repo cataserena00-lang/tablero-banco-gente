@@ -21,7 +21,9 @@ export const COLOR = {
 };
 
 export const AVISO_CONFIDENCIAL = "Información confidencial. Uso interno del Banco de la Gente; contiene datos personales (Ley 25.326).";
-const MINISTERIO = "Ministerio de Producción, Ciencia e Innovación Tecnológica";
+export const MINISTERIO = "MINISTERIO DE DESARROLLO SOCIAL Y PROMOCIÓN DEL EMPLEO";
+/** Alto que ocupa el pie sobre el margen inferior: los contenidos deben terminar por encima. */
+export const ALTO_PIE = 46;
 
 const raiz = process.cwd();
 const FUENTES = {
@@ -111,20 +113,22 @@ export function cabecera(m: Marca, pag: PDFPage, margen: number, titulo: string,
   return top - altoLogo - 10;
 }
 
-/** Pie en todas las páginas: logo de Gobierno, ministerio, aviso de confidencialidad y "Página X de Y". */
+/** Pie en todas las páginas: línea dorada, logo de Gobierno, ministerio en mayúsculas, aviso de confidencialidad y "Página X de Y". */
 export function pies(m: Marca, paginas: PDFPage[], margen: number, extra?: string) {
   paginas.forEach((p, i) => {
     const { width } = p.getSize();
     const util = width - margen * 2;
-    p.drawLine({ start: { x: margen, y: margen + 12 }, end: { x: margen + util, y: margen + 12 }, thickness: 0.6, color: COLOR.dorado });
-    const alto = 14, ancho = alto * m.logoGobierno.width / m.logoGobierno.height;
-    p.drawImage(m.logoGobierno, { x: margen, y: margen - 4, width: ancho, height: alto });
+    const base = margen - 6;                          // borde inferior del pie
+    p.drawLine({ start: { x: margen, y: base + 36 }, end: { x: margen + util, y: base + 36 }, thickness: 0.8, color: COLOR.dorado });
+    const alto = 26, ancho = alto * m.logoGobierno.width / m.logoGobierno.height;
+    p.drawImage(m.logoGobierno, { x: margen, y: base + 4, width: ancho, height: alto });
     const num = `Página ${i + 1} de ${paginas.length}`;
-    p.drawText(num, { x: width - margen - m.regular.widthOfTextAtSize(num, 8), y: margen, size: 8, font: m.regular, color: COLOR.gris });
-    const medio = [AVISO_CONFIDENCIAL, extra].filter(Boolean).join(" ");
-    const x0 = margen + ancho + 12, libre = width - margen - m.regular.widthOfTextAtSize(num, 8) - 12 - x0;
-    const lineas = envolver(limpiarTexto(medio), m.regular, 7, libre).slice(0, 2);
-    lineas.forEach((l, k) => p.drawText(l, { x: x0, y: margen + 3 - k * 8.5, size: 7, font: m.regular, color: COLOR.gris }));
-    if (lineas.length < 2) p.drawText(MINISTERIO, { x: x0, y: margen + 3 - 8.5, size: 7, font: m.regular, color: COLOR.gris });
+    const wNum = m.regular.widthOfTextAtSize(num, 8.5);
+    p.drawText(num, { x: width - margen - wNum, y: base + 18, size: 8.5, font: m.regular, color: COLOR.gris });
+    const x0 = margen + ancho + 14, libre = width - margen - wNum - 14 - x0;
+    p.drawText(MINISTERIO, { x: x0, y: base + 22, size: 8, font: m.semi, color: COLOR.azul });
+    const aviso = [AVISO_CONFIDENCIAL, extra].filter(Boolean).join(" ");
+    envolver(limpiarTexto(aviso), m.regular, 7, libre).slice(0, 2)
+      .forEach((l, k) => p.drawText(l, { x: x0, y: base + 11 - k * 8.5, size: 7, font: m.regular, color: COLOR.gris }));
   });
 }

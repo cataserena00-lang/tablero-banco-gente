@@ -126,3 +126,12 @@ def test_csv_sintetico_se_lee_con_el_cargador(tmp_path):
     claves = {cp.clave_persona(r[cols.index("nombre")], r[i["cuil"]], r[cols.index("nro_doc")]) for r in leidas}
     assert len(claves) == 40                                   # 40 personas inventadas, más solicitudes que personas
     assert len({r[i["nro_formulario"]] for r in leidas}) == len(leidas)   # cada fila es una solicitud distinta
+
+
+def test_debe_omitir_solo_si_nada_cambio_y_existe_el_resumen():
+    from cargar_personas import debe_omitir
+    assert debe_omitir("a", "a", False, True)
+    assert not debe_omitir("a", "a", True, True)        # forzar
+    assert not debe_omitir("a", "b", False, True)       # archivo distinto
+    assert not debe_omitir("a", "a", False, False)      # falta personas_resumen: se recarga
+    assert not debe_omitir(None, "a", False, False)     # primera carga
