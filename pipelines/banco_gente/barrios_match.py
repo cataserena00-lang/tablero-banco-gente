@@ -143,6 +143,13 @@ class Conciliador:
             out.append(c)
         return out
 
+    def _circuito_comun(self, m: Match) -> None:
+        """Ambiguo entre varios barrios que están TODOS en el mismo circuito (por ejemplo las secciones
+        1, 2 y 3 de PARQUE LICEO): no se elige barrio, pero el circuito es seguro y se asigna."""
+        regs = [self.base.circuito_de(c["barrio"]) for c in m.candidatos]
+        if regs and all(regs) and len({r.codigo for r in regs}) == 1:
+            m.codigo_circuito, m.circuito = regs[0].codigo, regs[0].circuito
+
     def conciliar_uno(self, crudo: str) -> Match:
         crudo = crudo or ""
         # 0. Override manual del CSV (prioridad máxima)
@@ -158,6 +165,8 @@ class Conciliador:
         m = Match(crudo=crudo, metodo=metodo)
         if not nombre:                             # sin dato / sin coincidencia / ambiguo
             m.candidatos = self._candidatos(cands)
+            if etiqueta(metodo) == "AMBIGUO":
+                self._circuito_comun(m)
             return m
         m.barrio_oficial, m.confianza = nombre, _confianza(metodo)
         reg = self.base.circuito_de(nombre)

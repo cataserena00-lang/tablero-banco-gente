@@ -112,6 +112,18 @@ def test_parecido_insuficiente_solo_sugiere(conc):
     assert m.barrio_oficial is None and m.candidatos[0]["barrio"] == "VILLA ESQUIU"
 
 
+def test_ambiguo_con_circuito_comun_asigna_el_circuito(conc):
+    # SANTA ISABEL podría ser la sección 1 o la 2 (no se elige barrio), pero ambas están en 010J
+    m = conc.conciliar_uno("SANTA ISABEL")
+    assert m.barrio_oficial is None and m.metodo.startswith("AMBIGUO")
+    assert m.codigo_circuito == "010J" and len(m.candidatos) == 2
+
+
+def test_ambiguo_con_circuitos_distintos_no_asigna_circuito(conc):
+    m = conc.conciliar_uno("TALLERES")  # no está en esta base mínima: sin coincidencia, sin circuito
+    assert m.codigo_circuito is None
+
+
 def test_sin_coincidencia_queda_sin_asignar(conc):
     m = conc.conciliar_uno("ZZZ INEXISTENTE")
     assert m.barrio_oficial is None and m.codigo_circuito is None and m.metodo == "SIN COINCIDENCIA"
@@ -158,6 +170,33 @@ def real():
 def test_base_real(real, crudo, barrio, circuito):
     m = real.conciliar_uno(crudo)
     assert (m.barrio_oficial, m.codigo_circuito) == (barrio, circuito)
+
+
+@pytest.mark.parametrize("crudo,barrio", [
+    ("LA MADRID", "LAMADRID"),
+    ("MARECHEL", "MARECHAL"),
+    ("CNO. VILLA POSSE -", "CAMINO A VILLA POSE"),
+    ("CUIDAD DE MIS SUENOS", "DE MIS SUEÑOS"),
+    ("JOSE I DIAZ I SEC", "JOSE IGNACIO DIAZ 1A SECCION"),
+    ("JOSE IGNACIO DIAZ I SECCION", "JOSE IGNACIO DIAZ 1A SECCION"),
+])
+def test_alias_csv_nuevos_resuelven_a_un_barrio_oficial(real, crudo, barrio):
+    m = real.conciliar_uno(crudo)
+    assert m.barrio_oficial == barrio and m.metodo == "ALIAS MANUAL" and m.codigo_circuito
+
+
+@pytest.mark.parametrize("crudo,circuito", [
+    ("16 DE NOVIEMBRE", "014H"),    # consorcio / cooperativa, mismo circuito
+    ("PARQUE LICEO", "013G"),       # secciones 1, 2 y 3
+    ("MAIPU", "012B"),
+])
+def test_base_real_ambiguos_con_circuito_seguro(real, crudo, circuito):
+    m = real.conciliar_uno(crudo)
+    assert m.barrio_oficial is None and m.codigo_circuito == circuito
+
+
+def test_base_real_ambiguos_con_circuitos_distintos_sin_circuito(real):
+    assert real.conciliar_uno("ARGUELLO LOURDES").codigo_circuito is None
 
 
 def test_base_real_tiene_111_circuitos(real):
