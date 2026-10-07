@@ -26,6 +26,9 @@ export interface GeoData {
 
 export type { CircuitosGeo };
 
+const SIN_CIRCUITO = "__sin_circuito__";   // valor del filtro de circuito: barrios sin circuito asignado
+type CatBarrio = "todos" | "con" | "sin";   // filtro por categoría de barrio
+
 type Vista = "panorama" | "localidades" | "barrios";
 type Met = "n" | "m";
 
@@ -95,6 +98,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
   const [busqBarrio, setBusqBarrio] = useState("");
   const [metC, setMetC] = useState<Met>("m");
   const [circSel, setCircSel] = useState<string|null>(null);
+  const [catBarrio, setCatBarrio] = useState<CatBarrio>("todos");
 
   const chartRef = useRef<HTMLDivElement>(null);
   const tipGRef = useRef<HTMLDivElement>(null);
@@ -109,7 +113,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
     else setVista("localidades");
   }, []);
   const irAPanorama = useCallback(() => {
-    setVista("panorama"); setDep(null); setBusqBarrio(""); setCircSel(null);
+    setVista("panorama"); setDep(null); setBusqBarrio(""); setCircSel(null); setCatBarrio("todos");
   }, []);
 
   /* Al cambiar de vista: arriba de todo y foco en el título (no en la primera carga).
@@ -279,13 +283,27 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
   }, [circ, porCirc, circVals]);
   const elegirCircuito = useCallback((codigo: string) => setCircSel(c => c === codigo ? null : codigo), []);
 
+  /* Capital según fechas (sin otros filtros): cuántos créditos no tienen barrio (dato vacío) */
+  const { sinBarrio, totCapFechas } = useMemo(() => {
+    const sinBarrio = { n: 0, m: 0 }, totCapFechas = { n: 0, m: 0 };
+    for (const r of filasCapital) {
+      totCapFechas.n += r[3]; totCapFechas.m += r[4];
+      if (cuboCap.bar[r[1]] === "") { sinBarrio.n += r[3]; sinBarrio.m += r[4]; }
+    }
+    return { sinBarrio, totCapFechas };
+  }, [filasCapital, cuboCap]);
+
   /* ── Datos vista Barrios (Capital) ── */
   const datosBarrios = useMemo(() => {
     if (vista !== "barrios") return [];
     const porBar: Record<string, { n: number; m: number; lineas: Record<string, { n: number; m: number }> }> = {};
     for (const r of filasCapital) {
-      if (circSel && codigoCircuito(r[1]) !== circSel) continue;
+      if (circSel) {
+        const c = codigoCircuito(r[1]);
+        if (circSel === SIN_CIRCUITO ? c !== null : c !== circSel) continue;
+      }
       const bar = cuboCap.bar[r[1]];
+      if (catBarrio === "sin" ? bar !== "" : catBarrio === "con" && bar === "") continue;
       const pb = porBar[bar] ??= { n: 0, m: 0, lineas: {} };
       pb.n += r[3]; pb.m += r[4];
       const lin = cuboCap.lin[r[2]];
@@ -303,7 +321,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
       arr = arr.filter(x => x.bar.includes(q));
     }
     return arr;
-  }, [vista, filasCapital, cuboCap, busqBarrio, circSel, codigoCircuito]);
+  }, [vista, filasCapital, cuboCap, busqBarrio, circSel, catBarrio, codigoCircuito]);
 
   const totCapital = useMemo(() => {
     if (vista !== "barrios") return { n: 0, m: 0 };
@@ -317,8 +335,13 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
   if (mes) chips.push({ label: `Mes: ${MESES[+mes.slice(5,7)-1]} ${mes.slice(0,4)}`, clear: () => setMes(null) });
   if (circSel && vista === "barrios") {
     const nom = circ?.features.find(f => f.properties.codigo === circSel)?.properties.nombre ?? cuboCap.cir?.find(c => c.c === circSel)?.n ?? "";
-    chips.push({ label: `Circuito: ${circSel}${nom ? " – " + nombreDep(nom) : ""}`, clear: () => setCircSel(null) });
+    chips.push({
+      label: circSel === SIN_CIRCUITO ? "Circuito: sin circuito asignado" : `Circuito: ${circSel}${nom ? " – " + nombreDep(nom) : ""}`,
+      clear: () => setCircSel(null),
+    });
   }
+  if (catBarrio !== "todos" && vista === "barrios")
+    chips.push({ label: catBarrio === "sin" ? "Barrio: sin barrio (dato vacío)" : "Barrio: solo con barrio", clear: () => setCatBarrio("todos") });
   if (dep && vista === "panorama") chips.push({ label: `Departamento: ${nombreDep(dep)}`, clear: () => setDep(null) });
 
   /* ── SVG Gráfico ── */
@@ -395,7 +418,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
           }} /></div>
         </div>
         <button className="limpiar" type="button" style={{visibility: chips.length ? "visible":"hidden"}}
-          onClick={() => { setDep(null); setCircSel(null); aplicarAtajo("todo"); }}>Limpiar filtros</button>
+          onClick={() => { setDep(null); setCircSel(null); setCatBarrio("todos"); aplicarAtajo("todo"); }}>Limpiar filtros</button>
       </section>
       {chips.length > 0 && (
         <div className="chips" aria-live="polite">
@@ -651,10 +674,38 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
   const vistaBarrios = (
     <>
       {/* KPIs de Capital */}
-      <section className="kpis kpis-3" aria-label="Indicadores de Capital" style={{marginTop:20}}>
+      <section className="kpis kpis-4" aria-label="Indicadores de Capital" style={{marginTop:20}}>
         <div className="kpi"><span>Créditos en Capital</span><b>{miles(totCapital.n)}</b></div>
         <div className="kpi dest"><span>Monto total</span><b>{peso(totCapital.m)}</b></div>
         <div className="kpi"><span>Barrios</span><b>{miles(datosBarrios.filter(x => x.bar).length)}</b></div>
+        <button type="button" className="kpi kpi-btn" aria-pressed={catBarrio === "sin"}
+          onClick={() => setCatBarrio(c => c === "sin" ? "todos" : "sin")}>
+          <span>Sin barrio (dato vacío)</span><b>{miles(sinBarrio.n)}</b>
+          <small>{totCapFechas.n ? `${(100 * sinBarrio.n / totCapFechas.n).toLocaleString("es-AR", { maximumFractionDigits: 1 })} % de Capital` : "—"} · {peso(sinBarrio.m)}</small>
+          <small className="kpi-accion">{catBarrio === "sin" ? "Quitar filtro" : "Ver solo estos"}</small>
+        </button>
+      </section>
+
+      {/* Filtros de Capital: circuito y categoría de barrio */}
+      <section className="filtros filtros-capital" aria-label="Filtros de Capital" style={{marginTop:20}}>
+        <div className="filtro-sel">
+          <label htmlFor="f-circuito">Circuito</label>
+          <select id="f-circuito" value={circSel ?? ""} onChange={e => setCircSel(e.target.value || null)}>
+            <option value="">Todos los circuitos</option>
+            {(cuboCap.cir ?? []).map(c => (
+              <option key={c.c} value={c.c}>{c.c} – {nombreDep(c.n)} ({miles(porCirc[c.c]?.n || 0)})</option>
+            ))}
+            <option value={SIN_CIRCUITO}>Sin circuito asignado ({miles(sinClasif.n)})</option>
+          </select>
+        </div>
+        <div className="filtro-sel">
+          <label htmlFor="f-barrio">Barrio</label>
+          <select id="f-barrio" value={catBarrio} onChange={e => setCatBarrio(e.target.value as CatBarrio)}>
+            <option value="todos">Todos ({miles(totCapFechas.n)})</option>
+            <option value="con">Con barrio ({miles(totCapFechas.n - sinBarrio.n)})</option>
+            <option value="sin">Sin barrio – dato vacío ({miles(sinBarrio.n)})</option>
+          </select>
+        </div>
       </section>
 
       {/* Mapa de circuitos (coroplético) */}
@@ -669,7 +720,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
             </div>
           </header>
           <div className="chartbox mapa-circ" style={{position:"relative"}}>
-            <MapaCircuitosCarga geo={circ} info={infoCirc} seleccionado={circSel} onSelect={elegirCircuito} />
+            <MapaCircuitosCarga geo={circ} info={infoCirc} seleccionado={circSel === SIN_CIRCUITO ? null : circSel} onSelect={elegirCircuito} />
           </div>
           <p className="nota mapa-ayuda">
             <span className="ayuda-mouse">Hacé clic en el mapa para activar el zoom con la rueda del mouse.</span>

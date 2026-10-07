@@ -101,6 +101,13 @@ class Match:
     candidatos: list[dict] = field(default_factory=list)  # sugerencias para revisar
 
     @property
+    def nombre_mostrado(self) -> str:
+        """Barrio depurado; sin coincidencia/ambiguo: el original de la base; vacío (o 'SD', 'S/D'...): vacío."""
+        if self.barrio_oficial:
+            return self.barrio_oficial
+        return "" if etiqueta(self.metodo) == "SIN DATO" else self.crudo
+
+    @property
     def con_circuito(self) -> bool:
         return self.codigo_circuito is not None
 
