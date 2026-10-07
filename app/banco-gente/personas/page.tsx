@@ -7,7 +7,11 @@ export const metadata = { title: "Banco de la Gente – Vista de personas" };
 export const dynamic = "force-dynamic";
 
 // Vista NOMINAL: solo perfil "completo". El rol se verifica en el servidor; si no corresponde, ni siquiera se envía la vista.
-export default async function Pagina() {
+type Parametros = Record<string, string | string[] | undefined>;
+const texto = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v)?.slice(0, 120) ?? "";
+
+export default async function Pagina({ searchParams }: { searchParams: Promise<Parametros> }) {
+  const sp = await searchParams;
   const s = await exigirRol("completo");
   return (
     <>
@@ -22,7 +26,7 @@ export default async function Pagina() {
           <>
             <h2 className="vista-titulo">Vista de personas</h2>
             {baseConfigurada()
-              ? <VistaPersonas />
+              ? <VistaPersonas inicial={{ departamento: texto(sp.departamento), localidad: texto(sp.localidad), estado: texto(sp.estado), linea: texto(sp.linea), q: texto(sp.q) }} />
               : <p className="nota">La base de personas todavía no está conectada (falta configurar <code>DATABASE_URL_LECTURA</code> en Vercel y cargar los datos).</p>}
           </>
         ) : (

@@ -29,17 +29,20 @@ export async function generarPdfFicha(d: DatosFicha): Promise<Uint8Array> {
   });
   y -= 4;
 
-  // Pares etiqueta / valor en una tarjeta; devuelve la altura que ocupa. `dibujar=false` solo mide.
+  // Pares etiqueta / valor; devuelve la altura que ocupa. `dibujar=false` solo mide.
+  // La columna de etiquetas se ajusta a la etiqueta más larga (y si no entra, la etiqueta se parte en renglones).
   const bloque = (pares: [string, string][], x: number, ancho: number, dibujar: boolean, yIni: number) => {
-    const col = Math.min(150, ancho * 0.38);
+    const maxEtiqueta = Math.max(0, ...pares.map(([k]) => semi.widthOfTextAtSize(limpiarTexto(k), 8.5)));
+    const col = Math.min(ancho * 0.5, Math.max(110, maxEtiqueta + 16));
     let yy = yIni;
     for (const [k, v] of pares) {
+      const etiqueta = envolver(limpiarTexto(k), semi, 8.5, col - 10);
       const lineas = envolver(v, regular, TAM, ancho - col - 6);
       if (dibujar) {
-        pag.drawText(limpiarTexto(k), { x, y: yy - TAM, size: 8.5, font: semi, color: COLOR.gris });
+        etiqueta.forEach((l, i) => pag.drawText(l, { x, y: yy - TAM - i * LINEA, size: 8.5, font: semi, color: COLOR.gris }));
         lineas.forEach((l, i) => pag.drawText(l, { x: x + col, y: yy - TAM - i * LINEA, size: TAM, font: regular, color: COLOR.texto }));
       }
-      yy -= Math.max(1, lineas.length) * LINEA + 2;
+      yy -= Math.max(etiqueta.length, lineas.length) * LINEA + 2;
     }
     return yIni - yy;
   };

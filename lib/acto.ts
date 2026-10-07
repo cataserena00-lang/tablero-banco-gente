@@ -14,6 +14,13 @@ export interface Ficha extends Total { lineas: LineaFicha[]; fechas: PuntoFecha[
 export interface ZonaBarrio extends Total { idx: number; nombre: string; circuito: string | null }
 export interface ZonaLocalidad extends Total { dep: number; loc: number; depto: string; nombre: string; sumaDias: number }
 
+/** Enlace a la vista de personas con la zona ya filtrada (departamento y, si corresponde, localidad), con los nombres de la base. */
+export function urlPersonas(departamento: string, localidad?: string): string {
+  const p = new URLSearchParams({ departamento });
+  if (localidad) p.set("localidad", localidad);
+  return `/banco-gente/personas?${p}`;
+}
+
 export const SIN_LINEA = "SIN LINEA";
 export const BARRIO_VACIO = "Sin barrio informado";
 

@@ -6,7 +6,7 @@ import { LogoBanco } from "./Marca";
 import { fmtF, miles, nombreDep, peso } from "@/lib/formato";
 import {
   BARRIO_VACIO, fichaBarrio, fichaLocalidad, fichaSinAsignar, notaBarrio, subBarrio,
-  zonasCapital, zonasInterior, type Ficha,
+  urlPersonas, zonasCapital, zonasInterior, type Ficha,
 } from "@/lib/acto";
 
 type Ambito = "capital" | "interior";
@@ -16,8 +16,9 @@ const MAX_LISTA = 10;
 const plano = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 const nombreBarrio = (b: string) => (b === "" ? BARRIO_VACIO : nombreDep(b));
 
-export default function PlanificacionEntregas({ cubo, cuboCap, actualizado }: {
+export default function PlanificacionEntregas({ cubo, cuboCap, actualizado, completo = false }: {
   cubo: Cubo; cuboCap: CuboCapital; actualizado: string;
+  completo?: boolean;   // perfil completo: la ficha de una localidad ofrece ir a la vista de personas
 }) {
   const [ambito, setAmbito] = useState<Ambito>("capital");
   const [busq, setBusq] = useState("");
@@ -146,7 +147,8 @@ export default function PlanificacionEntregas({ cubo, cuboCap, actualizado }: {
           <p className="nota acto-vacio">Todavía no elegiste una zona.</p>
         ) : (
           <FichaZona ficha={ficha} titulo={encabezado.titulo} sub={encabezado.sub} notas={[encabezado.nota]}
-            actualizado={actualizado} titleRef={tituloRef} id="acto-titulo" />
+            actualizado={actualizado} titleRef={tituloRef} id="acto-titulo"
+            enlacePersonas={completo && sel?.t === "loc" ? urlPersonas(cubo.dep[sel.dep], cubo.loc[sel.loc]) : undefined} />
         )}
       </div></main>
     </>

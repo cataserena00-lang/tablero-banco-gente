@@ -14,6 +14,9 @@ type Historial = { estado: "cargando" } | { estado: "error" } | { estado: "ok"; 
 interface Facetas { departamentos: string[]; localidades: string[]; estados: string[]; lineas: string[]; columnas?: string[] }
 interface Filtros { q: string; departamento: string; localidad: string; estado: string; linea: string }
 const VACIOS: Filtros = { q: "", departamento: "", localidad: "", estado: "", linea: "" };
+// Mismo nombre sin tildes, en mayúsculas y con espacios simples: así "Villa Allende" encuentra "VILLA ALLENDE"
+const clave = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toUpperCase().replace(/\s+/g, " ").trim();
+const buscarValor = (vals: string[], pedido: string) => vals.find(v => clave(v) === clave(pedido));
 
 const miles = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 const dato = (v: string | number | null | undefined) => v === null || v === undefined || v === "" ? "—" : String(v);
@@ -22,13 +25,21 @@ const plural = (n: number, uno: string, varios: string) => `${miles(n)} ${n === 
 const etiquetaLista = (c: string) => c === "estado" ? "Último estado" : etiqueta(c);
 
 // Columnas de cada solicitud en el desplegable (solo las que trae la base)
-const COLUMNAS_HISTORIAL = ["nro_formulario", "estado", "linea", "monto_prestable"];
+const COLUMNAS_HISTORIAL = ["nro_formulario", "estado", "linea", "monto_prestable", "plazo_devolucion", "valor_cuota", "fecha_aprobado", "fecha_pago_banco", "monto_deuda", "deuda_vencida", "monto_recupero"];
+// Títulos cortos para el desplegable (la ficha lateral usa los completos)
+const CORTO: Record<string, string> = { nro_formulario: "Formulario", monto_prestable: "Monto", plazo_devolucion: "Plazo", valor_cuota: "Cuota",
+  fecha_aprobado: "Aprobación", fecha_pago_banco: "Pago en banco", monto_deuda: "Deuda", deuda_vencida: "Vencida", monto_recupero: "Recupero" };
 // En la ficha lateral no se repite lo que ya está arriba (datos de la persona) ni el año y el mes (van como período)
 const FIJOS_PERSONA = ["nombre", "cuil", "nro_doc", "departamento", "localidad"];
 
-export default function VistaPersonas() {
-  const [f, setF] = useState<Filtros>(VACIOS);
-  const [busq, setBusq] = useState("");           // texto escrito; pasa a `f.q` con una pausa
+export default function VistaPersonas({ inicial }: { inicial?: Partial<Filtros> }) {
+  // Si se llega desde la ficha de una zona, el departamento y la localidad vienen por URL con los nombres del tablero:
+  // se buscan entre los valores de la base (sin tildes ni mayúsculas) y recién entonces se pide el listado.
+  const zonaPedida = useRef({ departamento: inicial?.departamento ?? "", localidad: inicial?.localidad ?? "" });
+  const [esperando, setEsperando] = useState(!!inicial?.departamento);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const [f, setF] = useState<Filtros>({ ...VACIOS, estado: inicial?.estado ?? "", linea: inicial?.linea ?? "", q: inicial?.q ?? "" });
+  const [busq, setBusq] = useState(inicial?.q ?? "");   // texto escrito; pasa a `f.q` con una pausa
   const [pagina, setPagina] = useState(1);
   const [fac, setFac] = useState<Facetas>({ departamentos: [], localidades: [], estados: [], lineas: [] });
   const [datos, setDatos] = useState<Respuesta | null>(null);
@@ -56,8 +67,28 @@ export default function VistaPersonas() {
     return () => ctl.abort();
   }, [f.departamento]);
 
+  // Departamento pedido por URL: se elige el valor equivalente de la base
+  useEffect(() => {
+    const dep = zonaPedida.current.departamento;
+    if (!esperando || !dep || !fac.departamentos.length || f.departamento) return;
+    const v = buscarValor(fac.departamentos, dep);
+    if (!v) { setAviso(`No se encontró el departamento «${dep}» en la base de personas. Elegilo en el filtro.`); setEsperando(false); return; }
+    setF(a => ({ ...a, departamento: v }));
+  }, [esperando, fac.departamentos, f.departamento]);
+  // Localidad pedida por URL (en Capital alcanza con el departamento)
+  useEffect(() => {
+    const { departamento, localidad } = zonaPedida.current;
+    if (!esperando || !f.departamento || buscarValor([f.departamento], departamento) === undefined) return;
+    if (!localidad || clave(f.departamento) === "CAPITAL") { setEsperando(false); return; }
+    if (!fac.localidades.length) return;   // todavía no llegaron las localidades de este departamento
+    const v = buscarValor(fac.localidades, localidad);
+    if (v) setF(a => ({ ...a, localidad: v })); else setAviso(`No se encontró la localidad «${localidad}» en la base de personas: se muestra todo el departamento.`);
+    setEsperando(false);
+  }, [esperando, f.departamento, fac.localidades]);
+
   // Listado
   useEffect(() => {
+    if (esperando) return;
     const ctl = new AbortController();
     const p = new URLSearchParams({ pagina: String(pagina) });
     (Object.keys(f) as (keyof Filtros)[]).forEach(k => f[k] && p.set(k, f[k]));
@@ -68,12 +99,12 @@ export default function VistaPersonas() {
       .catch(e => { if (e?.name === "AbortError") return; setCargando(false);
         setError(e === 403 ? "No tenés permiso para ver esta información." : e === 503 ? "La base de personas no está disponible todavía." : "No se pudo cargar. Probá de nuevo."); });
     return () => ctl.abort();
-  }, [f, pagina]);
+  }, [f, pagina, esperando]);
 
   const cambiar = useCallback((k: keyof Filtros, v: string) => {
     setF(a => ({ ...a, [k]: v, ...(k === "departamento" ? { localidad: "" } : {}) })); setPagina(1);
   }, []);
-  const limpiar = () => { setF(VACIOS); setBusq(""); setPagina(1); };
+  const limpiar = () => { setF(VACIOS); setBusq(""); setPagina(1); setAviso(null); setEsperando(false); };
   const hayFiltros = Object.values(f).some(Boolean) || busq !== "";
 
   // Detalle de una persona (solicitudes): se pide una sola vez y lo usan tanto el desplegable como la ficha lateral
@@ -138,9 +169,10 @@ export default function VistaPersonas() {
     const cols = COLUMNAS_HISTORIAL.filter(c => sols[0] && c in sols[0]);
     return (
       <>
+        <div className="tabla-hist-scroll">
         <table className="tabla-hist">
           <caption className="sr-only">Solicitudes de {nombre}, de la más reciente a la más antigua</caption>
-          <thead><tr><th scope="col">Período</th>{cols.map(c => <th key={c} scope="col">{etiqueta(c)}</th>)}</tr></thead>
+          <thead><tr><th scope="col">Período</th>{cols.map(c => <th key={c} scope="col" title={etiqueta(c)}>{CORTO[c] ?? etiqueta(c)}</th>)}</tr></thead>
           <tbody>
             {sols.map((s, i) => (
               <tr key={i}>
@@ -150,6 +182,7 @@ export default function VistaPersonas() {
             ))}
           </tbody>
         </table>
+        </div>
         <button type="button" className="limpiar" onClick={() => abrirFicha(id)}>Ver ficha completa</button>
       </>
     );
@@ -227,12 +260,13 @@ export default function VistaPersonas() {
             <p className="nota">La exportación queda registrada. El PDF contiene datos personales: usalo solo para tareas del Banco.</p>
           </div>
         )}
-        {error ? <p className="nota">{error}</p> : datos && datos.filas.length === 0 ? (
+        {aviso && <p className="nota" role="status">{aviso}</p>}
+        {error ? <p className="nota">{error}</p> : esperando || !datos ? <p className="nota">Cargando…</p> : datos && datos.filas.length === 0 ? (
           <p className="nota">No hay personas con esos filtros.</p>
         ) : datos && (
           <>
             <p className="nota">Cada fila muestra la última solicitud de la persona. Hacé clic en una fila para ver todas sus solicitudes.</p>
-            <div className="tabla-detalle">
+            <div className="tabla-detalle tabla-personas">
               <table>
                 <thead><tr>{datos.columnas.map(c => <th key={c} className="th-loc">{etiquetaLista(c)}</th>)}</tr></thead>
                 <tbody>
