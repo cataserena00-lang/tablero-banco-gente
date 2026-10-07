@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { exigirRol } from "@/lib/sesion";
-import { baseConfigurada, buscarPersonas, registrarAcceso } from "@/lib/personas";
+import { baseConfigurada, buscarPersonas, registrarAcceso, tablaFaltante } from "@/lib/personas";
 
 export const dynamic = "force-dynamic";
 const SIN_CACHE = { "Cache-Control": "no-store" };
@@ -20,6 +20,7 @@ export async function GET(req: Request) {
     await registrarAcceso(s.usuario, s.rol, "busqueda", filtros, r.total);
     return NextResponse.json(r, { headers: SIN_CACHE });
   } catch (e) {
+    if (tablaFaltante(e)) return NextResponse.json({ error: "sin_base" }, { status: 503, headers: SIN_CACHE });
     console.error("Error en /api/personas", (e as Error)?.name);   // sin mensaje: podría incluir datos
     return NextResponse.json({ error: "error" }, { status: 500, headers: SIN_CACHE });
   }

@@ -13,9 +13,15 @@ Variables de entorno:
   BG_ESTADOS_FILE_ID             ID del archivo en Drive (si no se usa --input).
   FORZAR=1                       recarga aunque el archivo no haya cambiado.
 
-La tabla `personas` se reconstruye completa en cada carga, en una tabla de paso que se intercambia al final
-dentro de una transacción (la vista no se interrumpe). Las columnas del CSV se normalizan (sin tildes, minúsculas,
-sin <br>); las que se reconocen se renombran a: departamento, localidad, estado, linea, nombre, cuil, nro_doc.
+Cada fila del CSV es una SOLICITUD (un Nro Formulario distinto), no un estado de un mismo trámite: una persona
+puede tener varias. Se cargan dos tablas, que se reconstruyen completas en cada carga en tablas de paso que se
+intercambian al final dentro de una transacción (la vista no se interrumpe):
+  - `personas`          una fila por solicitud, con todas las columnas del CSV + `persona` (clave) y `orden`.
+  - `personas_resumen`  una fila por persona, con los datos de su ÚLTIMA solicitud y la cantidad de solicitudes.
+La persona se identifica por CUIL (si falta, documento; si falta, nombre). La última solicitud es la de mayor
+(año, mes) y, a igual período, la de mayor Nro Formulario.
+Las columnas del CSV se normalizan (sin tildes, minúsculas, sin <br>); las que se reconocen se renombran a:
+departamento, localidad, estado, linea, nombre, cuil, nro_doc, nro_formulario, ano, mes.
 """
 import argparse
 import csv
@@ -38,6 +44,9 @@ CANONICAS = {
     "nombre": [r"^nombre", r"^apellido"],
     "cuil": [r"^cuil", r"^cuit"],
     "nro_doc": [r"^nro_?doc", r"^documento", r"^dni"],
+    "nro_formulario": [r"^nro_?formulario", r"^formulario"],
+    "ano": [r"^a(no|_o)$"],      # "Año"; si el archivo llega con la ñ rota queda "a_o"
+    "mes": [r"^mes$"],
 }
 OBLIGATORIAS = ["departamento", "localidad", "estado", "nombre"]
 LOTE_PROGRESO = 100_000
@@ -92,6 +101,44 @@ def texto_busqueda(nombre: str, cuil: str, nro_doc: str) -> str:
     return f"{n} {d}".strip()
 
 
+def solo_digitos(s) -> str:
+    return re.sub(r"\D", "", str(s) if s is not None else "")
+
+
+def entero(v) -> int:
+    """'2024', '10', '10.0' -> entero; vacío o no numérico -> 0."""
+    try:
+        return int(float(str(v).strip().replace(",", ".")))
+    except (ValueError, TypeError):
+        return 0
+
+
+def clave_persona(nombre: str, cuil: str, nro_doc: str) -> str:
+    """Identifica a la persona entre solicitudes: CUIL; si falta, documento; solo si no hay ninguno, el nombre sin tildes
+    (el nombre solo no alcanza: puede escribirse distinto o repetirse entre personas distintas)."""
+    c = solo_digitos(cuil)
+    if c:
+        return "C" + c
+    d = solo_digitos(nro_doc)
+    if d:
+        return "D" + d
+    return "N" + re.sub(r"\s+", " ", sin_tildes(nombre or "")).strip().upper()
+
+
+def calcular_orden(ano, mes, formulario, posicion: int) -> int:
+    """Número para ordenar las solicitudes de una persona de la más vieja a la más nueva: (año, mes) y, a igual período,
+    Nro Formulario. Si el archivo no trae ni año ni formulario, se respeta el orden de las filas (`posicion`)."""
+    a, m = entero(ano), entero(mes)
+    if not 1900 <= a <= 2999:
+        a = 0
+    if not 1 <= m <= 12:
+        m = 0
+    f = int((solo_digitos(formulario) or "0")[-10:])
+    if a == 0 and f == 0:
+        f = posicion
+    return (a * 100 + m) * 10**10 + f
+
+
 def abrir_csv(ruta: Path):
     """Abre el CSV detectando codificación (utf-8 o cp1252) y delimitador (; , tab). Devuelve (archivo, lector)."""
     for cod in ("utf-8-sig", "cp1252"):
@@ -136,22 +183,51 @@ def descargar_drive(file_id: str, destino: Path) -> None:
 def sql_crear_tabla(columnas: list[str]) -> str:
     cols = ",\n  ".join(f'"{c}" text' for c in columnas)
     return (f"CREATE TABLE personas_paso (\n  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,\n  {cols},\n"
-            f"  busqueda text NOT NULL\n)")
+            f"  busqueda text NOT NULL,\n  persona text NOT NULL,\n  orden bigint NOT NULL\n)")
+
+
+# Columnas de personas_resumen que salen de la última solicitud (si el CSV no trae alguna, queda vacía)
+COLUMNAS_RESUMEN = ["nombre", "cuil", "nro_doc", "departamento", "localidad", "estado", "linea", "nro_formulario", "ano", "mes"]
+
+SQL_CREAR_RESUMEN = (
+    "CREATE TABLE personas_resumen_paso (\n  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,\n  persona text NOT NULL,\n  "
+    + ",\n  ".join(f"{c} text" for c in COLUMNAS_RESUMEN)
+    + ",\n  solicitudes integer NOT NULL,\n  busqueda text NOT NULL\n)")
+
+
+def sql_llenar_resumen(columnas: list[str]) -> str:
+    """Una fila por persona: la de mayor `orden`, más la cantidad de solicitudes (count sobre todas las filas de la persona)."""
+    sel = ", ".join(f'"{c}"' if c in columnas else "NULL::text" for c in COLUMNAS_RESUMEN)
+    return (f"INSERT INTO personas_resumen_paso (persona, {', '.join(COLUMNAS_RESUMEN)}, solicitudes, busqueda)\n"
+            f"SELECT DISTINCT ON (persona) persona, {sel}, count(*) OVER (PARTITION BY persona), busqueda\n"
+            f"FROM personas_paso ORDER BY persona, orden DESC")
 
 
 SQL_INDICES = [
-    "CREATE INDEX ix_personas_paso_depto_loc ON personas_paso (departamento, localidad)",
-    "CREATE INDEX ix_personas_paso_estado ON personas_paso (estado)",
-    "CREATE INDEX ix_personas_paso_busqueda ON personas_paso USING gin (busqueda gin_trgm_ops)",
+    "CREATE INDEX ix_personas_paso_persona ON personas_paso (persona, orden DESC)",
+]
+SQL_INDICES_RESUMEN = [
+    "CREATE INDEX ix_resumen_paso_depto_loc ON personas_resumen_paso (departamento, localidad)",
+    "CREATE INDEX ix_resumen_paso_estado ON personas_resumen_paso (estado)",
+    "CREATE INDEX ix_resumen_paso_linea ON personas_resumen_paso (linea)",
+    "CREATE INDEX ix_resumen_paso_nombre ON personas_resumen_paso (nombre, id)",
+    "CREATE INDEX ix_resumen_paso_busqueda ON personas_resumen_paso USING gin (busqueda gin_trgm_ops)",
 ]
 SQL_INTERCAMBIO = [
     "DROP TABLE IF EXISTS personas",
+    "DROP TABLE IF EXISTS personas_resumen",
     "ALTER TABLE personas_paso RENAME TO personas",
-    "ALTER INDEX ix_personas_paso_depto_loc RENAME TO ix_personas_depto_loc",
-    "ALTER INDEX ix_personas_paso_estado RENAME TO ix_personas_estado",
-    "ALTER INDEX ix_personas_paso_busqueda RENAME TO ix_personas_busqueda",
+    "ALTER INDEX ix_personas_paso_persona RENAME TO ix_personas_persona",
     "ALTER INDEX personas_paso_pkey RENAME TO personas_pkey",
+    "ALTER TABLE personas_resumen_paso RENAME TO personas_resumen",
+    "ALTER INDEX ix_resumen_paso_depto_loc RENAME TO ix_resumen_depto_loc",
+    "ALTER INDEX ix_resumen_paso_estado RENAME TO ix_resumen_estado",
+    "ALTER INDEX ix_resumen_paso_linea RENAME TO ix_resumen_linea",
+    "ALTER INDEX ix_resumen_paso_nombre RENAME TO ix_resumen_nombre",
+    "ALTER INDEX ix_resumen_paso_busqueda RENAME TO ix_resumen_busqueda",
+    "ALTER INDEX personas_resumen_paso_pkey RENAME TO personas_resumen_pkey",
     "GRANT SELECT ON personas TO lectura",
+    "GRANT SELECT ON personas_resumen TO lectura",
 ]
 
 
@@ -164,7 +240,8 @@ def cargar(ruta: Path, huella: str, forzar: bool) -> None:
     with f:
         encabezado = next(lector)
         columnas = mapear_canonicas(columnas_unicas(encabezado))
-        i_nombre, i_cuil, i_doc = (columnas.index(c) if c in columnas else None for c in ("nombre", "cuil", "nro_doc"))
+        i_nombre, i_cuil, i_doc, i_form, i_ano, i_mes = (
+            columnas.index(c) if c in columnas else None for c in ("nombre", "cuil", "nro_doc", "nro_formulario", "ano", "mes"))
         with psycopg.connect(url, autocommit=False) as con, con.cursor() as cur:
             cur.execute("CREATE TABLE IF NOT EXISTS carga_meta (huella text, filas bigint, cargado_en timestamptz DEFAULT now())")
             cur.execute("SELECT huella FROM carga_meta ORDER BY cargado_en DESC LIMIT 1")
@@ -173,8 +250,9 @@ def cargar(ruta: Path, huella: str, forzar: bool) -> None:
                 print("Sin cambios en el archivo de origen; no se recarga.")
                 return
             cur.execute("DROP TABLE IF EXISTS personas_paso")
+            cur.execute("DROP TABLE IF EXISTS personas_resumen_paso")
             cur.execute(sql_crear_tabla(columnas))
-            cols_sql = ", ".join(f'"{c}"' for c in columnas) + ", busqueda"
+            cols_sql = ", ".join(f'"{c}"' for c in columnas) + ", busqueda, persona, orden"
             n = 0
             with cur.copy(f"COPY personas_paso ({cols_sql}) FROM STDIN") as copia:
                 for fila in lector:
@@ -182,19 +260,29 @@ def cargar(ruta: Path, huella: str, forzar: bool) -> None:
                         continue
                     fila = (fila + [""] * len(columnas))[:len(columnas)]
                     get = lambda i: fila[i] if i is not None else ""
-                    copia.write_row([v if v != "" else None for v in fila] +
-                                    [texto_busqueda(get(i_nombre), get(i_cuil), get(i_doc))])
                     n += 1
+                    copia.write_row([v if v != "" else None for v in fila] + [
+                        texto_busqueda(get(i_nombre), get(i_cuil), get(i_doc)),
+                        clave_persona(get(i_nombre), get(i_cuil), get(i_doc)),
+                        calcular_orden(get(i_ano), get(i_mes), get(i_form), n),
+                    ])
                     if n % LOTE_PROGRESO == 0:
                         print(f"  {n} filas cargadas...", flush=True)
             for sql in SQL_INDICES:
                 cur.execute(sql)
+            cur.execute(SQL_CREAR_RESUMEN)
+            cur.execute(sql_llenar_resumen(columnas))
+            for sql in SQL_INDICES_RESUMEN:
+                cur.execute(sql)
             cur.execute("ANALYZE personas_paso")
+            cur.execute("ANALYZE personas_resumen_paso")
+            cur.execute("SELECT count(*) FROM personas_resumen_paso")
+            personas = cur.fetchone()[0]
             for sql in SQL_INTERCAMBIO:
                 cur.execute(sql)
             cur.execute("INSERT INTO carga_meta (huella, filas) VALUES (%s, %s)", (huella, n))
             con.commit()
-    print(f"OK: {n} filas cargadas en personas ({len(columnas)} columnas).")
+    print(f"OK: {n} solicitudes cargadas en personas ({len(columnas)} columnas) y {personas} personas en personas_resumen.")
 
 
 def main():
