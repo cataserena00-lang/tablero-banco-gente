@@ -15,6 +15,11 @@ Drive (.xlsx) ─► GitHub Actions (semanal) ─► pipelines/<base>/procesar.p
    - `AUTH_SECRET` = cadena larga aleatoria.
    - `DASHBOARD_USERS` = `usuario:hash,otro:hash`. Cada hash se genera con
      `AUTH_SECRET=<el mismo secreto> npm run hash -- "la clave"`.
+   - Opcional: `DASHBOARD_USERS_EXTRA` = más usuarios (mismo formato `usuario:hash`). Acepta hashes que no dependen de
+     `AUTH_SECRET`, generados con `node scripts/hash-password.mjs --pbkdf2 "la clave"` (queda `usuario:pbkdf2$...`).
+     Sirve para sumar un usuario sin tener que volver a escribir `DASHBOARD_USERS` (en Vercel las variables
+     *sensitive* no se pueden leer). Después de cambiar variables hay que volver a desplegar.
+   - Al iniciar sesión se entra directo a `/banco-gente`.
 5. Actions > "Actualizar datos" > Run workflow para la primera corrida (después corre solo los lunes).
 
 Probar el pipeline local: `pip install -r pipelines/requirements.txt && python pipelines/banco_gente/procesar.py --input base.xlsx`
