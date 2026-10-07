@@ -179,8 +179,8 @@ def main():
     # Circuito de cada barrio (mismo orden que "bar"); -1 = sin clasificar / ambiguo.
     circ_de_barrio = {}
     for m in matches.values():
-        if m.con_circuito:
-            circ_de_barrio[m.barrio_oficial] = (m.codigo_circuito, m.circuito)
+        if m.con_circuito:   # barrio oficial, o el nombre original si es ambiguo pero con circuito seguro
+            circ_de_barrio[m.barrio_oficial or m.crudo] = (m.codigo_circuito, m.circuito)
     cir = sorted({v for v in circ_de_barrio.values()})
     cir_idx = {c: i for i, (c, _) in enumerate(cir)}
     cubo_cap = {
