@@ -303,3 +303,40 @@ main.dash{width:100%}
 .hoja .acto-ficha .acto-sub{margin:12px 0 4px}
 .hoja-cab-fila .logo-banco{height:44px}
 .hoja-cab{margin-bottom:10px}
+
+/* ── Navegación: menú lateral colapsable (escritorio) y barra inferior (celular) ── */
+.app-marco{flex:1;display:flex;align-items:stretch;min-width:0}
+.app-contenido{flex:1;min-width:0;display:flex;flex-direction:column}
+.menu-lateral{position:sticky;top:0;align-self:flex-start;height:100vh;width:248px;flex:none;display:flex;flex-direction:column;background:#fff;border-right:1px solid var(--borde);padding:14px 10px;transition:width .18s ease;z-index:20}
+.menu-lateral.colapsado{width:72px}
+.menu-marca{padding:2px 6px 14px}
+.menu-logo{display:block;width:110px;overflow:hidden}
+.menu-logo img{display:block;height:60px;width:auto}
+.menu-lateral.colapsado .menu-logo{width:44px;height:50px}
+.menu-lateral ul{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.menu-item{position:relative;display:flex;align-items:center;gap:12px;width:100%;min-height:42px;padding:9px 12px;border-radius:10px;border:0;background:none;font:inherit;font-size:14px;color:#374151;text-decoration:none;cursor:pointer;text-align:left}
+.menu-item:hover{background:var(--surface)}
+.menu-item .nav-ico{flex:none}
+.menu-item.activo{background:#FBE9ED;color:var(--primario);font-weight:700}
+.menu-item.activo::before{content:"";position:absolute;left:-10px;top:9px;bottom:9px;width:4px;border-radius:0 4px 4px 0;background:var(--primario)}
+.menu-pie{margin-top:auto;border-top:1px solid var(--borde);padding-top:10px;display:grid;gap:4px}
+.menu-usuario{margin:2px 12px 6px;font-size:11.5px;color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.menu-colapsar{justify-self:end;display:grid;place-items:center;width:36px;height:36px;border:1px solid var(--borde);border-radius:8px;background:#fff;color:#4B5563;cursor:pointer}
+.menu-colapsar:hover{background:var(--surface)}
+.menu-lateral.colapsado .menu-texto{display:none}
+.menu-lateral.colapsado .menu-item{justify-content:center;padding:9px 0}
+.menu-lateral.colapsado .menu-colapsar{justify-self:center}
+.menu-inferior{display:none}
+/* El logo, los accesos y «Salir» pasan al menú: en escritorio la cabecera de cada pantalla solo lleva título y fecha */
+@media(min-width:861px){.top .logo-banco,.top .salir-form{display:none}}
+@media(max-width:860px){
+  .menu-lateral{display:none}
+  .menu-inferior{display:block;position:fixed;left:0;right:0;bottom:0;z-index:30;background:#fff;border-top:1px solid var(--borde);padding:6px 6px calc(6px + env(safe-area-inset-bottom))}
+  .menu-inferior ul{list-style:none;margin:0;padding:0;display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:2px}
+  .menu-inferior a{display:flex;flex-direction:column;align-items:center;gap:2px;padding:4px 2px;font-size:11px;color:#4B5563;text-decoration:none}
+  .menu-inferior .pastilla{display:grid;place-items:center;width:52px;height:28px;border-radius:14px}
+  .menu-inferior a.activo{color:var(--primario);font-weight:700}
+  .menu-inferior a.activo .pastilla{background:#FBE9ED}
+  body{padding-bottom:72px}
+}
+@media print{.menu-lateral,.menu-inferior{display:none}.app-marco,.app-contenido{display:block}body{padding-bottom:0}.top .logo-banco{display:block}}

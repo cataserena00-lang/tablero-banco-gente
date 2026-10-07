@@ -1,5 +1,4 @@
 import { cargar } from "@/lib/datos";
-import { exigirRol } from "@/lib/sesion";
 import Tablero from "@/components/Tablero";
 import type { Cubo, CuboCapital, CircuitosGeo, GeoData } from "@/components/Tablero";
 
@@ -12,7 +11,6 @@ function cargarGeo<T>(d: string, archivo: string, ext = "json"): T | null {
 
 export default async function Pagina() {
   const d = "banco_gente";
-  const completo = (await exigirRol("completo")) !== null;
   return (
     <Tablero
       cubo={cargar<Cubo>(d, "cubo")}
@@ -20,7 +18,6 @@ export default async function Pagina() {
       geo={cargarGeo<GeoData>(d, "deptos_paths")}
       circ={cargarGeo<CircuitosGeo>(d, "circuitos", "geojson")}
       actualizado={cargar<{ actualizado: string }>(d, "meta").actualizado}
-      verPersonas={completo}
     />
   );
 }

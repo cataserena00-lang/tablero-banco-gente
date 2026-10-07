@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import type { Cubo, CuboCapital } from "./Tablero";
 import FichaZona, { plural } from "./FichaZona";
 import { CabeceraHoja, LogoBanco, PieHoja } from "./Marca";
@@ -75,11 +74,10 @@ export default function ExportarFichas({ cubo, cuboCap, actualizado }: { cubo: C
           <LogoBanco />
           <div className="titulo"><h1>Banco de la Gente</h1><p>Exportar fichas · créditos aprobados pendientes de entrega</p></div>
           <div className="actualiz">Datos actualizados el<b>{fmtF(actualizado)}</b></div>
-          <form method="post" action="/api/logout"><button className="salir" type="submit">Salir</button></form>
+          <form method="post" action="/api/logout" className="salir-form"><button className="salir" type="submit">Salir</button></form>
         </div></header>
 
         <main className="dash"><div className="wrap">
-          <Link href="/banco-gente" className="volver">← Volver al tablero</Link>
           <h2 className="vista-titulo">Exportar fichas</h2>
           <p className="acto-intro">
             Tildá los departamentos, localidades o barrios de Córdoba que querés incluir. Se genera una ficha por zona y, si elegiste más de una,

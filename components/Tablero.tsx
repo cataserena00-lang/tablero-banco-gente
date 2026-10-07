@@ -1,6 +1,5 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import FichaZona, { plural } from "./FichaZona";
 import { LogoBanco } from "./Marca";
 import { fmtF, miles, nombreDep, nombreLinea, peso } from "@/lib/formato";
@@ -58,9 +57,8 @@ function colorMapa(v: number, max: number) {
 }
 
 /* ── Componente principal ── */
-export default function Tablero({ cubo, cuboCap, geo, circ, actualizado, verPersonas = false }: {
+export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
   cubo: Cubo; cuboCap: CuboCapital; geo: GeoData | null; circ: CircuitosGeo | null; actualizado: string;
-  verPersonas?: boolean;   // perfil completo: muestra el acceso a la vista nominal (el servidor igual verifica el rol)
 }) {
   const F0 = cubo.f[0], F1 = cubo.f[cubo.f.length-1];
 
@@ -787,10 +785,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado, verPers
         <LogoBanco />
         <div className="titulo"><h1>Banco de la Gente</h1><p>Créditos aprobados pendientes de entrega</p></div>
         <div className="actualiz">Datos actualizados el<b>{fmtF(actualizado)}</b></div>
-        <Link href="/banco-gente/planificacion" className="acto-link">Planificación de entregas</Link>
-        <Link href="/banco-gente/exportar" className="acto-link">Exportar fichas</Link>
-        {verPersonas && <Link href="/banco-gente/personas" className="acto-link">Vista de personas</Link>}
-        <form method="post" action="/api/logout"><button className="salir" type="submit">Salir</button></form>
+        <form method="post" action="/api/logout" className="salir-form"><button className="salir" type="submit">Salir</button></form>
       </div></header>
 
       <main className="dash"><div className="wrap">
