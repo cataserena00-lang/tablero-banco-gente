@@ -15,7 +15,7 @@ function hoyArgentina() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Cordoba" }).format(new Date());
 }
 
-export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado, titleRef, id = "ficha-zona-titulo" }: {
+export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado, titleRef, id = "ficha-zona-titulo", enlacePersonas }: {
   ficha: Ficha;
   titulo: string;
   sub: string;
@@ -23,6 +23,7 @@ export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado,
   actualizado: string;
   titleRef?: Ref<HTMLHeadingElement>;
   id?: string;
+  enlacePersonas?: string;   // solo perfil completo: lleva a la vista de personas con esta zona ya filtrada
 }) {
   const [hoy, setHoy] = useState<string | null>(null);   // se calcula en el navegador: la página es estática
   useEffect(() => { setHoy(hoyArgentina()); }, []);
@@ -37,6 +38,7 @@ export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado,
           <h2 id={id} ref={titleRef} tabIndex={-1}>{titulo}</h2>
           <p className="sub">{sub}</p>
         </div>
+        {enlacePersonas && <a className="acto-link ficha-enlace-personas" href={enlacePersonas}>Ver personas de esta zona →</a>}
       </header>
 
       {ficha.n === 0 ? (

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FichaZona, { plural } from "./FichaZona";
 import { LogoBanco } from "./Marca";
 import { fmtF, miles, nombreDep, nombreLinea, peso } from "@/lib/formato";
-import { BARRIO_VACIO, fichaBarrio, fichaDepartamento, fichaLocalidad, notaBarrio, subBarrio, zonasInterior } from "@/lib/acto";
+import { BARRIO_VACIO, urlPersonas, fichaBarrio, fichaDepartamento, fichaLocalidad, notaBarrio, subBarrio, zonasInterior } from "@/lib/acto";
 import MapaCircuitosCarga from "./mapa/MapaCircuitosCarga";
 import type { CircuitosGeo, InfoCircuito } from "./mapa/MapaCircuitos";
 
@@ -57,8 +57,9 @@ function colorMapa(v: number, max: number) {
 }
 
 /* ── Componente principal ── */
-export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
+export default function Tablero({ cubo, cuboCap, geo, circ, actualizado, completo = false }: {
   cubo: Cubo; cuboCap: CuboCapital; geo: GeoData | null; circ: CircuitosGeo | null; actualizado: string;
+  completo?: boolean;   // perfil completo: la ficha ofrece ir a la vista de personas (el servidor igual verifica el rol)
 }) {
   const F0 = cubo.f[0], F1 = cubo.f[cubo.f.length-1];
 
@@ -597,11 +598,13 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
   const vistaLocalidades = dep && fichaDep ? (
     locFicha !== null && fichaLoc ? (
       <FichaZona ficha={fichaLoc} titulo={nombreLocFicha!} sub={`Localidad · Departamento ${nombreDep(dep)}`}
-        notas={[avisoFiltro]} actualizado={actualizado} titleRef={tituloRef} />
+        notas={[avisoFiltro]} actualizado={actualizado} titleRef={tituloRef}
+        enlacePersonas={completo ? urlPersonas(cubo.dep[depIdx], cubo.loc[locFicha]) : undefined} />
     ) : (
       <>
         <FichaZona ficha={fichaDep} titulo={nombreDep(dep)} sub={`Departamento · ${plural(zonasLoc.length, "localidad", "localidades")}`}
-          notas={[avisoFiltro]} actualizado={actualizado} titleRef={tituloRef} />
+          notas={[avisoFiltro]} actualizado={actualizado} titleRef={tituloRef}
+          enlacePersonas={completo ? urlPersonas(cubo.dep[depIdx]) : undefined} />
 
         {/* Localidades del departamento */}
         <section className="card" style={{marginTop:20}}>
