@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { exigirRol } from "@/lib/sesion";
-import { baseConfigurada, exportarPersonas, registrarAcceso, type Filtros } from "@/lib/personas";
+import { baseConfigurada, exportarPersonas, registrarAcceso, tablaFaltante, type Filtros } from "@/lib/personas";
 import { generarPdfPersonas } from "@/lib/pdfPersonas";
 import { etiquetaColumna } from "@/lib/personasComun";
 
@@ -34,6 +34,7 @@ export async function GET(req: Request) {
       headers: { ...SIN_CACHE, "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="${nombre}"` },
     });
   } catch (e) {
+    if (tablaFaltante(e)) return NextResponse.json({ error: "sin_base" }, { status: 503, headers: SIN_CACHE });
     console.error("Error en /api/personas/exportar", (e as Error)?.name);   // sin mensaje: podría incluir datos
     return NextResponse.json({ error: "error" }, { status: 500, headers: SIN_CACHE });
   }
