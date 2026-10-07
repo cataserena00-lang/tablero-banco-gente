@@ -1,6 +1,12 @@
 // Funciona en Edge (middleware) y Node: solo usa Web Crypto.
 const enc = new TextEncoder();
 export const COOKIE = "sesion";
+
+// Perfiles: "completo" (todo, incluida la vista nominal cuando exista) y "agregado" (solo datos agregados).
+// Sin rol explícito (o con uno desconocido) se asigna "agregado": el mínimo privilegio es el valor por defecto.
+export type Rol = "completo" | "agregado";
+export const ROL_POR_DEFECTO: Rol = "agregado";
+const aRol = (v?: string): Rol => v === "completo" ? "completo" : ROL_POR_DEFECTO;
 const DURACION_MS = 1000 * 60 * 60 * 12; // 12 h
 
 const hex = (b: ArrayBuffer) => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join("");
@@ -40,33 +46,45 @@ async function coincide(guardado: string, clave: string, hmacClave: string) {
 }
 
 // DASHBOARD_USERS = "usuario:hash,otro:hash" (formato original, hash con AUTH_SECRET).
-// DASHBOARD_USERS_EXTRA = más usuarios en el mismo formato; acepta además hashes pbkdf2$... (ver scripts/hash-password.mjs).
-export async function verificarCredenciales(usuario: string, clave: string) {
+// DASHBOARD_USERS_EXTRA = más usuarios en el mismo formato; acepta además hashes pbkdf2.… (ver scripts/hash-password.mjs).
+// Cada entrada puede terminar en "|completo" o "|agregado" (ej.: "ana:pbkdf2.100000.sal.hash|completo").
+// Devuelve el rol del usuario si usuario y clave son correctos, o null.
+export async function verificarCredenciales(usuario: string, clave: string): Promise<{ rol: Rol } | null> {
   const lista = [process.env.DASHBOARD_USERS, process.env.DASHBOARD_USERS_EXTRA]
     .flatMap(v => (v ?? "").split(",")).map(x => x.trim()).filter(Boolean);
   const hmacClave = await hmac(clave, secreto());
-  let ok = false;
+  let rol: Rol | null = null;
   const candidatos: string[] = [];   // formato de las entradas que tienen ese usuario (para diagnosticar)
   for (const par of lista) {
     const i = par.indexOf(":");
     if (i < 0 || par.slice(0, i) !== usuario) continue;
-    candidatos.push(formatoDe(par.slice(i + 1)));
-    if (await coincide(par.slice(i + 1), clave, hmacClave)) ok = true;
+    const [guardado, rolTxt] = par.slice(i + 1).split("|");
+    candidatos.push(formatoDe(guardado));
+    if (await coincide(guardado, clave, hmacClave)) {
+      const r = aRol(rolTxt);
+      if (rol !== "completo") rol = r;   // si hay dos entradas válidas, vale el perfil completo solo si alguna lo declara
+    }
   }
   // Solo metadatos: nunca la clave ni los hashes
-  if (!ok) console.warn("login fallido", { usuario, entradasConfiguradas: lista.length, formatosDelUsuario: candidatos });
-  return ok;
+  if (!rol) console.warn("login fallido", { usuario, entradasConfiguradas: lista.length, formatosDelUsuario: candidatos });
+  return rol ? { rol } : null;
 }
-export async function crearSesion(usuario: string) {
-  const cuerpo = `${encodeURIComponent(usuario)}.${Date.now() + DURACION_MS}`;
+// Token de sesión: "<usuario>.<rol>.<expira>.<firma>" (firmado con AUTH_SECRET: el rol no se puede alterar).
+// Los tokens anteriores, "<usuario>.<expira>.<firma>", siguen siendo válidos y valen como rol "agregado".
+export async function crearSesion(usuario: string, rol: Rol = ROL_POR_DEFECTO) {
+  const cuerpo = `${encodeURIComponent(usuario)}.${rol}.${Date.now() + DURACION_MS}`;
   return `${cuerpo}.${await hmac(cuerpo, secreto())}`;
 }
-export async function sesionValida(token?: string) {
-  if (!token) return false;
+export async function leerSesion(token?: string): Promise<{ usuario: string; rol: Rol } | null> {
+  if (!token) return null;
   const partes = token.split(".");
-  if (partes.length !== 3) return false;
-  const [u, exp, firma] = partes;
-  if (!igual(firma, await hmac(`${u}.${exp}`, secreto()))) return false;
-  return Number(exp) > Date.now();
+  if (partes.length !== 3 && partes.length !== 4) return null;
+  const firma = partes[partes.length - 1], exp = partes[partes.length - 2];
+  if (!igual(firma, await hmac(partes.slice(0, -1).join("."), secreto()))) return null;
+  if (!(Number(exp) > Date.now())) return null;
+  return { usuario: decodeURIComponent(partes[0]), rol: partes.length === 4 ? aRol(partes[1]) : ROL_POR_DEFECTO };
+}
+export async function sesionValida(token?: string) {
+  return (await leerSesion(token)) !== null;
 }
 export const SESION_SEGUNDOS = DURACION_MS / 1000;

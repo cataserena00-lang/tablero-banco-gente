@@ -20,6 +20,7 @@ Drive (.xlsx) ─► GitHub Actions (semanal) ─► pipelines/<base>/procesar.p
      Sirve para sumar un usuario sin tener que volver a escribir `DASHBOARD_USERS` (en Vercel las variables
      *sensitive* no se pueden leer). Después de cambiar variables hay que volver a desplegar.
    - Al iniciar sesión se entra directo a `/banco-gente`.
+   - **Perfiles (roles):** cada entrada puede terminar en `|completo` o `|agregado`, por ejemplo `ana:pbkdf2.100000.sal.hash|completo`. `agregado` (el valor por defecto si no se indica rol) ve solo los datos agregados; `completo` es el perfil para la futura vista nominal. El rol viaja dentro de la cookie de sesión firmada con `AUTH_SECRET`, así que el navegador no puede cambiarlo. En el servidor se lee con `sesionActual()` / `exigirRol("completo")` (`lib/sesion.ts`) y `GET /api/sesion` devuelve `{usuario, rol}` del usuario logueado. Todo lo nominal debe pedir `exigirRol("completo")` en una ruta o componente de servidor.
 5. Actions > "Actualizar datos" > Run workflow para la primera corrida (después corre solo los lunes).
 
 Probar el pipeline local: `pip install -r pipelines/requirements.txt && python pipelines/banco_gente/procesar.py --input base.xlsx`
