@@ -1,46 +1,17 @@
-import { PDFDocument, PDFFont, StandardFonts, rgb } from "pdf-lib";
+import { PDFFont, rgb } from "pdf-lib";
 import { etiquetaColumna } from "@/lib/personasComun";
+import { COLOR, cabecera, crearDocumento, envolver, franja, limpiarTexto, pies } from "@/lib/pdfMarca";
 
-/* Arma el PDF de personas en el servidor (pdf-lib, JavaScript puro, sin archivos de fuentes).
-   Helvetica estándar solo admite WinAnsi (latin-1 + algunos signos): lo demás se reemplaza por "?". */
+/* Arma el PDF de personas en el servidor (pdf-lib). Marca, tipografía (Poppins) y pie: lib/pdfMarca.ts. */
+export { envolver, limpiarTexto };
 
 type Valor = string | number | null | undefined;
 export interface DatosPdf {
   columnas: string[]; filas: Record<string, Valor>[]; filtros: string[]; usuario: string; fecha: string;
 }
 
-const AZUL = rgb(0.07, 0.25, 0.45), GRIS = rgb(0.4, 0.4, 0.4), ZEBRA = rgb(0.95, 0.96, 0.98), LINEA = rgb(0.8, 0.82, 0.86);
-const TAM = 8, TAM_ENC = 8.5, INTERLINEA = 1.2, PAD = 3, MARGEN = 28;
-const AVISO = "Información confidencial. Uso interno del Banco de la Gente; contiene datos personales.";
-
-/** Reemplaza lo que Helvetica (WinAnsi) no puede dibujar y colapsa espacios. */
-export function limpiarTexto(v: Valor): string {
-  const s = v === null || v === undefined || v === "" ? "—" : String(v);
-  return s.replace(/[\r\n\t]+/g, " ").replace(/\s+/g, " ").trim()
-    .replace(/[^\x20-\x7e\xa0-\xff€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ]/g, "?");
-}
-
-/** Parte un texto en líneas que entran en `ancho`; las palabras muy largas se cortan. */
-export function envolver(texto: string, fuente: PDFFont, tam: number, ancho: number): string[] {
-  const w = (t: string) => fuente.widthOfTextAtSize(t, tam);
-  const lineas: string[] = [];
-  let actual = "";
-  const empujar = (palabra: string) => {
-    if (w(palabra) <= ancho) { actual = palabra; return; }
-    let trozo = "";
-    for (const ch of palabra) {
-      if (w(trozo + ch) > ancho && trozo) { lineas.push(trozo); trozo = ch; } else trozo += ch;
-    }
-    actual = trozo;
-  };
-  for (const palabra of texto.split(" ")) {
-    if (!actual) { empujar(palabra); continue; }
-    if (w(actual + " " + palabra) <= ancho) actual += " " + palabra;
-    else { lineas.push(actual); actual = ""; empujar(palabra); }
-  }
-  if (actual) lineas.push(actual);
-  return lineas.length ? lineas : [""];
-}
+const { azul: AZUL, gris: GRIS, zebra: ZEBRA, linea: LINEA } = COLOR;
+const TAM = 8, TAM_ENC = 8.5, INTERLINEA = 1.3, PAD = 3, MARGEN = 32;
 
 /** Anchos por columna según el contenido (muestra de filas), repartidos para ocupar el ancho útil. */
 export function anchosColumnas(columnas: string[], filas: DatosPdf["filas"], fuente: PDFFont, util: number): number[] {
@@ -66,10 +37,8 @@ export function anchosColumnas(columnas: string[], filas: DatosPdf["filas"], fue
 }
 
 export async function generarPdfPersonas(d: DatosPdf): Promise<Uint8Array> {
-  const pdf = await PDFDocument.create();
-  pdf.setTitle("Personas — Banco de la Gente"); pdf.setCreator("Tablero Banco de la Gente");
-  const fuente = await pdf.embedFont(StandardFonts.Helvetica);
-  const negrita = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const marca = await crearDocumento("Personas — Banco de la Gente");
+  const { pdf, regular: fuente, semi: negrita } = marca;
 
   const [aP, hP] = d.columnas.length > 8 ? [1190.55, 841.89] : [841.89, 595.28];   // A3 o A4 apaisado
   const util = aP - MARGEN * 2;
@@ -82,9 +51,8 @@ export async function generarPdfPersonas(d: DatosPdf): Promise<Uint8Array> {
   paginas.push(pag);
   let y = hP - MARGEN;
 
-  // Cabecera de la primera página
-  pag.drawText("Banco de la Gente — Personas", { x: MARGEN, y: y - 14, size: 15, font: negrita, color: AZUL });
-  y -= 22;
+  // Cabecera de la primera página: logo, título y datos de la exportación
+  y = cabecera(marca, pag, MARGEN, "Personas", "Banco de la Gente · créditos y solicitudes");
   const info = [`${d.filas.length} ${d.filas.length === 1 ? "persona" : "personas"}`, `Generado el ${limpiarTexto(d.fecha)} por ${limpiarTexto(d.usuario)}`,
     `Filtros: ${d.filtros.length ? d.filtros.map(limpiarTexto).join(" · ") : "ninguno"}`];
   for (const l of info.flatMap(t => envolver(t, fuente, 9, util))) {
@@ -104,12 +72,12 @@ export async function generarPdfPersonas(d: DatosPdf): Promise<Uint8Array> {
   };
   encabezado();
 
-  const piso = MARGEN + 16;
+  const piso = MARGEN + 22;
   d.filas.forEach((fila, idx) => {
     const celdas = d.columnas.map((c, i) => envolver(limpiarTexto(fila[c]), fuente, TAM, anchos[i] - PAD * 2));
     const h = alto(Math.max(...celdas.map(c => c.length)));
     if (y - h < piso) {
-      pag = pdf.addPage([aP, hP]); paginas.push(pag); y = hP - MARGEN; encabezado();
+      pag = pdf.addPage([aP, hP]); paginas.push(pag); franja(pag); y = hP - MARGEN; encabezado();
     }
     if (idx % 2 === 1) pag.drawRectangle({ x: MARGEN, y: y - h, width: util, height: h, color: ZEBRA });
     let x = MARGEN;
@@ -121,11 +89,6 @@ export async function generarPdfPersonas(d: DatosPdf): Promise<Uint8Array> {
     y -= h;
   });
 
-  // Pie en todas las páginas: aviso + "Página X de Y"
-  paginas.forEach((p, i) => {
-    p.drawText(AVISO, { x: MARGEN, y: MARGEN - 6, size: 7.5, font: fuente, color: GRIS });
-    const t = `Página ${i + 1} de ${paginas.length}`;
-    p.drawText(t, { x: aP - MARGEN - fuente.widthOfTextAtSize(t, 8), y: MARGEN - 6, size: 8, font: fuente, color: GRIS });
-  });
+  pies(marca, paginas, MARGEN);
   return pdf.save();
 }

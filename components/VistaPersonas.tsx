@@ -300,6 +300,7 @@ export default function VistaPersonas() {
                 ))}
               </>
             )}
+            {fichaDatos && <a className="limpiar" href={`/api/personas/${ficha}/exportar`} download>Exportar ficha a PDF</a>}
             <p className="nota">Esta consulta queda registrada.</p>
           </aside>
         </div>

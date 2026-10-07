@@ -23,3 +23,26 @@ export function PieGobierno() {
     </footer>
   );
 }
+
+/* Cabecera y pie de cada hoja impresa de las fichas (solo se ven al imprimir; ver .hoja-cab y .hoja-pie en globals.css). */
+export function CabeceraHoja({ actualizado }: { actualizado: string }) {
+  return (
+    <div className="hoja-cab">
+      <div className="franja" />
+      <div className="hoja-cab-fila">
+        <LogoBanco />
+        <div><b>Banco de la Gente</b><span>Créditos aprobados pendientes de entrega · datos actualizados el {actualizado}</span></div>
+      </div>
+    </div>
+  );
+}
+
+export function PieHoja() {
+  return (
+    <div className="hoja-pie">
+      <img src={logoGobierno.src} width={logoGobierno.width} height={logoGobierno.height}
+        alt="Córdoba, Gobierno de la Provincia. Hacer para crecer" />
+      <span>Ministerio de Producción, Ciencia e Innovación Tecnológica</span>
+    </div>
+  );
+}
