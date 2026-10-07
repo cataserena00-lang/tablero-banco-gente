@@ -12,7 +12,7 @@ export interface LineaFicha extends Total { linea: string }   // `linea` tal com
 export interface PuntoFecha extends Total { f: string }       // f = fecha de aprobación ISO
 export interface Ficha extends Total { lineas: LineaFicha[]; fechas: PuntoFecha[] }
 export interface ZonaBarrio extends Total { idx: number; nombre: string; circuito: string | null }
-export interface ZonaLocalidad extends Total { dep: number; loc: number; depto: string; nombre: string; masAntigua: string }
+export interface ZonaLocalidad extends Total { dep: number; loc: number; depto: string; nombre: string; sumaDias: number }
 
 /** Enlace a la vista de personas con la zona ya filtrada (departamento y, si corresponde, localidad), con los nombres de la base. */
 export function urlPersonas(departamento: string, localidad?: string): string {
@@ -91,9 +91,9 @@ export function zonasInterior(c: Cubo): ZonaLocalidad[] {
   for (const r of c.rows) {
     if (r[1] === capital) continue;
     const k = `${r[1]}|${r[2]}`;
-    const z = acc.get(k) ?? { dep: r[1], loc: r[2], depto: c.dep[r[1]], nombre: c.loc[r[2]], n: 0, m: 0, masAntigua: c.f[r[0]] };
+    const z = acc.get(k) ?? { dep: r[1], loc: r[2], depto: c.dep[r[1]], nombre: c.loc[r[2]], n: 0, m: 0, sumaDias: 0 };
     z.n += r[4]; z.m += r[5];
-    if (c.f[r[0]] < z.masAntigua) z.masAntigua = c.f[r[0]];
+    z.sumaDias += r[4] * diaAbsoluto(c.f[r[0]]);   // para la espera promedio de la zona
     acc.set(k, z);
   }
   return [...acc.values()].sort((a, b) => b.n - a.n);
@@ -111,6 +111,20 @@ export interface Antiguedad {
   tramos: { id: string; etiqueta: string; n: number; m: number }[];
   diasMasAntigua: number;
   diasPromedio: number;
+}
+
+/** Fecha ISO como número de días desde 1970 (para promediar fechas). */
+export function diaAbsoluto(iso: string): number {
+  return Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 86_400_000;
+}
+
+/** Días de espera promedio de una zona (ponderado por créditos) al día `hoy`. */
+export function esperaPromedio(z: { n: number; sumaDias: number }, hoy: string): number {
+  return z.n ? Math.max(0, Math.round(diaAbsoluto(hoy) - z.sumaDias / z.n)) : 0;
+}
+
+export function hoyArgentina() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Cordoba" }).format(new Date());
 }
 
 export function diasEntre(desdeIso: string, hastaIso: string): number {

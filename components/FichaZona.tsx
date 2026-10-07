@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState, type Ref } from "react";
 import { fmtF, miles, nombreLinea, peso } from "@/lib/formato";
-import { SIN_LINEA, antiguedad, type Ficha } from "@/lib/acto";
+import { SIN_LINEA, antiguedad, hoyArgentina, type Ficha } from "@/lib/acto";
 
 /* Ficha de zona: cantidad, monto, líneas y antigüedad de la aprobación de una zona
    (barrio, localidad o departamento). Solo muestra agregados. */
@@ -10,10 +10,6 @@ const pct = (parte: number, todo: number) => (todo ? ((parte / todo) * 100).toFi
 const anchoBarra = (parte: number, todo: number) => `${todo ? Math.max(2, (parte / todo) * 100) : 0}%`;
 export const plural = (n: number, uno: string, varios: string) => `${miles(n)} ${n === 1 ? uno : varios}`;
 const textoLinea = (l: string) => (l === SIN_LINEA ? "Sin línea informada" : nombreLinea(l));
-
-function hoyArgentina() {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Cordoba" }).format(new Date());
-}
 
 export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado, titleRef, id = "ficha-zona-titulo", enlacePersonas }: {
   ficha: Ficha;
@@ -49,9 +45,9 @@ export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado,
             <div className="kpi dest"><span>Créditos pendientes</span><b>{miles(ficha.n)}</b></div>
             <div className="kpi"><span>Monto total</span><b>{peso(ficha.m)}</b></div>
             <div className="kpi"><span>Monto promedio</span><b>{peso(ficha.m / ficha.n)}</b></div>
-            <div className="kpi"><span>Aprobación más antigua</span>
-              <b className="chico">{primera ? fmtF(primera) : "—"}</b>
-              <small>{ant ? `hace ${plural(ant.diasMasAntigua, "día", "días")}` : " "}</small>
+            <div className="kpi"><span>Espera promedio</span>
+              <b className="chico">{ant ? plural(ant.diasPromedio, "día", "días") : "—"}</b>
+              <small>{ant ? `${pct(ant.tramos[3].n, ficha.n)} con más de 180 días` : "\u00a0"}</small>
             </div>
           </div>
 
