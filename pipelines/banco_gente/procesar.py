@@ -109,7 +109,7 @@ def main():
     matches = conciliador.conciliar(cap.barrio_crudo.unique())
     # Nombre mostrado: el barrio depurado si concilia; si no hay coincidencia, el original de la base;
     # si viene vacío queda vacío (el crédito sigue siendo de Capital, sin barrio).
-    cap["barrio"] = [matches[b].barrio_oficial or b for b in cap.barrio_crudo]
+    cap["barrio"] = [matches[b].nombre_mostrado for b in cap.barrio_crudo]
     cred_crudo = cap.barrio_crudo.value_counts().to_dict()
     monto_crudo = cap.groupby("barrio_crudo").monto.sum().round(0).astype(int).to_dict()
     reporte = bm.resumen(matches, cred_crudo)
@@ -180,7 +180,7 @@ def main():
     circ_de_barrio = {}
     for m in matches.values():
         if m.con_circuito:   # barrio oficial, o el nombre original si es ambiguo pero con circuito seguro
-            circ_de_barrio[m.barrio_oficial or m.crudo] = (m.codigo_circuito, m.circuito)
+            circ_de_barrio[m.nombre_mostrado] = (m.codigo_circuito, m.circuito)
     cir = sorted({v for v in circ_de_barrio.values()})
     cir_idx = {c: i for i, (c, _) in enumerate(cir)}
     cubo_cap = {

@@ -135,6 +135,14 @@ def test_vacios_quedan_vacios(conc, vacio):
     assert m.barrio_oficial is None and m.metodo == "SIN DATO"
 
 
+def test_nombre_mostrado(conc):
+    assert conc.conciliar_uno("alberdi").nombre_mostrado == "ALBERDI"            # depurado
+    assert conc.conciliar_uno("ZZZ INEXISTENTE").nombre_mostrado == "ZZZ INEXISTENTE"   # original de la base
+    assert conc.conciliar_uno("SANTA ISABEL").nombre_mostrado == "SANTA ISABEL"  # ambiguo: original
+    for vacio in ["", "SD", "S/D", "SIN DATO"]:                                  # vacío: vacío
+        assert conc.conciliar_uno(vacio).nombre_mostrado == ""
+
+
 def test_resumen_y_revisar(conc):
     cred = {"ALBERDI": 10, "ALBERDI I": 5, "LAS DELICIAS": 3, "ZZZ": 7, "": 2, "ESQUIU": 4}
     ms = conc.conciliar(cred)

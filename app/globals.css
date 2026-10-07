@@ -100,6 +100,14 @@ svg text{font-family:inherit}
 .breadcrumb button:hover{color:var(--primario)}
 .bc-sep{color:var(--tx2)}
 .bc-current{color:var(--tx);font-weight:600}
+/* filtros de Capital (selects) y KPI "sin barrio" */
+.filtro-sel label{display:block;font-size:12px;color:var(--tx2);margin-bottom:3px}
+.filtro-sel select{font:inherit;font-size:14px;color:var(--tx);border:1px solid var(--borde);background:#fff;border-radius:8px;padding:8px 10px;min-width:240px;max-width:100%}
+.kpi-btn{font:inherit;text-align:left;cursor:pointer;color:inherit;width:100%}
+.kpi-btn:hover{background:var(--celeste-claro)}
+.kpi-btn[aria-pressed=true]{border-color:var(--primario);box-shadow:inset 0 0 0 1px var(--primario)}
+.kpi-accion{display:block;margin-top:4px;color:var(--celeste-txt);text-decoration:underline}
+.kpis.kpis-4{grid-template-columns:repeat(4,1fr)}
 /* kpis-3 */
 .kpis.kpis-3{grid-template-columns:repeat(3,1fr)}
 /* tabla detalle */
@@ -153,7 +161,7 @@ svg text{font-family:inherit}
 .mapa-ayuda .ayuda-tactil{display:none}
 @media(pointer:coarse){.mapa-ayuda .ayuda-mouse{display:none}.mapa-ayuda .ayuda-tactil{display:inline}}
 /* responsive */
-@media(max-width:1020px){.kpis{grid-template-columns:repeat(2,1fr)}.kpis .kpi:last-child{grid-column:span 2}.kpis.kpis-3{grid-template-columns:repeat(3,1fr)}.grid{grid-template-columns:1fr}.th-lineas,.td-lineas{display:none}}
-@media(max-width:560px){.mapa-leaflet-wrap,.mapa-esqueleto{height:420px}.wrap{padding:0 14px}.card{padding:16px 14px}.rank li{grid-template-columns:96px 1fr 104px;font-size:13px;gap:8px}.logo{width:110px}.limpiar{margin-left:0}.actualiz{text-align:left;width:100%}.kpis.kpis-3{grid-template-columns:1fr}.buscar-barrio input{width:100%}.tabla-detalle{font-size:13px}.tabla-detalle th,.tabla-detalle td{padding:8px 8px}}
+@media(max-width:1020px){.kpis{grid-template-columns:repeat(2,1fr)}.kpis .kpi:last-child{grid-column:span 2}.kpis.kpis-4{grid-template-columns:repeat(2,1fr)}.kpis.kpis-4 .kpi:last-child{grid-column:auto}.kpis.kpis-3{grid-template-columns:repeat(3,1fr)}.grid{grid-template-columns:1fr}.th-lineas,.td-lineas{display:none}}
+@media(max-width:560px){.mapa-leaflet-wrap,.mapa-esqueleto{height:420px}.wrap{padding:0 14px}.card{padding:16px 14px}.rank li{grid-template-columns:96px 1fr 104px;font-size:13px;gap:8px}.logo{width:110px}.limpiar{margin-left:0}.actualiz{text-align:left;width:100%}.kpis.kpis-3,.kpis.kpis-4{grid-template-columns:1fr}.filtro-sel,.filtro-sel select{width:100%;min-width:0}.buscar-barrio input{width:100%}.tabla-detalle{font-size:13px}.tabla-detalle th,.tabla-detalle td{padding:8px 8px}}
 @media print{.filtros .limpiar,.salir,.seg{display:none}.card{break-inside:avoid}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}.mapa-esqueleto{animation:none}}
