@@ -46,7 +46,7 @@ Tests: `pip install pytest && python -m pytest pipelines/banco_gente/tests`.
 ### Mapa de circuitos (Leaflet + OpenStreetMap)
 La vista de barrios de Capital dibuja los circuitos como capa GeoJSON de Leaflet sobre un mapa base de calles (`components/mapa/`). Colores, escala, tooltip, selección y filtros los calcula `components/Tablero.tsx`; el mapa solo dibuja y se carga con `next/dynamic` (`ssr:false`). Cambiar fechas o Monto/Cantidad solo restila las capas: no remonta el mapa ni resetea el zoom.
 
-- **Geometría:** `data/banco_gente/circuitos.geojson` (119 circuitos en lon/lat, `properties: {codigo, nombre}`, más el contorno de la ciudad en `limite`). Lo genera una sola vez `python pipelines/banco_gente/geo/build_circuitos_geojson.py` a partir de `pipelines/banco_gente/circuitos_cordoba.json` (TopoJSON). Si cambia el TopoJSON, volver a correrlo y commitear el resultado (requiere `pip install shapely`, solo para esto).
+- **Geometría:** `data/banco_gente/circuitos.geojson` (119 circuitos en lon/lat, `properties: {codigo, nombre}`). Lo genera una sola vez `python pipelines/banco_gente/geo/build_circuitos_geojson.py` a partir de `pipelines/banco_gente/circuitos_cordoba.json` (TopoJSON). Si cambia el TopoJSON, volver a correrlo y commitear el resultado (Python puro, sin dependencias).
 - **Zoom:** botones +/− arriba a la izquierda. La rueda del mouse solo hace zoom después de hacer clic en el mapa. En pantallas táctiles un dedo mueve la página y dos dedos mueven/amplían el mapa.
 
 #### Tiles del mapa base y política de uso de OpenStreetMap

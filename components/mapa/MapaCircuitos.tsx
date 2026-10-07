@@ -1,7 +1,7 @@
 "use client";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-import type { FeatureCollection, Geometry, Polygon } from "geojson";
+import type { FeatureCollection, Geometry } from "geojson";
 import { useEffect, useRef, useState } from "react";
 import { MapContainer, TileLayer, useMap, useMapEvents } from "react-leaflet";
 
@@ -9,9 +9,7 @@ import { MapContainer, TileLayer, useMap, useMapEvents } from "react-leaflet";
    Solo dibuja: los valores, colores, textos y la selección los calcula Tablero y llegan por props,
    así que cambiar filtros o Monto/Cantidad solo restila las capas (no remonta el mapa ni toca el zoom). */
 
-export type CircuitosGeo = FeatureCollection<Geometry, { codigo: string; nombre: string }> & {
-  limite?: Polygon;   // contorno exterior de la ciudad
-};
+export type CircuitosGeo = FeatureCollection<Geometry, { codigo: string; nombre: string }>;
 export interface InfoCircuito {
   color: string | null;   // relleno de la coroplética; null = sin datos (gris)
   activo: boolean;        // tiene datos: se puede hacer clic
@@ -30,7 +28,7 @@ const ATRIBUCION = process.env.NEXT_PUBLIC_TILES_ATTRIBUTION ||
   '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors';
 
 // Mismos colores que app/globals.css (Leaflet necesita valores literales)
-const BORDE = "#FFFFFF", PRIMARIO = "#C0183A", GRIS = "#E5E7EB", LIMITE = "#1F2937";
+const BORDE = "#FFFFFF", PRIMARIO = "#C0183A", GRIS = "#E5E7EB";
 const OPACIDAD_RELLENO = 0.65;
 
 type Capa = L.Polygon & { feature: { properties: { codigo: string } } };
@@ -54,7 +52,6 @@ function calcularBounds(geo: CircuitosGeo, info: Props["info"]) {
 function CapaCircuitos({ geo, info, seleccionado, onSelect }: Props) {
   const map = useMap();
   const capaRef = useRef<L.GeoJSON | null>(null);
-  const limiteRef = useRef<L.GeoJSON | null>(null);
   const hoverRef = useRef<string | null>(null);
   const infoRef = useRef(info);
   const selRef = useRef(seleccionado);
@@ -95,7 +92,6 @@ function CapaCircuitos({ geo, info, seleccionado, onSelect }: Props) {
     if (frenteRef.current !== selRef.current) {
       frenteRef.current = selRef.current;
       (elegida as Capa | null)?.bringToFront();
-      limiteRef.current?.bringToFront();
     }
   };
 
@@ -121,14 +117,9 @@ function CapaCircuitos({ geo, info, seleccionado, onSelect }: Props) {
       });
     });
     capaRef.current = capa;
-    if (geo.limite) {
-      limiteRef.current = L.geoJSON(geo.limite, {
-        style: { color: LIMITE, weight: 1.75, fill: false, lineJoin: "round" }, interactive: false,
-      }).addTo(map);
-    }
     frenteRef.current = null;
     aplicar.current();
-    return () => { capa.remove(); limiteRef.current?.remove(); capaRef.current = null; limiteRef.current = null; };
+    return () => { capa.remove(); capaRef.current = null; };
   }, [map, geo]);
 
   // Cambian valores o selección: solo se restila

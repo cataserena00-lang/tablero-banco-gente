@@ -99,6 +99,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
   const [metC, setMetC] = useState<Met>("m");
   const [circSel, setCircSel] = useState<string|null>(null);
   const [catBarrio, setCatBarrio] = useState<CatBarrio>("todos");
+  const [locSel, setLocSel] = useState<string|null>(null);   // filtro de localidad (departamentos que no son Capital)
 
   const chartRef = useRef<HTMLDivElement>(null);
   const tipGRef = useRef<HTMLDivElement>(null);
@@ -108,12 +109,12 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
 
   /* Navegación */
   const irADep = useCallback((nombre: string) => {
-    setDep(nombre);
+    setDep(nombre); setLocSel(null);
     if (nombre === "CAPITAL") setVista("barrios");
     else setVista("localidades");
   }, []);
   const irAPanorama = useCallback(() => {
-    setVista("panorama"); setDep(null); setBusqBarrio(""); setCircSel(null); setCatBarrio("todos");
+    setVista("panorama"); setDep(null); setBusqBarrio(""); setCircSel(null); setCatBarrio("todos"); setLocSel(null);
   }, []);
 
   /* Al cambiar de vista: arriba de todo y foco en el título (no en la primera carga).
@@ -215,7 +216,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
   [porDep]);
 
   /* ── Datos vista Localidades (para un departamento seleccionado) ── */
-  const datosLocalidades = useMemo(() => {
+  const localidadesDep = useMemo(() => {
     if (vista !== "localidades" || !dep) return [];
     const depIdx = cubo.dep.indexOf(dep);
     if (depIdx < 0) return [];
@@ -238,10 +239,23 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
       .sort((a,b) => b.m - a.m);
   }, [vista, dep, filas, cubo]);
 
+  // Con el filtro de localidad activo la tabla y los indicadores muestran solo esa localidad
+  const datosLocalidades = useMemo(
+    () => locSel ? localidadesDep.filter(r => r.loc === locSel) : localidadesDep,
+    [localidadesDep, locSel]);
+
   const totDep = useMemo(() => {
     if (!dep) return { n: 0, m: 0 };
+    if (locSel) return datosLocalidades.reduce((a, r) => ({ n: a.n + r.n, m: a.m + r.m }), { n: 0, m: 0 });
     return porDep[dep] || { n: 0, m: 0 };
-  }, [dep, porDep]);
+  }, [dep, porDep, locSel, datosLocalidades]);
+
+  // Opciones del select de localidad (alfabéticas); la elegida se mantiene aunque las fechas la dejen sin datos
+  const opcionesLocalidad = useMemo(() => {
+    const l = localidadesDep.map(r => ({ loc: r.loc, n: r.n }));
+    if (locSel && !l.some(x => x.loc === locSel)) l.push({ loc: locSel, n: 0 });
+    return l.sort((a, b) => nombreDep(a.loc).localeCompare(nombreDep(b.loc), "es"));
+  }, [localidadesDep, locSel]);
 
   /* ── Circuitos (Capital): código de circuito de un barrio, o null si no tiene ── */
   const codigoCircuito = useCallback((barIdx: number) => {
@@ -342,6 +356,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
   }
   if (catBarrio !== "todos" && vista === "barrios")
     chips.push({ label: catBarrio === "sin" ? "Barrio: sin barrio (dato vacío)" : "Barrio: solo con barrio", clear: () => setCatBarrio("todos") });
+  if (locSel && vista === "localidades") chips.push({ label: `Localidad: ${nombreDep(locSel)}`, clear: () => setLocSel(null) });
   if (dep && vista === "panorama") chips.push({ label: `Departamento: ${nombreDep(dep)}`, clear: () => setDep(null) });
 
   /* ── SVG Gráfico ── */
@@ -418,7 +433,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
           }} /></div>
         </div>
         <button className="limpiar" type="button" style={{visibility: chips.length ? "visible":"hidden"}}
-          onClick={() => { setDep(null); setCircSel(null); setCatBarrio("todos"); aplicarAtajo("todo"); }}>Limpiar filtros</button>
+          onClick={() => { if (vista === "panorama") setDep(null); setCircSel(null); setCatBarrio("todos"); setLocSel(null); aplicarAtajo("todo"); }}>Limpiar filtros</button>
       </section>
       {chips.length > 0 && (
         <div className="chips" aria-live="polite">
@@ -621,11 +636,24 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
         <div className="kpi"><span>Localidades</span><b>{miles(datosLocalidades.length)}</b></div>
       </section>
 
+      {/* Filtro de localidad */}
+      <section className="filtros filtros-capital" aria-label="Filtro de localidad" style={{marginTop:20}}>
+        <div className="filtro-sel">
+          <label htmlFor="f-localidad">Localidad</label>
+          <select id="f-localidad" value={locSel ?? ""} onChange={e => setLocSel(e.target.value || null)}>
+            <option value="">Todas las localidades ({miles(localidadesDep.length)})</option>
+            {opcionesLocalidad.map(o => (
+              <option key={o.loc} value={o.loc}>{nombreDep(o.loc)} ({miles(o.n)})</option>
+            ))}
+          </select>
+        </div>
+      </section>
+
       {/* Tabla de localidades */}
       <section className="card" style={{marginTop:20}}>
         <header>
           <div><h2>Localidades de {nombreDep(dep)}</h2>
-            <p className="sub">{datosLocalidades.length} localidades · ordenadas por monto</p></div>
+            <p className="sub">{datosLocalidades.length} {datosLocalidades.length === 1 ? "localidad" : "localidades"} · ordenadas por monto</p></div>
         </header>
         {datosLocalidades.length === 0 ? (
           <p className="nota">No hay datos para este departamento en el rango de fechas seleccionado.</p>
@@ -733,9 +761,6 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
             <span style={{marginLeft:8}}>
               <i style={{display:"inline-block",width:12,height:12,background:"#E5E7EB",borderRadius:3,verticalAlign:-2}} /> Sin datos
             </span>
-            {circ.limite && <span style={{marginLeft:8}}>
-              <i className="limite-muestra" aria-hidden="true" /> Límite de la ciudad
-            </span>}
           </div>
           {sinClasif.n > 0 && (
             <p className="nota">{miles(sinClasif.n)} créditos ({peso(sinClasif.m)}) no se pudieron asignar a un circuito (sin barrio, sin coincidencia con la base oficial o ambiguo) y no se pintan en el mapa; sí figuran en la tabla de barrios.</p>

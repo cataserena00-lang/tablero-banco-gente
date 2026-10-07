@@ -7,8 +7,6 @@ Uso (desde la raíz del repo):
 - Simplifica con Douglas-Peucker POR ARCO (~0,00003°, unos 3 m) y redondea a 5 decimales.
 - Anillos exteriores en sentido antihorario y huecos en horario (RFC 7946).
 - FeatureCollection con una Feature por circuito: properties { codigo, nombre }.
-- Miembro extra "limite": contorno exterior de la ciudad (unión de todos los circuitos), como Polygon.
-  Requiere `pip install shapely` (solo para regenerar este archivo; no hace falta en el pipeline ni en Vercel).
 """
 import json
 import sys
@@ -19,8 +17,6 @@ ENTRADA = PIPE / "circuitos_cordoba.json"
 SALIDA = PIPE.parent.parent / "data" / "banco_gente" / "circuitos.geojson"
 OBJETO = "circuitos_cbacap"
 TOLERANCIA = 0.00003      # grados
-TOLERANCIA_LIMITE = 0.0001
-CIERRE_HUECOS = 0.00015   # grados (~15 m): los circuitos no comparten bordes exactos (cuantización ~4 m)
 DECIMALES = 5
 MAX_BYTES = 250_000
 ESPERADOS = 119
@@ -88,24 +84,10 @@ def redondear(pts):
     return out
 
 
-def limite_ciudad(poligonos):
-    try:
-        from shapely.geometry import Polygon
-        from shapely.ops import unary_union
-    except ImportError:
-        sys.exit("Falta shapely para calcular el límite: pip install shapely")
-    polis = [Polygon(ext, huecos).buffer(0) for ext, huecos in poligonos]
-    union = unary_union(polis).buffer(CIERRE_HUECOS).buffer(-CIERRE_HUECOS)
-    if union.geom_type == "MultiPolygon":
-        union = max(union.geoms, key=lambda g: g.area)
-    pts = douglas_peucker(list(union.exterior.coords)[:-1], TOLERANCIA_LIMITE)
-    return {"type": "Polygon", "coordinates": [redondear(orientar(pts, True))]}
-
-
 def main():
     topo = json.loads(ENTRADA.read_text(encoding="utf-8"))
     arcos = [douglas_peucker(a, TOLERANCIA) for a in decodificar_arcos(topo)]
-    features, poligonos = [], []
+    features = []
     for g in topo["objects"][OBJETO]["geometries"]:
         grupos = g["arcs"] if g["type"] == "MultiPolygon" else [g["arcs"]]
         coords = []
@@ -118,7 +100,6 @@ def main():
                 anillos.append(orientar(pts, antihorario=(n == 0)))
             if anillos:
                 coords.append([redondear(a) for a in anillos])
-                poligonos.append((anillos[0], anillos[1:]))
         p = g["properties"]
         geom = ({"type": "Polygon", "coordinates": coords[0]} if len(coords) == 1
                 else {"type": "MultiPolygon", "coordinates": coords})
@@ -129,7 +110,7 @@ def main():
     if len(features) != ESPERADOS or len(set(codigos)) != ESPERADOS:
         sys.exit(f"Se esperaban {ESPERADOS} circuitos distintos y hay {len(features)} ({len(set(codigos))} códigos únicos)")
 
-    out = {"type": "FeatureCollection", "features": features, "limite": limite_ciudad(poligonos)}
+    out = {"type": "FeatureCollection", "features": features}
     txt = json.dumps(out, ensure_ascii=False, separators=(",", ":"))
     if len(txt.encode()) >= MAX_BYTES:
         sys.exit(f"El archivo pesa {len(txt.encode())/1000:.0f} KB (máximo {MAX_BYTES//1000} KB): subir la tolerancia")
