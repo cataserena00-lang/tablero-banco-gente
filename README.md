@@ -43,5 +43,24 @@ Si se actualiza `depurar_barrios.py` (por ejemplo con nuevos ALIAS), reemplazar 
 
 Tests: `pip install pytest && python -m pytest pipelines/banco_gente/tests`.
 
-### Mapa de circuitos
-`pipelines/banco_gente/geo/build_circuitos_paths.py` (script único, ya ejecutado) convierte `circuitos_cordoba.json` (TopoJSON) en `circuitos_paths.json`. Si cambia el TopoJSON, volver a correrlo y commitear el resultado.
+### Mapa de circuitos (Leaflet + OpenStreetMap)
+La vista de barrios de Capital dibuja los circuitos como capa GeoJSON de Leaflet sobre un mapa base de calles (`components/mapa/`). Colores, escala, tooltip, selección y filtros los calcula `components/Tablero.tsx`; el mapa solo dibuja y se carga con `next/dynamic` (`ssr:false`). Cambiar fechas o Monto/Cantidad solo restila las capas: no remonta el mapa ni resetea el zoom.
+
+- **Geometría:** `data/banco_gente/circuitos.geojson` (119 circuitos en lon/lat, `properties: {codigo, nombre}`, más el contorno de la ciudad en `limite`). Lo genera una sola vez `python pipelines/banco_gente/geo/build_circuitos_geojson.py` a partir de `pipelines/banco_gente/circuitos_cordoba.json` (TopoJSON). Si cambia el TopoJSON, volver a correrlo y commitear el resultado (requiere `pip install shapely`, solo para esto).
+- **Zoom:** botones +/− arriba a la izquierda. La rueda del mouse solo hace zoom después de hacer clic en el mapa. En pantallas táctiles un dedo mueve la página y dos dedos mueven/amplían el mapa.
+
+#### Tiles del mapa base y política de uso de OpenStreetMap
+Por defecto se usan los tiles estándar de OpenStreetMap (`https://tile.openstreetmap.org/{z}/{x}/{y}.png`) con la atribución visible "© OpenStreetMap contributors". Esos servidores son un recurso comunitario gratuito y tienen una [política de uso](https://operations.osmfoundation.org/policies/tiles/):
+
+- Es obligatorio mostrar la atribución (ya está en el mapa).
+- Está pensado para uso liviano: nada de descargas masivas ni precarga de tiles, y no se debe ocultar el `Referer` del navegador (OSM bloquea las peticiones sin identificar).
+- OSM puede limitar o bloquear el servicio en cualquier momento y no ofrece garantías de disponibilidad. Para un tablero con mucho tráfico conviene un proveedor de tiles propio o comercial.
+
+Para cambiar de proveedor sin tocar código, definir en Vercel (Settings → Environment Variables) y volver a desplegar, porque se incorporan en el build:
+
+| Variable | Qué hace | Por defecto |
+|---|---|---|
+| `NEXT_PUBLIC_TILES_URL` | URL de tiles con `{z}/{x}/{y}` | OSM estándar |
+| `NEXT_PUBLIC_TILES_ATTRIBUTION` | Atribución (HTML) que exige el proveedor | © OpenStreetMap contributors |
+
+Si el mapa base no carga, el tablero sigue funcionando: los circuitos se muestran igual y aparece un aviso.
