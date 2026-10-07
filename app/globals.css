@@ -132,15 +132,28 @@ svg text{font-family:inherit}
 .vista-titulo{margin:18px 0 0;font-size:20px;font-weight:600;letter-spacing:-.01em}
 .vista-titulo:focus{outline:none}
 .vista-titulo:focus-visible{outline:2px solid var(--celeste-osc);outline-offset:4px;border-radius:4px}
-/* mapa de circuitos */
-.mapa-circ .mapa{max-width:640px;margin:0 auto}
-.mapa-circ .dep{stroke-width:.75}
-.mapa-circ .dep:hover,.mapa-circ .dep.sel{stroke-width:2}
-.limite-ciudad{fill:none;stroke:#1F2937;stroke-width:1.75;stroke-linejoin:round;vector-effect:non-scaling-stroke;pointer-events:none}
-.limite-muestra{display:inline-block;width:18px;border-top:2px solid #1F2937;vertical-align:3px}
 .dep:focus-visible{stroke:var(--primario);stroke-width:2.5;outline:none}
+/* mapa de circuitos (Leaflet: mapa base de calles + capa GeoJSON) */
+.mapa-circ{max-width:640px;margin:0 auto}
+.mapa-leaflet-wrap{position:relative;height:620px;isolation:isolate;border:1px solid var(--borde);border-radius:8px;overflow:hidden;background:var(--surface)}
+.mapa-leaflet-wrap .leaflet-container{font:inherit;background:var(--surface)}
+.mapa-leaflet-wrap .leaflet-interactive:focus-visible{stroke:var(--primario);stroke-width:2.5px;outline:none}
+.leaflet-tooltip.tip-circ{background:#fff;color:var(--tx);border:1px solid var(--borde);border-radius:8px;padding:8px 10px;font-size:12.5px;box-shadow:0 1px 4px rgba(31,41,55,.08);min-width:150px;white-space:normal}
+.leaflet-tooltip.tip-circ::before{display:none}
+.tip-circ b{display:block;margin-bottom:2px;font-weight:600}
+.tip-circ div{display:flex;justify-content:space-between;gap:14px;color:var(--tx2)}
+.tip-circ div span:last-child{color:var(--tx);font-variant-numeric:tabular-nums}
+.mapa-esqueleto{height:620px;display:grid;place-content:center;gap:10px;justify-items:center;border:1px solid var(--borde);border-radius:8px;color:var(--tx2);font-size:14px;background:linear-gradient(90deg,var(--surface) 0 40%,#fff 50%,var(--surface) 60% 100%);background-size:200% 100%;animation:esqueleto 1.4s linear infinite}
+.mapa-esqueleto.mapa-error{animation:none;background:var(--surface);text-align:center;padding:0 16px}
+.mapa-esqueleto button{font:inherit;font-size:13.5px;color:#fff;background:var(--primario);border:0;border-radius:8px;padding:8px 14px;cursor:pointer}
+.mapa-esqueleto button:hover{background:var(--primario-hover)}
+@keyframes esqueleto{from{background-position:200% 0}to{background-position:-200% 0}}
+.mapa-aviso{position:absolute;left:10px;right:10px;bottom:34px;z-index:900;background:#fff;border:1px solid var(--borde);border-radius:8px;padding:8px 10px;font-size:12.5px;color:var(--tx2);box-shadow:0 1px 4px rgba(31,41,55,.08)}
+.limite-muestra{display:inline-block;width:18px;border-top:2px solid #1F2937;vertical-align:3px}
+.mapa-ayuda .ayuda-tactil{display:none}
+@media(pointer:coarse){.mapa-ayuda .ayuda-mouse{display:none}.mapa-ayuda .ayuda-tactil{display:inline}}
 /* responsive */
 @media(max-width:1020px){.kpis{grid-template-columns:repeat(2,1fr)}.kpis .kpi:last-child{grid-column:span 2}.kpis.kpis-3{grid-template-columns:repeat(3,1fr)}.grid{grid-template-columns:1fr}.th-lineas,.td-lineas{display:none}}
-@media(max-width:560px){.wrap{padding:0 14px}.card{padding:16px 14px}.rank li{grid-template-columns:96px 1fr 104px;font-size:13px;gap:8px}.logo{width:110px}.limpiar{margin-left:0}.actualiz{text-align:left;width:100%}.kpis.kpis-3{grid-template-columns:1fr}.buscar-barrio input{width:100%}.tabla-detalle{font-size:13px}.tabla-detalle th,.tabla-detalle td{padding:8px 8px}}
+@media(max-width:560px){.mapa-leaflet-wrap,.mapa-esqueleto{height:420px}.wrap{padding:0 14px}.card{padding:16px 14px}.rank li{grid-template-columns:96px 1fr 104px;font-size:13px;gap:8px}.logo{width:110px}.limpiar{margin-left:0}.actualiz{text-align:left;width:100%}.kpis.kpis-3{grid-template-columns:1fr}.buscar-barrio input{width:100%}.tabla-detalle{font-size:13px}.tabla-detalle th,.tabla-detalle td{padding:8px 8px}}
 @media print{.filtros .limpiar,.salir,.seg{display:none}.card{break-inside:avoid}}
-@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}.mapa-esqueleto{animation:none}}

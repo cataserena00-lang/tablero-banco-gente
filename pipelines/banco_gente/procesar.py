@@ -197,12 +197,11 @@ def main():
     (SALIDA / "cubo.json").write_text(json.dumps(cubo, ensure_ascii=False), encoding="utf-8")
     (SALIDA / "cubo_capital.json").write_text(json.dumps(cubo_cap, ensure_ascii=False), encoding="utf-8")
 
-    # Mapas (deptos y circuitos) a data/ para que Next.js los lea
+    # Mapa de departamentos a data/ para que Next.js lo lea (circuitos.geojson ya vive en data/)
     import shutil
-    for nombre, origen in [("deptos_paths.json", AQUI / "deptos_paths.json"),
-                           ("circuitos_paths.json", AQUI / "circuitos_paths.json")]:
-        if origen.exists():
-            shutil.copy2(origen, SALIDA / nombre)
+    geo_src = AQUI / "deptos_paths.json"
+    if geo_src.exists():
+        shutil.copy2(geo_src, SALIDA / "deptos_paths.json")
 
     # Barrios para revisar: no conciliados y dudosos (se corrigen en barrios_alias.csv)
     rev = bm.filas_revisar(matches, cred_crudo, monto_crudo)

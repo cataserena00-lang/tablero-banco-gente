@@ -1,5 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import MapaCircuitosCarga from "./mapa/MapaCircuitosCarga";
+import type { CircuitosGeo, InfoCircuito } from "./mapa/MapaCircuitos";
 
 /* ── Tipos ── */
 export interface Cubo {
@@ -22,11 +24,7 @@ export interface GeoData {
   deptos: { nombre: string; d: string; bbox: number[] }[];
 }
 
-export interface CircuitosGeo {
-  w: number; h: number;
-  items: { codigo: string; nombre: string; d: string; bbox: number[] }[];
-  limite?: string;  // contorno exterior de la ciudad (path SVG)
-}
+export type { CircuitosGeo };
 
 type Vista = "panorama" | "localidades" | "barrios";
 type Met = "n" | "m";
@@ -101,7 +99,6 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
   const chartRef = useRef<HTMLDivElement>(null);
   const tipGRef = useRef<HTMLDivElement>(null);
   const tipMRef = useRef<HTMLDivElement>(null);
-  const tipCRef = useRef<HTMLDivElement>(null);
   const tituloRef = useRef<HTMLHeadingElement>(null);
   const primeraVista = useRef(true);
 
@@ -261,9 +258,26 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
   }, [filasCapital, codigoCircuito]);
 
   const circVals = useMemo(() => {
-    const vals = (circ?.items ?? []).map(c => porCirc[c.codigo]?.[metC] || 0);
+    const vals = (circ?.features ?? []).map(f => porCirc[f.properties.codigo]?.[metC] || 0);
     return { vals, max: Math.max(1, ...vals) };
   }, [circ, porCirc, metC]);
+
+  const infoCirc = useMemo(() => {
+    const out: Record<string, InfoCircuito> = {};
+    (circ?.features ?? []).forEach((f, i) => {
+      const { codigo, nombre } = f.properties;
+      const v = porCirc[codigo] || { n: 0, m: 0 };
+      const col = colorMapa(circVals.vals[i], circVals.max);
+      const nom = `Circuito ${codigo} ${nombreDep(nombre)}`;
+      out[codigo] = {
+        color: col, activo: !!col,
+        aria: col ? `${nom}: ${miles(v.n)} créditos, ${peso(v.m)}` : `${nom}: sin datos`,
+        tooltip: `<b>${nom.replace(/[<>&]/g, "")}</b><div><span>Créditos</span><span>${miles(v.n)}</span></div><div><span>Monto</span><span>${peso(v.m)}</span></div>`,
+      };
+    });
+    return out;
+  }, [circ, porCirc, circVals]);
+  const elegirCircuito = useCallback((codigo: string) => setCircSel(c => c === codigo ? null : codigo), []);
 
   /* ── Datos vista Barrios (Capital) ── */
   const datosBarrios = useMemo(() => {
@@ -302,7 +316,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
     chips.push({ label: `Aprobación: ${fmtF(desde)} a ${fmtF(hasta)}`, clear: () => aplicarAtajo("todo") });
   if (mes) chips.push({ label: `Mes: ${MESES[+mes.slice(5,7)-1]} ${mes.slice(0,4)}`, clear: () => setMes(null) });
   if (circSel && vista === "barrios") {
-    const nom = circ?.items.find(c => c.codigo === circSel)?.nombre ?? cuboCap.cir?.find(c => c.c === circSel)?.n ?? "";
+    const nom = circ?.features.find(f => f.properties.codigo === circSel)?.properties.nombre ?? cuboCap.cir?.find(c => c.c === circSel)?.n ?? "";
     chips.push({ label: `Circuito: ${circSel}${nom ? " – " + nombreDep(nom) : ""}`, clear: () => setCircSel(null) });
   }
   if (dep && vista === "panorama") chips.push({ label: `Departamento: ${nombreDep(dep)}`, clear: () => setDep(null) });
@@ -655,38 +669,12 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
             </div>
           </header>
           <div className="chartbox mapa-circ" style={{position:"relative"}}>
-            <svg className="mapa" viewBox={`0 0 ${circ.w} ${circ.h}`} role="group" aria-label="Mapa de circuitos de Córdoba Capital">
-              {circ.items.map((c, i) => {
-                const col = colorMapa(circVals.vals[i], circVals.max);
-                const v = porCirc[c.codigo] || { n: 0, m: 0 };
-                const nom = `Circuito ${c.codigo} ${nombreDep(c.nombre)}`;
-                const elegir = () => setCircSel(circSel === c.codigo ? null : c.codigo);
-                return <path key={c.codigo} d={c.d} fillRule="evenodd"
-                  className={`dep${col?"":" vacio"}${circSel===c.codigo?" sel":""}`}
-                  fill={col || "#E5E7EB"}
-                  tabIndex={col ? 0 : -1}
-                  role={col ? "button" : "img"}
-                  aria-pressed={col ? circSel === c.codigo : undefined}
-                  aria-label={col ? `${nom}: ${miles(v.n)} créditos, ${peso(v.m)}` : `${nom}: sin datos`}
-                  onClick={() => { if (col) elegir(); }}
-                  onKeyDown={e => { if (col && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); elegir(); } }}
-                  onMouseMove={e => {
-                    const tip = tipCRef.current;
-                    const box = (e.currentTarget as SVGPathElement).closest(".chartbox") as HTMLElement;
-                    if (!tip || !box) return;
-                    const r = box.getBoundingClientRect();
-                    tip.style.display = "block";
-                    tip.innerHTML = `<b>${nom.replace(/[<>&]/g, "")}</b><div><span>Créditos</span><span>${miles(v.n)}</span></div><div><span>Monto</span><span>${peso(v.m)}</span></div>`;
-                    tip.style.left = Math.min(e.clientX-r.left+14, r.width-170)+"px";
-                    tip.style.top = (e.clientY-r.top+14)+"px";
-                  }}
-                  onMouseLeave={() => { if (tipCRef.current) tipCRef.current.style.display = "none"; }}
-                />;
-              })}
-              {circ.limite && <path className="limite-ciudad" d={circ.limite} aria-hidden="true" />}
-            </svg>
-            <div className="tip" ref={tipCRef} />
+            <MapaCircuitosCarga geo={circ} info={infoCirc} seleccionado={circSel} onSelect={elegirCircuito} />
           </div>
+          <p className="nota mapa-ayuda">
+            <span className="ayuda-mouse">Hacé clic en el mapa para activar el zoom con la rueda del mouse.</span>
+            <span className="ayuda-tactil">Con dos dedos movés y ampliás el mapa; con uno se desplaza la página.</span>
+          </p>
           <div className="leyenda">
             <span>{fmtLeyenda(0, metC)}</span>
             <div className="escala" />

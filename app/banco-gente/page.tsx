@@ -4,9 +4,9 @@ import type { Cubo, CuboCapital, CircuitosGeo, GeoData } from "@/components/Tabl
 
 export const metadata = { title: "Banco de la Gente – Pendientes de entrega" };
 
-// Los mapas (deptos_paths / circuitos_paths) son assets estáticos que copia el pipeline; si faltan, el tablero se muestra sin ellos.
-function cargarGeo<T>(d: string, archivo: string): T | null {
-  try { return cargar<T>(d, archivo); } catch { return null; }
+// Los mapas (deptos_paths.json / circuitos.geojson) son assets estáticos; si faltan, el tablero se muestra sin ellos.
+function cargarGeo<T>(d: string, archivo: string, ext = "json"): T | null {
+  try { return cargar<T>(d, archivo, ext); } catch { return null; }
 }
 
 export default function Pagina() {
@@ -16,7 +16,7 @@ export default function Pagina() {
       cubo={cargar<Cubo>(d, "cubo")}
       cuboCap={cargar<CuboCapital>(d, "cubo_capital")}
       geo={cargarGeo<GeoData>(d, "deptos_paths")}
-      circ={cargarGeo<CircuitosGeo>(d, "circuitos_paths")}
+      circ={cargarGeo<CircuitosGeo>(d, "circuitos", "geojson")}
       actualizado={cargar<{ actualizado: string }>(d, "meta").actualizado}
     />
   );
