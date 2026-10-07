@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FichaZona, { plural } from "./FichaZona";
 import { LogoBanco } from "./Marca";
 import { fmtF, miles, nombreDep, nombreLinea, peso } from "@/lib/formato";
-import { BARRIO_VACIO, fichaBarrio, fichaDepartamento, fichaLocalidad, notaBarrio, subBarrio, zonasInterior } from "@/lib/acto";
+import { BARRIO_VACIO, antiguedad, esperaPromedio, fichaBarrio, fichaDepartamento, fichaLocalidad, hoyArgentina, notaBarrio, subBarrio, zonasInterior } from "@/lib/acto";
 import MapaCircuitosCarga from "./mapa/MapaCircuitosCarga";
 import type { CircuitosGeo, InfoCircuito } from "./mapa/MapaCircuitos";
 
@@ -171,19 +171,23 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
   const ranking = useMemo(() =>
     Object.entries(porDep)
       .filter(([k]) => !["SIN ASIGNAR","SIN DATO"].includes(k))
-      .sort((a,b) => b[1][metM] - a[1][metM])
-      .slice(0, 10),
+      .sort((a,b) => b[1][metM] - a[1][metM]),
   [porDep, metM]);
 
-  /* Top dep y loc para KPIs */
-  const topDep = useMemo(() => {
-    const arr = Object.entries(porDep).sort((a,b) => b[1].m - a[1].m);
-    return arr[0] || null;
-  }, [porDep]);
-  const topLoc = useMemo(() => {
-    const arr = Object.entries(porLoc).sort((a,b) => b[1].m - a[1].m);
-    return arr[0] || null;
-  }, [porLoc]);
+  /* Espera de entrega: días desde la aprobación de los créditos del filtro actual (la fecha de hoy se calcula en el
+     navegador porque la página es estática) */
+  const [hoy, setHoy] = useState<string | null>(null);
+  useEffect(() => { setHoy(hoyArgentina()); }, []);
+  const espera = useMemo(() => {
+    if (!hoy || !tot.n) return null;
+    const porF = new Map<string, { f: string; n: number; m: number }>();
+    for (const r of filas) {
+      const f = cubo.f[r[0]];
+      const x = porF.get(f) ?? { f, n: 0, m: 0 };
+      x.n += r[4]; x.m += r[5]; porF.set(f, x);
+    }
+    return antiguedad([...porF.values()], hoy);
+  }, [filas, cubo, hoy, tot.n]);
 
   const sinDatos = useMemo(() =>
     ["SIN ASIGNAR","SIN DATO"].reduce((a, k) => ({
@@ -441,16 +445,19 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
   const vistaPanorama = (
     <>
       {/* KPIs */}
-      <section className="kpis" aria-label="Indicadores" style={{marginTop:20}}>
+      <section className="kpis kpis-4" aria-label="Indicadores" style={{marginTop:20}}>
         <div className="kpi"><span>Créditos pendientes</span><b>{miles(tot.n)}</b><small>aprobados, sin entregar</small></div>
         <div className="kpi dest"><span>Monto total a entregar</span><b>{peso(tot.m)}</b><small>suma de montos prestables</small></div>
         <div className="kpi"><span>Monto promedio</span><b>{tot.n ? peso(tot.m/tot.n) : "—"}</b><small>por crédito</small></div>
-        <div className="kpi"><span>Departamento con mayor monto</span>
-          <b className="chico">{topDep ? nombreDep(topDep[0]) : "—"}</b>
-          <small>{topDep ? `${peso(topDep[1].m)} · ${miles(topDep[1].n)} créditos` : ""}</small></div>
-        <div className="kpi"><span>Localidad con mayor monto</span>
-          <b className="chico">{topLoc ? nombreDep(topLoc[0].split("|")[0]) : "—"}</b>
-          <small>{topLoc ? `${peso(topLoc[1].m)} · ${miles(topLoc[1].n)} créditos` : ""}</small></div>
+        <div className="kpi"><span>Espera de entrega</span>
+          <b className="chico">{espera && tot.m ? `${((espera.tramos[3].m / tot.m) * 100).toFixed(0)} % del monto` : "—"}</b>
+          <small>{espera ? `lleva más de 180 días · promedio ${plural(espera.diasPromedio, "día", "días")}` : "\u00a0"}</small>
+          {espera && tot.m > 0 && (
+            <div className="espera-barra" role="img"
+              aria-label={"Monto por tiempo desde la aprobación: " + espera.tramos.map(x => `${x.etiqueta.toLowerCase()}, ${((x.m / tot.m) * 100).toFixed(0)} %`).join("; ")}>
+              {espera.tramos.map((x, i) => <i key={x.id} className={"e" + i} style={{ width: `${(x.m / tot.m) * 100}%` }} title={`${x.etiqueta}: ${((x.m / tot.m) * 100).toFixed(0)} % del monto`} />)}
+            </div>)}
+        </div>
       </section>
 
       {/* Gráfico mensual */}
@@ -575,7 +582,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
 
         <section className="card">
           <header><div><h2>Ranking de departamentos</h2>
-            <p className="sub">Top 10 por {metM==="m"?"monto":"cantidad de créditos"} · clic para ver detalle</p></div></header>
+            <p className="sub">{ranking.length} departamentos por {metM==="m"?"monto":"cantidad de créditos"} · clic para ver detalle</p></div></header>
           <ol className="rank">
             {ranking.map(([k, v]) => {
               const maxR = ranking[0]?.[1][metM] || 1;
@@ -617,7 +624,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
                   <th className="th-num">Créditos</th>
                   <th className="th-num">Monto</th>
                   <th className="th-num col-prom">Promedio</th>
-                  <th className="th-lineas th-num">Aprobación más antigua</th>
+                  <th className="th-lineas th-num">Espera promedio</th>
                 </tr>
               </thead>
               <tbody>
@@ -627,7 +634,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
                     <td className="td-num">{miles(z.n)}</td>
                     <td className="td-num">{peso(z.m)}</td>
                     <td className="td-num col-prom">{z.n ? peso(z.m / z.n) : "—"}</td>
-                    <td className="td-lineas td-num">{fmtF(z.masAntigua)}</td>
+                    <td className="td-lineas td-num">{hoy ? plural(esperaPromedio(z, hoy), "día", "días") : "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -637,7 +644,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
                   <td className="td-num"><b>{miles(fichaDep.n)}</b></td>
                   <td className="td-num"><b>{peso(fichaDep.m)}</b></td>
                   <td className="td-num col-prom"><b>{fichaDep.n ? peso(fichaDep.m / fichaDep.n) : "—"}</b></td>
-                  <td className="td-lineas"></td>
+                  <td className="td-lineas td-num"><b>{hoy ? plural(antiguedad(fichaDep.fechas, hoy).diasPromedio, "día", "días") : "—"}</b></td>
                 </tr>
               </tfoot>
             </table>
