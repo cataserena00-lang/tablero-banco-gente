@@ -303,3 +303,7 @@ main.dash{width:100%}
 .hoja .acto-ficha .acto-sub{margin:12px 0 4px}
 .hoja-cab-fila .logo-banco{height:44px}
 .hoja-cab{margin-bottom:10px}
+/* Barra de espera de entrega (tarjeta del panorama): monto por tramo de antigüedad de la aprobación */
+.espera-barra{display:flex;gap:2px;height:10px;margin-top:10px;border-radius:5px;overflow:hidden}
+.espera-barra i{display:block;min-width:2px}
+.espera-barra .e0{background:var(--celeste)}.espera-barra .e1{background:var(--celeste-osc)}.espera-barra .e2{background:var(--dorado)}.espera-barra .e3{background:var(--primario)}
