@@ -528,7 +528,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
       </section>
 
       {/* Mapa + Ranking */}
-      <div className="grid" style={{marginTop:20}}>
+      <div className="grid grid-mapa" style={{marginTop:20}}>
         {geo && (
         <section className="card">
           <header>
@@ -580,7 +580,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
         </section>
         )}
 
-        <section className="card">
+        <section className={`card${geo ? " rank-ajustado" : ""}`}>
           <header><div><h2>Ranking de departamentos</h2>
             <p className="sub">{ranking.length} departamentos por {metM==="m"?"monto":"cantidad de créditos"} · clic para ver detalle</p></div></header>
           <ol className="rank">
