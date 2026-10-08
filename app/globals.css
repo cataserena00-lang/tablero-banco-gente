@@ -216,7 +216,10 @@ td.td-loc .enlace-zona{font-weight:500}
 .pie-gob p{margin:0;font-size:12.5px;color:var(--tx2)}
 main.dash{width:100%}
 /* login */
-.login{flex:1;min-height:0;background:linear-gradient(rgba(255,255,255,.75),rgba(255,255,255,.75)),url("../assets/marca/fondo-login.jpg") 58% center/cover no-repeat var(--bg)}
+.login{flex:1;min-height:0}
+/* fondo del login: cubre toda la pantalla (incluido el pie de Gobierno) y sin el margen inferior del menú de celular */
+body:has(.login){padding-bottom:0;background:linear-gradient(rgba(255,255,255,.75),rgba(255,255,255,.75)),url("../assets/marca/fondo-login.jpg") 58% center/cover no-repeat var(--bg)}
+body:has(.login) .pie-gob{background:rgba(255,255,255,.9)}
 .login-marca{width:100%;max-width:340px;display:grid;gap:20px;justify-items:center}
 .login-marca .card{width:100%;display:grid;gap:12px}
 /* celular: encabezado compacto y tablas sin corte */
