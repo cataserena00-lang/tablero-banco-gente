@@ -15,6 +15,7 @@ import ResumenEstadosVista from "./ResumenEstadosVista";
 
 type Par = { n: number; m: number };
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const millones = (n: number) => `$ ${(n / 1e6).toLocaleString("es-AR", { maximumFractionDigits: 1 })} M`;   // montos en las tablas angostas de la hoja 1
 const pct = (parte: number, todo: number) => (todo ? ((parte / todo) * 100).toFixed(1).replace(".", ",") + " %" : "—");
 const anchoBarra = (parte: number, todo: number) => `${todo ? Math.max(2, (parte / todo) * 100) : 0}%`;
 
@@ -103,11 +104,11 @@ export default function HojasPanorama(d: DatosHojasPanorama) {
               <h3 className="acto-sub">Pendientes por línea</h3>
               <div className="tabla-detalle"><table>
                 <caption className="sr-only">Créditos y monto pendientes por línea</caption>
-                <thead><tr><th>Línea</th><th className="th-num">Créditos</th><th className="th-num">Monto</th><th className="th-num">% del monto</th></tr></thead>
+                <thead><tr><th>Línea</th><th className="th-num">Créditos</th><th className="th-num">Monto</th><th className="th-num">% monto</th></tr></thead>
                 <tbody>{d.pendPorLinea.map(([l, v]) => (
-                  <tr key={l}><td>{nombreLinea(l)}</td><td className="td-num">{miles(v.n)}</td><td className="td-num">{peso(v.m)}</td><td className="td-num">{pct(v.m, d.tot.m)}</td></tr>
+                  <tr key={l}><td>{nombreLinea(l)}</td><td className="td-num">{miles(v.n)}</td><td className="td-num">{millones(v.m)}</td><td className="td-num">{pct(v.m, d.tot.m)}</td></tr>
                 ))}</tbody>
-                <tfoot><tr><td><b>Total</b></td><td className="td-num"><b>{miles(d.tot.n)}</b></td><td className="td-num"><b>{peso(d.tot.m)}</b></td><td className="td-num"><b>100 %</b></td></tr></tfoot>
+                <tfoot><tr><td><b>Total</b></td><td className="td-num"><b>{miles(d.tot.n)}</b></td><td className="td-num"><b>{millones(d.tot.m)}</b></td><td className="td-num"><b>100 %</b></td></tr></tfoot>
               </table></div>
             </div>
             {d.espera && (
@@ -115,15 +116,15 @@ export default function HojasPanorama(d: DatosHojasPanorama) {
                 <h3 className="acto-sub">Espera de entrega</h3>
                 <div className="tabla-detalle"><table>
                   <caption className="sr-only">Créditos pendientes por tiempo desde la aprobación</caption>
-                  <thead><tr><th>Desde la aprobación</th><th className="th-num">Créditos</th><th className="th-num">Monto</th><th className="th-num">% créditos</th></tr></thead>
+                  <thead><tr><th>Desde la aprobación</th><th className="th-num">Créditos</th><th className="th-num">Monto</th><th className="th-num">% créd.</th></tr></thead>
                   <tbody>{d.espera.tramos.map(t => (
-                    <tr key={t.id}><td>{t.etiqueta}</td><td className="td-num">{miles(t.n)}</td><td className="td-num">{peso(t.m)}</td><td className="td-num">{pct(t.n, d.tot.n)}</td></tr>
+                    <tr key={t.id}><td>{t.etiqueta}</td><td className="td-num">{miles(t.n)}</td><td className="td-num">{millones(t.m)}</td><td className="td-num">{pct(t.n, d.tot.n)}</td></tr>
                   ))}</tbody>
                 </table></div>
               </div>
             )}
           </div>
-          <p className="nota">Es una foto de la base al {act}: los créditos que se entregan desaparecen en la próxima actualización.</p>
+          <p className="nota">Montos de las dos tablas en millones de pesos (M). Es una foto de la base al {act}: los créditos que se entregan desaparecen en la próxima actualización.</p>
         </section>
         <PieHoja />
       </div>
