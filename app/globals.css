@@ -401,3 +401,8 @@ body:has(.login) .pie-gob{background:rgba(255,255,255,.9)}
 .viz-todo>summary{cursor:pointer;color:var(--celeste-txt)}
 .viz-pista,.viz-pista i,.viz-partes-barra,.viz-partes-barra span,.viz-leyenda i,.viz-detalle summary i,.viz-tip i{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 @media print{.viz-todo,.viz-tabla{display:none}.viz-barras{gap:5px}}
+.grid.grid-2{grid-template-columns:1fr 1fr}
+@media(max-width:1020px){.grid.grid-2{grid-template-columns:1fr}}
+.filtro-estado-mapa{margin:0 0 12px;max-width:340px}
+.filtro-estado-mapa select{width:100%}
+.seg button:disabled{opacity:.45;cursor:not-allowed}
