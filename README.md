@@ -92,3 +92,8 @@ Para cambiar de proveedor sin tocar código, definir en Vercel (Settings → Env
 | `NEXT_PUBLIC_TILES_ATTRIBUTION` | Atribución (HTML) que exige el proveedor | © OpenStreetMap contributors |
 
 Si el mapa base no carga, el tablero sigue funcionando: los circuitos se muestran igual y aparece un aviso.
+
+## Líneas de crédito y estados agrupados
+- **Líneas:** son tres y se muestran siempre con su nombre oficial: `L2` y `LIBRE DISPONIBILIDAD` = *Libre disponibilidad*; `L4` y `L4.` = *Iniciar emprendimiento*; `PE` y `POTENCIAR EMPRENDIMIENTO` = *Potenciar emprendimiento*. El mapeo vive en `lib/formato.ts` (`lineaCanonica`) y, para los agregados, en `pipelines/banco_gente/procesar_estados.py`. Cualquier otra línea (L1, L3, L6…) figura como *Otras líneas* en los filtros y agregados.
+- **Estados:** los 19 estados se agrupan en 8 categorías (*En evaluación*, *Aprobados pendientes de pago*, *Pago en curso*, *No cobrados*, *Pagados - cuotas al día*, *Pagados - con mora*, *Finalizados*, *Cerrados sin desembolso*) en `lib/estados.ts`. La vista de personas filtra por categoría (y después, opcionalmente, por el estado puntual); en la fila y la ficha de cada persona se ve el estado puntual con su categoría.
+- **Agregados por estado (sin datos personales):** el job `estados` del workflow *Actualizar personas* corre `procesar_estados.py` sobre el mismo CSV y commitea `data/banco_gente/estados.json` (cantidades y montos por departamento, localidad, estado, línea y mes). Es la base para ver lo ya entregado en fichas y gráficos, disponible para ambos perfiles.

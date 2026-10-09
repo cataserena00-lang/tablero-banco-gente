@@ -1,7 +1,7 @@
 // Cálculos de la vista "Preparar acto". Solo trabaja con los cubos agregados de data/banco_gente/:
 // no hay datos personales ni nominales.
 import type { Cubo, CuboCapital } from "@/components/Tablero";
-import { nombreDep } from "./formato";
+import { lineaCanonica, nombreDep } from "./formato";
 
 // Mismos valores que `capital` en pipelines/banco_gente/config.yaml.
 export const DEP_CAPITAL = "CAPITAL";
@@ -26,7 +26,8 @@ function armarFicha(filas: Iterable<Fila>, fechas: string[], lineas: string[]): 
   let n = 0, m = 0;
   for (const [f, l, cn, cm] of filas) {
     n += cn; m += cm;
-    const nl = l >= 0 && l < lineas.length ? lineas[l] : SIN_LINEA;
+    const crudo = l >= 0 && l < lineas.length ? lineas[l] : SIN_LINEA;
+    const nl = lineaCanonica(crudo) ?? crudo;   // L2 y LIBRE DISPONIBILIDAD son la misma línea, etc.
     const a = porLinea.get(nl) ?? { n: 0, m: 0 }; a.n += cn; a.m += cm; porLinea.set(nl, a);
     const iso = fechas[f];
     const b = porFecha.get(iso) ?? { n: 0, m: 0 }; b.n += cn; b.m += cm; porFecha.set(iso, b);

@@ -1,5 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import { COLUMNAS_TABLA, MAX_EXPORTACION } from "@/lib/personasComun";
+import { CATEGORIAS, SIN_CLASIFICAR, categoriaDe, esCategoria, estadoOficial, grafiasDe, todasLasGrafias } from "@/lib/estados";
+import { GRAFIAS_LINEA, LINEAS, LINEA_OTRAS, lineaCanonica } from "@/lib/formato";
 
 /* Acceso a la base de PERSONAS (datos nominales) en Neon. Solo se importa desde el servidor
    (rutas /api y componentes de servidor), siempre después de exigirRol("completo").
@@ -32,12 +34,22 @@ export const tablaFaltante = (e: unknown) => (e as { code?: string } | null)?.co
 const consulta = async <T>(sql: Sql, texto: string, params: unknown[] = []) => (await sql.query(texto, params)) as unknown as T[];
 
 export interface Filtros {
-  q?: string; departamento?: string; localidad?: string; estado?: string; linea?: string; pagina?: number;
+  q?: string; departamento?: string; localidad?: string; categoria?: string; estado?: string; linea?: string; pagina?: number;
 }
 export type Fila = Record<string, string | number | null>;
 
 // Columnas de personas_resumen que se pueden listar y exportar (nombres fijos: nunca vienen del navegador sin validar)
-export const COLUMNAS_RESUMEN = ["nombre", "cuil", "nro_doc", "departamento", "localidad", "estado", "linea", "nro_formulario", "ano", "mes", "solicitudes"];
+export const COLUMNAS_RESUMEN = ["nombre", "cuil", "nro_doc", "departamento", "localidad", "categoria", "estado", "linea", "nro_formulario", "ano", "mes", "solicitudes"];
+// "categoria" no es una columna de la base: se calcula a partir del estado (ver lib/estados.ts)
+const COLUMNAS_SQL = COLUMNAS_RESUMEN.filter(c => c !== "categoria");
+
+const sinTildesTxt = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "");
+
+/** La línea se muestra siempre con su nombre oficial (L2 = Libre disponibilidad, L4 = Iniciar emprendimiento, PE = Potenciar emprendimiento). */
+function presentar<T extends Fila>(fila: T): T {
+  const linea = fila.linea;
+  return typeof linea === "string" ? { ...fila, linea: lineaCanonica(linea) ?? linea } : fila;
+}
 
 const sinTildes = (s: string) => s.normalize("NFKD").replace(/[̀-ͯ]/g, "");
 
@@ -52,9 +64,25 @@ const escaparLike = (t: string) => t.replace(/[\\%_]/g, c => "\\" + c);
 export function condiciones(f: Filtros) {
   const where: string[] = [], params: unknown[] = [];
   const p = (v: unknown) => { params.push(v); return `$${params.length}`; };
-  for (const c of ["departamento", "localidad", "estado", "linea"] as const) {
+  for (const c of ["departamento", "localidad"] as const) {
     const v = f[c]?.trim();
     if (v) where.push(`"${c}" = ${p(v)}`);   // el nombre de columna sale de una lista fija
+  }
+  // Categoría de estado (grupo de estados) y, opcionalmente, un estado puntual
+  const cat = f.categoria?.trim();
+  if (cat && esCategoria(cat)) {
+    where.push(cat === SIN_CLASIFICAR
+      ? `("estado" IS NULL OR NOT ("estado" = ANY(${p(todasLasGrafias())}::text[])))`
+      : `"estado" = ANY(${p(grafiasDe(cat))}::text[])`);
+  }
+  const est = f.estado?.trim();
+  if (est) where.push(`"estado" = ANY(${p([...new Set([est, sinTildesTxt(est)])])}::text[])`);
+  // Línea: se filtra por el nombre oficial (agrupa sus grafías); "Otras líneas" es todo lo que no es una de las tres
+  const lin = f.linea?.trim();
+  if (lin) {
+    const todas = Object.values(GRAFIAS_LINEA).flat();
+    if (lin === LINEA_OTRAS) where.push(`("linea" IS NULL OR NOT ("linea" = ANY(${p(todas)}::text[])))`);
+    else where.push(`"linea" = ANY(${p(GRAFIAS_LINEA[lineaCanonica(lin) ?? ""] ?? [lin])}::text[])`);
   }
   for (const t of tokensBusqueda(f.q)) where.push(`busqueda LIKE ${p("%" + escaparLike(t) + "%")} ESCAPE '\\'`);
   return { sql: where.length ? "WHERE " + where.join(" AND ") : "", params };
@@ -73,10 +101,11 @@ export async function buscarPersonas(f: Filtros) {
     consulta<{ n: number; s: number }>(sql,
       `SELECT count(*)::int AS n, COALESCE(sum(solicitudes), 0)::int AS s FROM personas_resumen ${where}`, params),
   ]);
-  return { filas, total: total[0]?.n ?? 0, solicitudes: total[0]?.s ?? 0, pagina, porPagina: POR_PAGINA, columnas: COLUMNAS_TABLA };
+  return { filas: filas.map(presentar), total: total[0]?.n ?? 0, solicitudes: total[0]?.s ?? 0, pagina, porPagina: POR_PAGINA, columnas: COLUMNAS_TABLA };
 }
 
-/** Valores para los filtros. Las localidades dependen del departamento elegido. */
+/** Valores para los filtros. Las localidades dependen del departamento elegido. Los estados se agrupan en categorías
+    (con el detalle de cada una); las líneas se ofrecen con su nombre oficial. */
 export async function facetas(departamento?: string) {
   const sql = conexion();
   if (!sql) throw new Error("sin_base");
@@ -84,11 +113,16 @@ export async function facetas(departamento?: string) {
     (await consulta<{ v: string }>(sql,
       `SELECT DISTINCT "${c}" AS v FROM personas_resumen WHERE "${c}" IS NOT NULL ${dep ? "AND departamento = $1" : ""} ORDER BY 1`,
       dep ? [dep] : [])).map(r => r.v);
-  const [departamentos, localidades, estados, lineas] = await Promise.all([
+  const [departamentos, localidades, estadosCrudos, lineasCrudas] = await Promise.all([
     distintos("departamento"), departamento ? distintos("localidad", departamento) : Promise.resolve([] as string[]),
     distintos("estado"), distintos("linea"),
   ]);
-  return { departamentos, localidades, estados, lineas, columnas: COLUMNAS_RESUMEN };
+  const estadosPorCategoria: Record<string, string[]> = {};
+  for (const e of new Set(estadosCrudos.map(estadoOficial))) (estadosPorCategoria[categoriaDe(e)] ??= []).push(e);
+  const categorias = [...CATEGORIAS, SIN_CLASIFICAR].filter(c => estadosPorCategoria[c]?.length);
+  const presentes = new Set(lineasCrudas.map(l => lineaCanonica(l) ?? LINEA_OTRAS));
+  const lineas = [...LINEAS, LINEA_OTRAS].filter(l => presentes.has(l));
+  return { departamentos, localidades, categorias, estadosPorCategoria, estados: [...new Set(estadosCrudos.map(estadoOficial))], lineas, columnas: COLUMNAS_RESUMEN };
 }
 
 // Columnas de una solicitud (todas las del CSV, menos las internas), leídas una vez
@@ -115,7 +149,7 @@ export async function detallePersona(id: number) {
     `SELECT ${cols.map(c => `"${c}"`).join(", ")} FROM personas WHERE persona = $1 ORDER BY orden DESC, id DESC LIMIT ${MAX_SOLICITUDES}`,
     [p.persona]);
   const { persona: _clave, ...datos } = p;   // la clave interna no sale del servidor
-  return { persona: datos as Fila, solicitudes };
+  return { persona: { ...presentar(datos as Fila), categoria: categoriaDe(datos.estado as string | null) }, solicitudes: solicitudes.map(presentar) };
 }
 
 /** Personas que cumplen los filtros, con las columnas pedidas (solo las permitidas), para el PDF.
@@ -124,13 +158,15 @@ export async function exportarPersonas(f: Filtros, columnas: string[]) {
   const sql = conexion();
   if (!sql) throw new Error("sin_base");
   const elegidas = [...new Set(columnas)].filter(c => COLUMNAS_RESUMEN.includes(c));
+  const deBase = elegidas.filter(c => COLUMNAS_SQL.includes(c));
+  if (elegidas.includes("categoria") && !deBase.includes("estado")) deBase.push("estado");   // la categoría se calcula con el estado
   if (!elegidas.length) throw new Error("sin_columnas");
   const { sql: where, params } = condiciones(f);
   const total = (await consulta<{ n: number }>(sql, `SELECT count(*)::int AS n FROM personas_resumen ${where}`, params))[0]?.n ?? 0;
   if (total > MAX_EXPORTACION) return { total, columnas: elegidas, filas: [] as Fila[], excede: true };
-  const filas = await consulta<Fila>(sql,
-    `SELECT ${elegidas.map(c => `"${c}"`).join(", ")} FROM personas_resumen ${where} ORDER BY nombre NULLS LAST, id LIMIT ${MAX_EXPORTACION}`,
-    params);
+  const filas = (await consulta<Fila>(sql,
+    `SELECT ${deBase.map(c => `"${c}"`).join(", ")} FROM personas_resumen ${where} ORDER BY nombre NULLS LAST, id LIMIT ${MAX_EXPORTACION}`,
+    params)).map(f => presentar(elegidas.includes("categoria") ? { ...f, categoria: categoriaDe(f.estado as string | null) } : f));
   return { total, columnas: elegidas, filas, excede: false };
 }
 

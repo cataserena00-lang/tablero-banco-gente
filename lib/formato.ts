@@ -17,13 +17,29 @@ export const miles = (n: number) => String(Math.round(n)).replace(/\B(?=(\d{3})+
 export const peso = (n: number) => "$ " + miles(n);
 export const fmtF = (iso: string) => iso.slice(8,10)+"/"+iso.slice(5,7)+"/"+iso.slice(0,4);
 
-export function nombreLinea(s: string) {
-  const map: Record<string,string> = {
-    "LIBRE DISPONIBILIDAD": "Libre Disponibilidad",
-    "POTENCIAR EMPRENDIMIENTO": "Potenciar Emprendimiento",
-    "PE": "PE",
-    "L2": "L2",
-    "L4.": "L4",
-  };
-  return map[s] || s;
-}
+/* Las tres líneas del Banco. En las bases aparecen con varios nombres: "LIBRE DISPONIBILIDAD" y "L2" son la misma línea,
+   "L4" y "L4." también, y "PE" es "POTENCIAR EMPRENDIMIENTO". */
+export const LINEA_LIBRE = "Libre disponibilidad";
+export const LINEA_INICIAR = "Iniciar emprendimiento";
+export const LINEA_POTENCIAR = "Potenciar emprendimiento";
+export const LINEAS = [LINEA_LIBRE, LINEA_INICIAR, LINEA_POTENCIAR] as const;
+export const LINEA_OTRAS = "Otras líneas";
+
+const claveLinea = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
+const LINEA_POR_CLAVE: Record<string, string> = {
+  "LIBRE DISPONIBILIDAD": LINEA_LIBRE, "L2": LINEA_LIBRE,
+  "INICIAR EMPRENDIMIENTO": LINEA_INICIAR, "L4": LINEA_INICIAR,
+  "POTENCIAR EMPRENDIMIENTO": LINEA_POTENCIAR, "PE": LINEA_POTENCIAR,
+};
+/** Nombre oficial de la línea, o null si no es una de las tres (L1, L3, L6, etc.). */
+export const lineaCanonica = (s: string | null | undefined): string | null => (s ? LINEA_POR_CLAVE[claveLinea(s)] ?? null : null);
+
+/** Nombre para mostrar: el oficial si es una de las tres; si no, el original. */
+export const nombreLinea = (s: string) => lineaCanonica(s) ?? s;
+
+/** Grafías con las que cada línea viene en las bases (para filtrar con `linea = ANY(...)`). */
+export const GRAFIAS_LINEA: Record<string, string[]> = {
+  [LINEA_LIBRE]: ["LIBRE DISPONIBILIDAD", "L2"],
+  [LINEA_INICIAR]: ["L4", "L4.", "INICIAR EMPRENDIMIENTO"],
+  [LINEA_POTENCIAR]: ["PE", "POTENCIAR EMPRENDIMIENTO"],
+};

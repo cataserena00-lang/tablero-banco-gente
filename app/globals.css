@@ -354,3 +354,4 @@ body:has(.login) .pie-gob{background:rgba(255,255,255,.9)}
 .espera-barra{display:flex;gap:2px;height:10px;margin-top:10px;border-radius:5px;overflow:hidden}
 .espera-barra i{display:block;min-width:2px}
 .espera-barra .e0{background:var(--celeste)}.espera-barra .e1{background:var(--celeste-osc)}.espera-barra .e2{background:var(--dorado)}.espera-barra .e3{background:var(--primario)}
+.cat-estado{color:var(--tx2);font-size:12.5px}

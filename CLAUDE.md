@@ -17,6 +17,7 @@ Drive (.xlsx) -> GitHub Action semanal -> pipelines/banco_gente/procesar.py -> d
 - `app/`: páginas de Next.js (App Router). `app/page.tsx` es el inicio con las tarjetas de tableros, `app/banco-gente/page.tsx` el tablero, `app/login` y `app/api/{login,logout}` el acceso.
 - `components/Tablero.tsx`: lógica del tablero (filtros, colores, escalas, tooltip, selección). `components/mapa/`: mapa de circuitos con Leaflet, solo dibuja y se carga con `next/dynamic` (`ssr:false`).
 - `app/banco-gente/exportar` + `components/ExportarFichas.tsx` + `lib/exportarFichas.ts`: exportación de fichas agregadas (todos los roles) por impresión del navegador.
+- `lib/estados.ts` (categorías de estado), `lib/formato.ts` (`lineaCanonica`: L2/L4/PE) y `pipelines/banco_gente/procesar_estados.py` → `data/banco_gente/estados.json` (agregados por estado, sin datos personales; lo genera el job `estados` de *Actualizar personas*).
 - `lib/datos.ts`: `cargar(dataset, archivo)` lee `data/<dataset>/<archivo>.json`. `lib/auth.ts` y `middleware.ts`: sesión por cookie, todo requiere login salvo `/login` y `/api/login`.
 - `pipelines/banco_gente/`: `procesar.py` (entrada del pipeline), `config.yaml`, `barrios_match.py` (adaptador de barrios y circuitos), `depurar_barrios.py` (motor del equipo), `barrios_cordoba.xlsx` (base oficial de barrios), `barrios_alias.csv` (overrides manuales), `circuitos_cordoba.json` (TopoJSON), `geo/build_circuitos_geojson.py`, `tests/`.
 - `data/banco_gente/`: salida del pipeline (JSON agregados y `circuitos.geojson`). Se commitea.
