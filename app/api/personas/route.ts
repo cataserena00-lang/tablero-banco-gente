@@ -13,7 +13,7 @@ export async function GET(req: Request) {
   const u = new URL(req.url).searchParams;
   const filtros = {
     q: u.get("q") ?? undefined, departamento: u.get("departamento") ?? undefined, localidad: u.get("localidad") ?? undefined,
-    estado: u.get("estado") ?? undefined, linea: u.get("linea") ?? undefined, pagina: Number(u.get("pagina")) || 1,
+    categoria: u.get("categoria") ?? undefined, estado: u.get("estado") ?? undefined, linea: u.get("linea") ?? undefined, pagina: Number(u.get("pagina")) || 1,
   };
   try {
     const r = await buscarPersonas(filtros);

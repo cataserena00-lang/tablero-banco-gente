@@ -1,5 +1,6 @@
 "use client";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { categoriaDe } from "@/lib/estados";
 import { COLUMNAS_TABLA, MAX_EXPORTACION, etiquetaColumna as etiqueta, periodo } from "@/lib/personasComun";
 
 /* Vista nominal: listado de personas con filtros y buscador. Cada fila es una persona, con los datos de su última
@@ -11,9 +12,9 @@ type Fila = Record<string, string | number | null>;
 interface Respuesta { filas: Fila[]; total: number; solicitudes: number; pagina: number; porPagina: number; columnas: string[] }
 interface Detalle { persona: Fila; solicitudes: Fila[] }
 type Historial = { estado: "cargando" } | { estado: "error" } | { estado: "ok"; datos: Detalle };
-interface Facetas { departamentos: string[]; localidades: string[]; estados: string[]; lineas: string[]; columnas?: string[] }
-interface Filtros { q: string; departamento: string; localidad: string; estado: string; linea: string }
-const VACIOS: Filtros = { q: "", departamento: "", localidad: "", estado: "", linea: "" };
+interface Facetas { departamentos: string[]; localidades: string[]; estados: string[]; categorias?: string[]; estadosPorCategoria?: Record<string, string[]>; lineas: string[]; columnas?: string[] }
+interface Filtros { q: string; departamento: string; localidad: string; categoria: string; estado: string; linea: string }
+const VACIOS: Filtros = { q: "", departamento: "", localidad: "", categoria: "", estado: "", linea: "" };
 
 const miles = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 const dato = (v: string | number | null | undefined) => v === null || v === undefined || v === "" ? "—" : String(v);
@@ -30,7 +31,7 @@ export default function VistaPersonas() {
   const [f, setF] = useState<Filtros>(VACIOS);
   const [busq, setBusq] = useState("");           // texto escrito; pasa a `f.q` con una pausa
   const [pagina, setPagina] = useState(1);
-  const [fac, setFac] = useState<Facetas>({ departamentos: [], localidades: [], estados: [], lineas: [] });
+  const [fac, setFac] = useState<Facetas>({ departamentos: [], localidades: [], estados: [], categorias: [], estadosPorCategoria: {}, lineas: [] });
   const [datos, setDatos] = useState<Respuesta | null>(null);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -71,7 +72,7 @@ export default function VistaPersonas() {
   }, [f, pagina]);
 
   const cambiar = useCallback((k: keyof Filtros, v: string) => {
-    setF(a => ({ ...a, [k]: v, ...(k === "departamento" ? { localidad: "" } : {}) })); setPagina(1);
+    setF(a => ({ ...a, [k]: v, ...(k === "departamento" ? { localidad: "" } : {}), ...(k === "categoria" ? { estado: "" } : {}) })); setPagina(1);
   }, []);
   const limpiar = () => { setF(VACIOS); setBusq(""); setPagina(1); };
   const hayFiltros = Object.values(f).some(Boolean) || busq !== "";
@@ -181,12 +182,21 @@ export default function VistaPersonas() {
           </select>
         </div>
         <div className="filtro-sel">
-          <label htmlFor="p-est">Estado de la última solicitud</label>
-          <select id="p-est" value={f.estado} onChange={e => cambiar("estado", e.target.value)}>
+          <label htmlFor="p-cat">Estado de la última solicitud</label>
+          <select id="p-cat" value={f.categoria} onChange={e => cambiar("categoria", e.target.value)}>
             <option value="">Todos</option>
-            {opciones(fac.estados, f.estado).map(v => <option key={v} value={v}>{v}</option>)}
+            {opciones(fac.categorias ?? [], f.categoria).map(v => <option key={v} value={v}>{v}</option>)}
           </select>
         </div>
+        {f.categoria && (fac.estadosPorCategoria?.[f.categoria]?.length ?? 0) > 1 && (
+          <div className="filtro-sel">
+            <label htmlFor="p-est">Detalle del estado</label>
+            <select id="p-est" value={f.estado} onChange={e => cambiar("estado", e.target.value)}>
+              <option value="">Todos los de la categoría</option>
+              {opciones(fac.estadosPorCategoria![f.categoria], f.estado).map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
+          </div>
+        )}
         {fac.lineas.length > 0 && (
           <div className="filtro-sel">
             <label htmlFor="p-lin">Línea de la última solicitud</label>
@@ -285,6 +295,7 @@ export default function VistaPersonas() {
               <>
                 <dl>
                   {FIJOS_PERSONA.filter(k => k !== "nombre").map(k => <div key={k}><dt>{etiqueta(k)}</dt><dd>{dato(fichaDatos.persona[k])}</dd></div>)}
+                  {fichaDatos.persona.estado ? <div><dt>Estado actual</dt><dd>{dato(fichaDatos.persona.estado)}<small className="cat-estado"> · {categoriaDe(String(fichaDatos.persona.estado))}</small></dd></div> : null}
                   <div><dt>{etiqueta("solicitudes")}</dt><dd>{dato(fichaDatos.persona.solicitudes)}</dd></div>
                 </dl>
                 <h3>Solicitudes, de la más reciente a la más antigua</h3>
@@ -294,7 +305,8 @@ export default function VistaPersonas() {
                     <dl>
                       {Object.entries(s)
                         .filter(([k, v]) => !FIJOS_PERSONA.includes(k) && k !== "ano" && k !== "mes" && v !== null && v !== "")
-                        .map(([k, v]) => <div key={k}><dt>{etiqueta(k)}</dt><dd>{dato(v)}</dd></div>)}
+                        .map(([k, v]) => <div key={k}><dt>{etiqueta(k)}</dt>
+                          <dd>{dato(v)}{k === "estado" && v ? <small className="cat-estado"> · {categoriaDe(String(v))}</small> : null}</dd></div>)}
                     </dl>
                   </section>
                 ))}

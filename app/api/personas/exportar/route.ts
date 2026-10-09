@@ -16,7 +16,7 @@ export async function GET(req: Request) {
   const u = new URL(req.url).searchParams;
   const filtros: Filtros = {
     q: u.get("q") ?? undefined, departamento: u.get("departamento") ?? undefined, localidad: u.get("localidad") ?? undefined,
-    estado: u.get("estado") ?? undefined, linea: u.get("linea") ?? undefined,
+    categoria: u.get("categoria") ?? undefined, estado: u.get("estado") ?? undefined, linea: u.get("linea") ?? undefined,
   };
   const columnas = (u.get("columnas") ?? "").split(",").map(c => c.trim()).filter(c => /^[a-z0-9_]+$/.test(c));
   if (!columnas.length) return NextResponse.json({ error: "sin_columnas" }, { status: 400, headers: SIN_CACHE });
@@ -24,7 +24,7 @@ export async function GET(req: Request) {
     const r = await exportarPersonas(filtros, columnas);
     if (r.excede) return NextResponse.json({ error: "demasiadas", total: r.total }, { status: 413, headers: SIN_CACHE });
     await registrarAcceso(s.usuario, s.rol, "exportacion", { ...filtros, columnas: r.columnas }, r.total);
-    const aplicados = (["departamento", "localidad", "estado", "linea"] as const)
+    const aplicados = (["departamento", "localidad", "categoria", "estado", "linea"] as const)
       .filter(k => filtros[k]?.trim()).map(k => `${etiquetaColumna(k)}: ${filtros[k]!.trim()}`);
     if (filtros.q?.trim()) aplicados.push(`Búsqueda: ${filtros.q.trim()}`);
     const fecha = new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Cordoba", dateStyle: "short", timeStyle: "short" });

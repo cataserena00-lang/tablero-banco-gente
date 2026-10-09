@@ -6,7 +6,7 @@ export const MAX_EXPORTACION = 5000;
 export const COLUMNAS_TABLA = ["nombre", "cuil", "nro_doc", "departamento", "localidad", "estado", "linea", "ultima", "solicitudes"];
 
 const ETIQUETAS: Record<string, string> = {
-  nombre: "Nombre", cuil: "CUIL", nro_doc: "Documento", departamento: "Departamento", localidad: "Localidad", estado: "Estado", linea: "Línea",
+  nombre: "Nombre", cuil: "CUIL", nro_doc: "Documento", departamento: "Departamento", localidad: "Localidad", categoria: "Categoría de estado", estado: "Estado", linea: "Línea",
   nro_formulario: "Formulario", monto_prestable: "Monto prestable", plazo_devolucion: "Plazo de devolución",
   fecha_pago_emitido: "Fecha de pago emitido", fecha_aprobado: "Fecha de aprobación", fecha_pago_banco: "Fecha de pago en banco",
   valor_cuota: "Valor de la cuota", monto_deuda: "Monto de la deuda", deuda_vencida: "Deuda vencida",

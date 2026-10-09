@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FichaZona, { plural } from "./FichaZona";
 import { LogoBanco } from "./Marca";
-import { fmtF, miles, nombreDep, nombreLinea, peso } from "@/lib/formato";
+import { fmtF, lineaCanonica, miles, nombreDep, nombreLinea, peso } from "@/lib/formato";
 import { BARRIO_VACIO, antiguedad, esperaPromedio, fichaBarrio, fichaDepartamento, fichaLocalidad, hoyArgentina, notaBarrio, subBarrio, zonasInterior } from "@/lib/acto";
 import MapaCircuitosCarga from "./mapa/MapaCircuitosCarga";
 import type { CircuitosGeo, InfoCircuito } from "./mapa/MapaCircuitos";
@@ -273,7 +273,8 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
       if (catBarrio === "sin" ? bar !== "" : catBarrio === "con" && bar === "") continue;
       const pb = porBar[bar] ??= { n: 0, m: 0, lineas: {} };
       pb.n += r[3]; pb.m += r[4];
-      const lin = cuboCap.lin[r[2]];
+      const linCruda = cuboCap.lin[r[2]];
+      const lin = lineaCanonica(linCruda) ?? linCruda;
       const ll = pb.lineas[lin] ??= { n: 0, m: 0 };
       ll.n += r[3]; ll.m += r[4];
     }
