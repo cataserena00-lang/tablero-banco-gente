@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Cubo, CuboCapital } from "./Tablero";
 import FichaZona, { plural } from "./FichaZona";
+import { resumenEstados, type DatosEstados } from "@/lib/estadosAgregados";
 import { LogoBanco } from "./Marca";
 import { fmtF, miles, nombreDep, peso } from "@/lib/formato";
 import {
@@ -16,8 +17,8 @@ const MAX_LISTA = 10;
 const plano = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 const nombreBarrio = (b: string) => (b === "" ? BARRIO_VACIO : nombreDep(b));
 
-export default function PlanificacionEntregas({ cubo, cuboCap, actualizado }: {
-  cubo: Cubo; cuboCap: CuboCapital; actualizado: string;
+export default function PlanificacionEntregas({ cubo, cuboCap, estados, actualizado }: {
+  cubo: Cubo; cuboCap: CuboCapital; estados: DatosEstados | null; actualizado: string;
 }) {
   const [ambito, setAmbito] = useState<Ambito>("capital");
   const [busq, setBusq] = useState("");
@@ -50,6 +51,7 @@ export default function PlanificacionEntregas({ cubo, cuboCap, actualizado }: {
     return sinAsignar;
   }, [sel, cubo, cuboCap, sinAsignar]);
 
+  const completa = useMemo(() => estados && sel?.t === "loc" ? resumenEstados(estados, [{ dep: cubo.dep[sel.dep], loc: cubo.loc[sel.loc] }]) : null, [estados, sel, cubo]);
   const encabezado = useMemo(() => {
     if (!sel) return null;
     if (sel.t === "barrio") {
@@ -146,7 +148,7 @@ export default function PlanificacionEntregas({ cubo, cuboCap, actualizado }: {
           <p className="nota acto-vacio">Todavía no elegiste una zona.</p>
         ) : (
           <FichaZona ficha={ficha} titulo={encabezado.titulo} sub={encabezado.sub} notas={[encabezado.nota]}
-            actualizado={actualizado} titleRef={tituloRef} id="acto-titulo" />
+            actualizado={actualizado} titleRef={tituloRef} id="acto-titulo" completa={completa} fechaCompleta={estados?.actualizado} />
         )}
       </div></main>
     </>

@@ -5,6 +5,7 @@ import FichaZona, { plural } from "./FichaZona";
 import { CabeceraHoja, LogoBanco, PieHoja } from "./Marca";
 import { fmtF, nombreDep, peso } from "@/lib/formato";
 import { BARRIO_VACIO } from "@/lib/acto";
+import { resumenEstados, type DatosEstados, type ResumenEstados, type Zona as ZonaEstado } from "@/lib/estadosAgregados";
 import {
   MAX_ZONAS, fichaDeZona, listarZonas, sumarFichas, zonasSinSuperposicion, type Tipo, type Zona,
 } from "@/lib/exportarFichas";
@@ -23,12 +24,13 @@ const TIPOS: { id: Tipo; titulo: string; buscar: string }[] = [
 ];
 const subZona = (z: Zona) => z.tipo === "dep" ? "Departamento" : z.tipo === "loc" ? `Localidad · Departamento ${nombreDep(z.depto!)}` : "Barrio de Córdoba Capital";
 
-export default function ExportarFichas({ cubo, cuboCap, actualizado }: { cubo: Cubo; cuboCap: CuboCapital; actualizado: string }) {
+export default function ExportarFichas({ cubo, cuboCap, estados, actualizado }: { cubo: Cubo; cuboCap: CuboCapital; estados: DatosEstados | null; actualizado: string }) {
   const [tipo, setTipo] = useState<Tipo>("dep");
   const [busq, setBusq] = useState("");
   const [depFiltro, setDepFiltro] = useState("");
   const [sel, setSel] = useState<Map<string, Zona>>(new Map());
   const [imprimiendo, setImprimiendo] = useState(false);
+  const [contenido, setContenido] = useState<"pendientes" | "completa">("pendientes");   // departamentos y localidades
 
   const zonas = useMemo(() => listarZonas(cubo, cuboCap), [cubo, cuboCap]);
   const deptos = useMemo(() => zonas.deps.map(z => ({ id: String(z.dep), nombre: z.nombre }))
@@ -47,6 +49,16 @@ export default function ExportarFichas({ cubo, cuboCap, actualizado }: { cubo: C
   const total = useMemo(() => sumarFichas(zonasSinSuperposicion(elegidas, cubo).map(z => fichaDeZona(z, cubo, cuboCap))),
     [elegidas, cubo, cuboCap]);
   const hayRepetidas = useMemo(() => zonasSinSuperposicion(elegidas, cubo).length < elegidas.length, [elegidas, cubo]);
+
+  // Ficha completa (pendientes + todos los estados): solo departamentos y localidades; los barrios no tienen datos por estado
+  const conEstados = !!estados && elegidas.some(z => z.tipo !== "bar");
+  const completa = contenido === "completa" && conEstados;
+  const selectorEstados = (z: Zona): ZonaEstado => z.tipo === "dep" ? { dep: z.nombre } : { dep: z.depto!, loc: z.nombre };
+  const completaDe = (z: Zona): ResumenEstados | null => completa && estados && z.tipo !== "bar" ? resumenEstados(estados, [selectorEstados(z)]) : null;
+  const completaTotal = useMemo(() => completa && estados
+    ? resumenEstados(estados, zonasSinSuperposicion(elegidas, cubo).filter(z => z.tipo !== "bar").map(selectorEstados)) : null,
+    [completa, estados, elegidas, cubo]);   // eslint-disable-line react-hooks/exhaustive-deps
+  const hayBarrios = elegidas.some(z => z.tipo === "bar");
 
   const alternar = (z: Zona) => setSel(a => { const m = new Map(a); if (m.has(z.clave)) m.delete(z.clave); else m.set(z.clave, z); return m; });
   const tildarTodos = () => setSel(a => { const m = new Map(a); candidatos.forEach(z => m.set(z.clave, z)); return m; });
@@ -143,6 +155,14 @@ export default function ExportarFichas({ cubo, cuboCap, actualizado }: { cubo: C
                 </p>
               </>
             )}
+            {conEstados && (
+              <fieldset className="exportar-contenido">
+                <legend>Contenido de las fichas de departamentos y localidades</legend>
+                <label><input type="radio" name="contenido" checked={contenido === "pendientes"} onChange={() => setContenido("pendientes")} /> Solo pendientes de entrega</label>
+                <label><input type="radio" name="contenido" checked={contenido === "completa"} onChange={() => setContenido("completa")} /> Ficha completa (pendientes + todos los estados)</label>
+                {contenido === "completa" && hayBarrios && <p className="nota">Los barrios de Córdoba salen siempre con la ficha de pendientes: la base de solicitudes no trae el barrio.</p>}
+              </fieldset>
+            )}
             {excede && <p className="nota" role="alert">Elegiste más de {MAX_ZONAS} zonas. Quitá algunas para generar el PDF.</p>}
             <button type="button" className="acto-link" disabled={!elegidas.length || excede || imprimiendo} onClick={generar}>
               {imprimiendo ? "Preparando…" : elegidas.length > 1 ? `Generar PDF (${elegidas.length} fichas + resumen)` : "Generar PDF"}
@@ -160,15 +180,17 @@ export default function ExportarFichas({ cubo, cuboCap, actualizado }: { cubo: C
               <CabeceraHoja actualizado={fmtF(actualizado)} />
               <FichaZona ficha={total} titulo="Resumen total" id="ficha-total"
                 sub={`${elegidas.length} zonas seleccionadas`}
-                notas={[`Zonas incluidas: ${nombresResumen}.`, hayRepetidas && "Las zonas contenidas en otra elegida (por ejemplo, una localidad dentro de un departamento) se cuentan una sola vez."]}
-                actualizado={actualizado} />
+                notas={[`Zonas incluidas: ${nombresResumen}.`, hayRepetidas && "Las zonas contenidas en otra elegida (por ejemplo, una localidad dentro de un departamento) se cuentan una sola vez.",
+                  completa && hayBarrios && "Los datos de todos los estados no incluyen los barrios de Córdoba elegidos (la base de solicitudes no trae el barrio), salvo que estén dentro de un departamento o la localidad Córdoba elegidos."]}
+                actualizado={actualizado} completa={completaTotal} fechaCompleta={estados?.actualizado} modoFijo={completa ? "ambos" : undefined} />
               <PieHoja />
             </div>
           )}
           {fichas.map(({ z, ficha }) => (
             <div className="hoja" key={z.clave}>
               <CabeceraHoja actualizado={fmtF(actualizado)} />
-              <FichaZona ficha={ficha} titulo={mostrar(z)} sub={subZona(z)} actualizado={actualizado} id={`ficha-${z.clave.replace(/\W/g, "-")}`} />
+              <FichaZona ficha={ficha} titulo={mostrar(z)} sub={subZona(z)} actualizado={actualizado} id={`ficha-${z.clave.replace(/\W/g, "-")}`}
+                completa={completaDe(z)} fechaCompleta={estados?.actualizado} modoFijo={completaDe(z) ? "ambos" : undefined} />
               <PieHoja />
             </div>
           ))}

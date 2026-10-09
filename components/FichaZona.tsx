@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useState, type Ref } from "react";
 import { fmtF, miles, nombreLinea, peso } from "@/lib/formato";
 import { SIN_LINEA, antiguedad, hoyArgentina, type Ficha } from "@/lib/acto";
+import type { ResumenEstados } from "@/lib/estadosAgregados";
+import ResumenEstadosVista from "./ResumenEstadosVista";
 
 /* Ficha de zona: cantidad, monto, líneas y antigüedad de la aprobación de una zona
    (barrio, localidad o departamento). Solo muestra agregados. */
@@ -11,8 +13,15 @@ const anchoBarra = (parte: number, todo: number) => `${todo ? Math.max(2, (parte
 export const plural = (n: number, uno: string, varios: string) => `${miles(n)} ${n === 1 ? uno : varios}`;
 const textoLinea = (l: string) => (l === SIN_LINEA ? "Sin línea informada" : nombreLinea(l));
 
-export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado, titleRef, id = "ficha-zona-titulo" }: {
+export type ModoFicha = "pendientes" | "completos" | "ambos";
+
+export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado, titleRef, id = "ficha-zona-titulo", completa, fechaCompleta, modoFijo }: {
   ficha: Ficha;
+  /** Resumen de todos los estados de la zona (departamentos y localidades). Con él aparece el botón «Datos completos». */
+  completa?: ResumenEstados | null;
+  fechaCompleta?: string;
+  /** Fuerza lo que se muestra (por ejemplo "ambos" en las fichas exportadas) y oculta el botón. */
+  modoFijo?: ModoFicha;
   titulo: string;
   sub: string;
   notas?: (string | null | undefined | false)[];
@@ -23,6 +32,9 @@ export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado,
   const [hoy, setHoy] = useState<string | null>(null);   // se calcula en el navegador: la página es estática
   useEffect(() => { setHoy(hoyArgentina()); }, []);
   const ant = useMemo(() => (hoy ? antiguedad(ficha.fechas, hoy) : null), [ficha, hoy]);
+  const [vista, setVista] = useState<"pendientes" | "completos">("pendientes");
+  const modo: ModoFicha = completa ? modoFijo ?? vista : "pendientes";
+  const verPend = modo !== "completos", verComp = !!completa && modo !== "pendientes";
   const primera = ficha.fechas[0]?.f, ultima = ficha.fechas[ficha.fechas.length - 1]?.f;
 
   return (
@@ -33,9 +45,15 @@ export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado,
           <h2 id={id} ref={titleRef} tabIndex={-1}>{titulo}</h2>
           <p className="sub">{sub}</p>
         </div>
+        {completa && !modoFijo && (
+          <div className="seg" role="group" aria-label="Qué mostrar de la zona">
+            <button type="button" aria-pressed={vista === "pendientes"} onClick={() => setVista("pendientes")}>Pendientes de entrega</button>
+            <button type="button" aria-pressed={vista === "completos"} onClick={() => setVista("completos")}>Datos completos</button>
+          </div>
+        )}
       </header>
 
-      {ficha.n === 0 ? (
+      {!verPend ? null : ficha.n === 0 ? (
         <p className="nota">Esta zona no tiene créditos pendientes en la base actual.</p>
       ) : (
         <>
@@ -95,8 +113,14 @@ export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado,
           )}
         </>
       )}
+      {verComp && (
+        <>
+          {verPend && <h3 className="acto-sub acto-sub-grande">Todos los estados</h3>}
+          <ResumenEstadosVista resumen={completa!} fechaDatos={fechaCompleta} />
+        </>
+      )}
       {notas.filter(Boolean).map((n, i) => <p key={i} className="nota">{n}</p>)}
-      <p className="nota">La ficha muestra todos los créditos pendientes, sin filtro de fecha. Es una foto de la base al {fmtF(actualizado)}: los que se entregan desaparecen en la próxima actualización.</p>
+      {verPend && <p className="nota">La ficha muestra todos los créditos pendientes, sin filtro de fecha. Es una foto de la base al {fmtF(actualizado)}: los que se entregan desaparecen en la próxima actualización.</p>}
     </section>
   );
 }

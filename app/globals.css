@@ -355,3 +355,49 @@ body:has(.login) .pie-gob{background:rgba(255,255,255,.9)}
 .espera-barra i{display:block;min-width:2px}
 .espera-barra .e0{background:var(--celeste)}.espera-barra .e1{background:var(--celeste-osc)}.espera-barra .e2{background:var(--dorado)}.espera-barra .e3{background:var(--primario)}
 .cat-estado{color:var(--tx2);font-size:12.5px}
+
+/* ── Gráficos (components/graficos.tsx) ── */
+.viz-barras{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.viz-barras li{display:grid;grid-template-columns:minmax(120px,210px) 1fr 108px;gap:10px;align-items:center;font-size:13.5px}
+.viz-et{color:var(--tx)}
+.viz-pista{height:14px;background:var(--surface);border-radius:4px;overflow:hidden}
+.viz-pista i{display:block;height:100%;border-radius:0 4px 4px 0}
+.viz-val{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.viz-val small{display:block;font-weight:400;color:var(--tx2);font-size:11.5px}
+.viz-partes-barra{display:flex;gap:2px;height:22px;border-radius:6px;overflow:hidden}
+.viz-partes-barra span{display:block;min-width:3px}
+.viz-leyenda{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px;font-size:13.5px}
+.viz-leyenda li{display:grid;grid-template-columns:12px 1fr auto auto;gap:8px;align-items:center}
+.viz-leyenda i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.viz-leyenda small{color:var(--tx2);min-width:52px;text-align:right}
+.viz-leyenda-fila{display:flex;flex-wrap:wrap;gap:6px 14px}
+.viz-leyenda-fila li{display:block}
+.viz-leyenda-fila button{font:inherit;font-size:12.5px;display:inline-flex;gap:6px;align-items:center;background:none;border:0;padding:4px 2px;cursor:pointer;color:var(--tx)}
+.viz-leyenda-fila button.viz-off{opacity:.45;text-decoration:line-through}
+.viz-columnas{position:relative}
+.viz-columnas svg{width:100%;height:auto;display:block}
+.viz-grilla{stroke:var(--borde);stroke-width:1}
+.viz-eje{font-size:10.5px;fill:var(--tx2)}
+.viz-tip{position:absolute;top:0;z-index:2;background:#fff;border:1px solid var(--borde);border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.12);padding:8px 10px;font-size:12.5px;min-width:200px;pointer-events:none}
+.viz-tip div{display:grid;grid-template-columns:10px 1fr auto;gap:6px;align-items:center;margin-top:3px}
+.viz-tip i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.viz-tabla{margin-top:8px;font-size:13px}
+.viz-tabla summary{cursor:pointer;color:var(--celeste-txt)}
+@media(max-width:560px){.viz-barras li{grid-template-columns:1fr 92px}.viz-barras .viz-pista{grid-column:1/-1;grid-row:2}.viz-barras .viz-val{grid-row:1;grid-column:2}}
+.viz-detalle{margin-top:12px;display:grid;gap:4px}
+.viz-detalle details{border:1px solid var(--borde);border-radius:8px;padding:6px 10px;font-size:13.5px}
+.viz-detalle summary{cursor:pointer;display:flex;gap:8px;align-items:center}
+.viz-detalle summary i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.viz-detalle summary span{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--tx2)}
+.viz-detalle ul{list-style:none;margin:6px 0 2px;padding:0;display:grid;gap:3px}
+.viz-detalle li{display:grid;grid-template-columns:1fr auto auto;gap:12px}
+.viz-detalle li small{color:var(--tx2);min-width:110px;text-align:right}
+@media print{.viz-detalle details{border:0}.viz-tip{display:none}}
+.exportar-contenido{border:1px solid var(--borde);border-radius:8px;margin:12px 0;padding:8px 12px;display:grid;gap:6px;font-size:14px}
+.exportar-contenido legend{font-size:13px;color:var(--tx2);padding:0 6px}
+.exportar-contenido label{display:flex;gap:8px;align-items:center;cursor:pointer}
+@media print{.acto-sub-grande{break-before:page}}
+.viz-todo{margin-top:10px;font-size:13.5px}
+.viz-todo>summary{cursor:pointer;color:var(--celeste-txt)}
+.viz-pista,.viz-pista i,.viz-partes-barra,.viz-partes-barra span,.viz-leyenda i,.viz-detalle summary i,.viz-tip i{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+@media print{.viz-todo,.viz-tabla{display:none}.viz-barras{gap:5px}}
