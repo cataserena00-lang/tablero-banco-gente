@@ -673,7 +673,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, estados, actualizado
         <section className="card" style={{marginTop:20}} aria-label="Todas las solicitudes por estado">
           <header><div><h2>Todas las solicitudes, por estado</h2>
             <p className="sub">{miles(resumenPais.n)} solicitudes de crédito desde el inicio del programa · incluye lo ya pagado y lo cerrado sin desembolso</p></div></header>
-          <ResumenEstadosVista resumen={resumenPais} fechaDatos={estados.actualizado} tituloMeses="Solicitudes por mes de todo el programa" />
+          <ResumenEstadosVista resumen={resumenPais} fechaDatos={estados.actualizado} tituloMeses="Solicitudes por mes de todo el programa" datosFiltrables={estados} />
         </section>
       )}
     </>

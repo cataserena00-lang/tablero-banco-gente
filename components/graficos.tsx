@@ -45,20 +45,34 @@ export function BarrasH({ items, total, unidad = "créditos", seleccion, onSelec
   );
 }
 
-/** Una sola barra dividida en partes (parte de un todo) con la leyenda debajo; también se puede tocar para filtrar. */
-export function BarraPartes({ items, unidad = "créditos", seleccion, onSelect }: { items: ItemBarra[]; unidad?: string } & Interaccion) {
+/** Negro o blanco según el fondo, para que el texto dentro de un tramo se lea (luminancia relativa). */
+function textoSobre(hex: string) {
+  const c = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map(v => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] > 0.4 ? "#1f2430" : "#ffffff";
+}
+
+/** Una sola barra dividida en partes (parte de un todo) con la leyenda debajo; también se puede tocar para filtrar.
+    Con `etiquetas`, cada tramo lleva escrito su porcentaje (y la cantidad si el tramo es ancho); los tramos muy angostos
+    quedan sin texto y su dato se lee en la leyenda. */
+export function BarraPartes({ items, unidad = "créditos", seleccion, onSelect, etiquetas = false }: { items: ItemBarra[]; unidad?: string; etiquetas?: boolean } & Interaccion) {
   const suma = items.reduce((a, i) => a + i.valor, 0);
   if (!suma) return null;
+  const textoTramo = (i: ItemBarra) => {
+    const parte = (100 * i.valor) / suma;
+    return parte >= 16 ? `${miles(i.valor)} · ${pct(parte)}` : parte >= 6 ? pct(parte) : "";
+  };
   return (
     <div className="viz-partes">
-      <div className="viz-partes-barra" role={onSelect ? "group" : "img"} aria-label={items.map(i => `${i.etiqueta}: ${pct((100 * i.valor) / suma)}`).join(", ")}>
+      <div className={`viz-partes-barra${etiquetas ? " con-et" : ""}`} role={onSelect ? "group" : "img"} aria-label={items.map(i => `${i.etiqueta}: ${pct((100 * i.valor) / suma)}`).join(", ")}>
         {items.filter(i => i.valor > 0).map(i => {
           const activa = seleccion === i.clave;
-          const estilo = { width: `${(100 * i.valor) / suma}%`, background: i.color, opacity: seleccion && !activa ? 0.35 : 1 };
+          const estilo = { width: `${(100 * i.valor) / suma}%`, background: i.color, opacity: seleccion && !activa ? 0.35 : 1, color: etiquetas ? textoSobre(i.color) : undefined };
           const titulo = `${i.etiqueta}: ${miles(i.valor)} ${unidad} (${pct((100 * i.valor) / suma)})`;
+          const texto = etiquetas ? textoTramo(i) : null;
           return onSelect
-            ? <button key={i.clave} type="button" style={estilo} title={titulo} aria-label={titulo} aria-pressed={activa} onClick={() => onSelect(activa ? null : i.clave)} />
-            : <span key={i.clave} style={estilo} title={titulo} />;
+            ? <button key={i.clave} type="button" style={estilo} title={titulo} aria-label={titulo} aria-pressed={activa} onClick={() => onSelect(activa ? null : i.clave)}>{texto}</button>
+            : <span key={i.clave} style={estilo} title={titulo}>{texto}</span>;
         })}
       </div>
       <ul className="viz-leyenda">
@@ -83,8 +97,10 @@ const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "o
 const etiquetaMes = (k: string) => `${MESES[+k.slice(5, 7) - 1]} ${k.slice(2, 4)}`;
 
 /** Columnas apiladas por mes. `datos[i].v[j]` es el valor de la serie j en el mes i. */
-export function ColumnasApiladas({ meses, series, titulo, unidad = "solicitudes" }: {
+export function ColumnasApiladas({ meses, series, titulo, unidad = "solicitudes", formatoEje = miles, formatoValor = miles }: {
   meses: { mes: string; v: number[] }[]; series: Serie[]; titulo: string; unidad?: string;
+  /** Cómo se escriben los valores en el eje y en el detalle (por defecto, números con puntos de miles). */
+  formatoEje?: (n: number) => string; formatoValor?: (n: number) => string;
 }) {
   const [foco, setFoco] = useState<number | null>(null);
   const [ocultas, setOcultas] = useState<Set<string>>(new Set());
@@ -104,7 +120,7 @@ export function ColumnasApiladas({ meses, series, titulo, unidad = "solicitudes"
         {[0, 0.5, 1].map(f => (
           <g key={f}>
             <line x1={M.l} x2={W - M.r} y1={y(tope * f)} y2={y(tope * f)} className="viz-grilla" />
-            <text x={M.l - 6} y={y(tope * f) + 4} textAnchor="end" className="viz-eje">{miles(tope * f)}</text>
+            <text x={M.l - 6} y={y(tope * f) + 4} textAnchor="end" className="viz-eje">{formatoEje(tope * f)}</text>
           </g>
         ))}
         {meses.map((m, i) => {
@@ -120,8 +136,8 @@ export function ColumnasApiladas({ meses, series, titulo, unidad = "solicitudes"
                 return <rect key={s.clave} x={x + ancho * 0.14} width={ancho * 0.72} y={y1} height={Math.max(0, y0 - y1 - (v ? 1 : 0))} fill={s.color} opacity={foco === null || foco === i ? 1 : 0.55} />;
               })}
               {i % cada === 0 && <text x={x + ancho / 2} y={H - 8} textAnchor="middle" className="viz-eje">{etiquetaMes(m.mes)}</text>}
-              <rect x={x} y={M.t} width={ancho} height={H - M.t - M.b} fill="transparent" tabIndex={0}
-                aria-label={`${etiquetaMes(m.mes)}: ${miles(totales[i])} ${unidad}`}
+              <rect x={x} y={M.t} width={ancho} height={H - M.t - M.b} fill="transparent" tabIndex={meses.length <= 36 ? 0 : -1}
+                aria-label={`${etiquetaMes(m.mes)}: ${formatoValor(totales[i])} ${unidad}`.trim()}
                 onMouseEnter={() => setFoco(i)} onFocus={() => setFoco(i)} onBlur={() => setFoco(null)} />
             </g>
           );
@@ -129,9 +145,9 @@ export function ColumnasApiladas({ meses, series, titulo, unidad = "solicitudes"
       </svg>
       {foco !== null && (
         <div className="viz-tip" style={{ left: `${Math.min(78, Math.max(2, ((M.l + foco * ancho) / W) * 100))}%` }} role="status">
-          <b>{etiquetaMes(meses[foco].mes)} · {miles(totales[foco])} {unidad}</b>
+          <b>{`${etiquetaMes(meses[foco].mes)} · ${formatoValor(totales[foco])} ${unidad}`.trim()}</b>
           {visibles.filter(s => meses[foco].v[s.j]).map(s => (
-            <div key={s.clave}><i style={{ background: s.color }} aria-hidden="true" /><span>{s.etiqueta}</span><b>{miles(meses[foco].v[s.j])}</b></div>
+            <div key={s.clave}><i style={{ background: s.color }} aria-hidden="true" /><span>{s.etiqueta}</span><b>{formatoValor(meses[foco].v[s.j])}</b></div>
           ))}
         </div>
       )}
@@ -150,7 +166,7 @@ export function ColumnasApiladas({ meses, series, titulo, unidad = "solicitudes"
         <div className="tabla-detalle"><table>
           <caption className="sr-only">{titulo}</caption>
           <thead><tr><th>Mes</th>{series.map(s => <th key={s.clave} className="th-num">{s.etiqueta}</th>)}</tr></thead>
-          <tbody>{[...meses].reverse().map(m => <tr key={m.mes}><td>{etiquetaMes(m.mes)}</td>{series.map(s => <td key={s.clave} className="td-num">{miles(m.v[s.idx ?? series.indexOf(s)] || 0)}</td>)}</tr>)}</tbody>
+          <tbody>{[...meses].reverse().map(m => <tr key={m.mes}><td>{etiquetaMes(m.mes)}</td>{series.map(s => <td key={s.clave} className="td-num">{formatoValor(m.v[s.idx ?? series.indexOf(s)] || 0)}</td>)}</tr>)}</tbody>
         </table></div>
       </details>
     </div>
