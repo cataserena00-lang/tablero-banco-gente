@@ -1,7 +1,10 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FichaZona, { plural } from "./FichaZona";
-import { resumenEstados, type DatosEstados } from "@/lib/estadosAgregados";
+import { CON_MONTO, resumenEstados, resumenTotal, type DatosEstados } from "@/lib/estadosAgregados";
+import { CATEGORIAS, categoriaDe } from "@/lib/estados";
+import ResumenEstadosVista from "./ResumenEstadosVista";
+import { BarraPartes, BarrasH, colorSerie } from "./graficos";
 import { LogoBanco } from "./Marca";
 import { fmtF, lineaCanonica, miles, nombreDep, nombreLinea, peso } from "@/lib/formato";
 import { BARRIO_VACIO, antiguedad, esperaPromedio, fichaBarrio, fichaDepartamento, fichaLocalidad, hoyArgentina, notaBarrio, subBarrio, zonasInterior } from "@/lib/acto";
@@ -31,6 +34,8 @@ export interface GeoData {
 
 export type { CircuitosGeo };
 
+const PENDIENTES = "pendientes";   // valor del filtro de estado del mapa: lo pendiente de entrega (vista de siempre)
+const TODAS = "todas";             // todas las solicitudes, de cualquier estado
 const SIN_CIRCUITO = "__sin_circuito__";   // valor del filtro de circuito: barrios sin circuito asignado
 type CatBarrio = "todos" | "con" | "sin";   // filtro por categoría de barrio
 
@@ -73,6 +78,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, estados, actualizado
   const [mes, setMes] = useState<string|null>(null);
   const [busqBarrio, setBusqBarrio] = useState("");
   const [metC, setMetC] = useState<Met>("m");
+  const [estadoSel, setEstadoSel] = useState<string>(PENDIENTES);   // estado que pinta el mapa y ordena el ranking de departamentos
   const [circSel, setCircSel] = useState<string|null>(null);
   const [catBarrio, setCatBarrio] = useState<CatBarrio>("todos");
   const [locFicha, setLocFicha] = useState<number|null>(null);       // ficha de localidad abierta (índice en cubo.loc)
@@ -168,13 +174,6 @@ export default function Tablero({ cubo, cuboCap, geo, circ, estados, actualizado
     return ms;
   }, [cubo, desde, hasta]);
 
-  /* ── Ranking panorama ── */
-  const ranking = useMemo(() =>
-    Object.entries(porDep)
-      .filter(([k]) => !["SIN ASIGNAR","SIN DATO"].includes(k))
-      .sort((a,b) => b[1][metM] - a[1][metM]),
-  [porDep, metM]);
-
   /* Espera de entrega: días desde la aprobación de los créditos del filtro actual (la fecha de hoy se calcula en el
      navegador porque la página es estática) */
   const [hoy, setHoy] = useState<string | null>(null);
@@ -190,11 +189,44 @@ export default function Tablero({ cubo, cuboCap, geo, circ, estados, actualizado
     return antiguedad([...porF.values()], hoy);
   }, [filas, cubo, hoy, tot.n]);
 
-  const sinDatos = useMemo(() =>
+  /* Mapa y ranking según el estado elegido: lo pendiente de entrega (con el filtro de fechas) o las solicitudes de una categoría
+     de estado (base de personas, sin filtro de fechas). Se pintan los dos con `porDepVis`. */
+  const porDepEstado = useMemo(() => {
+    if (!estados || estadoSel === PENDIENTES) return null;
+    const a: Record<string, { n: number; m: number }> = {};
+    for (const [di, , ei, , n, m] of estados.zonas) {
+      if (estadoSel !== TODAS && categoriaDe(estados.estados[ei]) !== estadoSel) continue;
+      const v = a[estados.dep[di]] ??= { n: 0, m: 0 };
+      v.n += n; v.m += m;
+    }
+    return a;
+  }, [estados, estadoSel]);
+  const porDepVis = porDepEstado ?? porDep;
+  const verEstado = porDepEstado !== null;
+  const conMontoVis = !verEstado || CON_MONTO.has(estadoSel);   // en los otros estados el monto es solo lo solicitado
+  const metMVis: Met = conMontoVis ? metM : "n";
+  const nombreEstadoSel = estadoSel === PENDIENTES ? "Pendientes de entrega" : estadoSel === TODAS ? "Todas las solicitudes" : estadoSel;
+  const rankingVis = useMemo(() =>
+    Object.entries(porDepVis)
+      .filter(([k]) => !["SIN ASIGNAR","SIN DATO"].includes(k))
+      .sort((a,b) => b[1][metMVis] - a[1][metMVis]),
+  [porDepVis, metMVis]);
+  const sinDatosVis = useMemo(() =>
     ["SIN ASIGNAR","SIN DATO"].reduce((a, k) => ({
-      n: a.n + (porDep[k]?.n || 0), m: a.m + (porDep[k]?.m || 0),
+      n: a.n + (porDepVis[k]?.n || 0), m: a.m + (porDepVis[k]?.m || 0),
     }), { n: 0, m: 0 }),
-  [porDep]);
+  [porDepVis]);
+  const resumenPais = useMemo(() => estados ? resumenTotal(estados) : null, [estados]);
+  // Pendientes por línea (con el filtro de fechas): la línea se unifica con su nombre oficial
+  const pendPorLinea = useMemo(() => {
+    const a = new Map<string, { n: number; m: number }>();
+    for (const r of filas) {
+      const crudo = cubo.lin[r[3]];
+      const k = lineaCanonica(crudo) ?? crudo;
+      const v = a.get(k) ?? { n: 0, m: 0 }; v.n += r[4]; v.m += r[5]; a.set(k, v);
+    }
+    return [...a].sort((x, y) => y[1].m - x[1].m);
+  }, [filas, cubo]);
 
   /* ── Vista departamento (ficha): siempre sobre todo el stock, sin filtro de fecha ── */
   const depIdx = dep ? cubo.dep.indexOf(dep) : -1;
@@ -313,6 +345,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, estados, actualizado
   }
   if (catBarrio !== "todos" && vista === "barrios")
     chips.push({ label: catBarrio === "sin" ? "Barrio: sin barrio (dato vacío)" : "Barrio: solo con barrio", clear: () => setCatBarrio("todos") });
+  if (estadoSel !== PENDIENTES && vista === "panorama") chips.push({ label: `Estado del mapa: ${nombreEstadoSel}`, clear: () => setEstadoSel(PENDIENTES) });
   if (dep && vista === "panorama") chips.push({ label: `Departamento: ${nombreDep(dep)}`, clear: () => setDep(null) });
 
   /* ── SVG Gráfico ── */
@@ -342,13 +375,13 @@ export default function Tablero({ cubo, cuboCap, geo, circ, estados, actualizado
 
   /* ── Mapa ── */
   const mapaVals = useMemo(() => {
-    const met = metM;
-    const vals = (geo?.deptos ?? []).map(d => (porDep[d.nombre]?.[met]) || 0);
+    const met = metMVis;
+    const vals = (geo?.deptos ?? []).map(d => (porDepVis[d.nombre]?.[met]) || 0);
     const max = Math.max(1, ...vals);
     return { vals, max };
-  }, [geo, porDep, metM]);
+  }, [geo, porDepVis, metMVis]);
 
-  const fmtLeyenda = (v: number, met: Met = metM) =>
+  const fmtLeyenda = (v: number, met: Met = metMVis) =>
     met === "m" ? (v >= 1e6 ? "$ "+(v/1e6).toLocaleString("es-AR",{maximumFractionDigits:0})+" M" : peso(v)) : miles(v);
 
   /* ── Desglose por línea (mini tabla) ── */
@@ -389,7 +422,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, estados, actualizado
           }} /></div>
         </div>
         <button className="limpiar" type="button" style={{visibility: chips.length ? "visible":"hidden"}}
-          onClick={() => { if (vista === "panorama") setDep(null); setCircSel(null); setCatBarrio("todos"); aplicarAtajo("todo"); }}>Limpiar filtros</button>
+          onClick={() => { if (vista === "panorama") { setDep(null); setEstadoSel(PENDIENTES); } setCircSel(null); setCatBarrio("todos"); aplicarAtajo("todo"); }}>Limpiar filtros</button>
       </section>
       {chips.length > 0 && (
         <div className="chips" aria-live="polite">
@@ -536,12 +569,25 @@ export default function Tablero({ cubo, cuboCap, geo, circ, estados, actualizado
         {geo && (
         <section className="card">
           <header>
-            <div><h2>Departamentos de Córdoba</h2><p className="sub">Hacé clic en un departamento para ver el detalle</p></div>
+            <div><h2>Departamentos de Córdoba</h2><p className="sub">{verEstado ? `${nombreEstadoSel} · ` : ""}Hacé clic en un departamento para ver el detalle</p></div>
             <div className="seg" role="group" aria-label="Métrica del mapa">
-              <button type="button" aria-pressed={metM==="m"} onClick={() => setMetM("m")}>Monto</button>
-              <button type="button" aria-pressed={metM==="n"} onClick={() => setMetM("n")}>Cantidad</button>
+              <button type="button" aria-pressed={metMVis==="m"} disabled={!conMontoVis} title={conMontoVis ? undefined : "En este estado el monto es solo lo solicitado"} onClick={() => setMetM("m")}>Monto</button>
+              <button type="button" aria-pressed={metMVis==="n"} onClick={() => setMetM("n")}>Cantidad</button>
             </div>
           </header>
+          {estados && (
+            <div className="filtro-sel filtro-estado-mapa">
+              <label htmlFor="f-estado-mapa">Estado de los créditos</label>
+              <select id="f-estado-mapa" value={estadoSel} onChange={e => setEstadoSel(e.target.value)}>
+                <option value={PENDIENTES}>Pendientes de entrega</option>
+                <optgroup label="Solicitudes por estado (base de personas)">
+                  <option value={TODAS}>Todas las solicitudes</option>
+                  {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
+                </optgroup>
+              </select>
+              {verEstado && <p className="nota">El filtro de fechas aplica solo a los pendientes de entrega.</p>}
+            </div>
+          )}
           <div className="chartbox" style={{position:"relative"}}>
             <svg className="mapa" viewBox={`0 0 ${geo.w} ${geo.h}`} role="img" aria-label="Mapa de departamentos de Córdoba">
               {geo.deptos.map((d, i) => {
@@ -551,16 +597,16 @@ export default function Tablero({ cubo, cuboCap, geo, circ, estados, actualizado
                   d={d.d} fill={c || "#E5E7EB"}
                   tabIndex={c ? 0 : -1}
                   role={c ? "button" : undefined}
-                  aria-label={c ? `${nombreDep(d.nombre)}: ${miles(porDep[d.nombre]?.n||0)} créditos, ${peso(porDep[d.nombre]?.m||0)}` : undefined}
+                  aria-label={c ? `${nombreDep(d.nombre)}: ${miles(porDepVis[d.nombre]?.n||0)} ${verEstado ? "solicitudes" : "créditos"}${conMontoVis ? `, ${peso(porDepVis[d.nombre]?.m||0)}` : ""}` : undefined}
                   onClick={() => { if (c) irADep(d.nombre); }}
                   onMouseMove={e => {
                     const tip = tipMRef.current;
                     const box = (e.currentTarget as SVGPathElement).closest(".chartbox") as HTMLElement;
                     if (!tip || !box) return;
                     const r = box.getBoundingClientRect();
-                    const v = porDep[d.nombre] || { n:0, m:0 };
+                    const v = porDepVis[d.nombre] || { n:0, m:0 };
                     tip.style.display = "block";
-                    tip.innerHTML = `<b>${nombreDep(d.nombre)}</b><div><span>Créditos</span><span>${miles(v.n)}</span></div><div><span>Monto</span><span>${peso(v.m)}</span></div>`;
+                    tip.innerHTML = `<b>${nombreDep(d.nombre)}</b><div><span>${verEstado ? "Solicitudes" : "Créditos"}</span><span>${miles(v.n)}</span></div>${conMontoVis ? `<div><span>Monto</span><span>${peso(v.m)}</span></div>` : ""}`;
                     tip.style.left = Math.min(e.clientX-r.left+14, r.width-170)+"px";
                     tip.style.top = (e.clientY-r.top+14)+"px";
                   }}
@@ -578,27 +624,58 @@ export default function Tablero({ cubo, cuboCap, geo, circ, estados, actualizado
               <i style={{display:"inline-block",width:12,height:12,background:"#E5E7EB",borderRadius:3,verticalAlign:-2}} /> Sin datos
             </span>
           </div>
-          {sinDatos.n > 0 && (
-            <p className="nota">{miles(sinDatos.n)} créditos ({peso(sinDatos.m)}) no tienen departamento asignado en la base y no se pintan en el mapa.</p>
+          {sinDatosVis.n > 0 && (
+            <p className="nota">{miles(sinDatosVis.n)} {verEstado ? "solicitudes" : "créditos"}{conMontoVis ? ` (${peso(sinDatosVis.m)})` : ""} no tienen departamento asignado en la base y no se pintan en el mapa.</p>
           )}
         </section>
         )}
 
         <section className={`card${geo ? " rank-ajustado" : ""}`}>
           <header><div><h2>Ranking de departamentos</h2>
-            <p className="sub">{ranking.length} departamentos por {metM==="m"?"monto":"cantidad de créditos"} · clic para ver detalle</p></div></header>
+            <p className="sub">{rankingVis.length} departamentos por {metMVis==="m"?"monto":verEstado ? "cantidad de solicitudes" : "cantidad de créditos"}{verEstado ? ` · ${nombreEstadoSel}` : ""} · clic para ver detalle</p></div></header>
           <ol className="rank">
-            {ranking.map(([k, v]) => {
-              const maxR = ranking[0]?.[1][metM] || 1;
+            {rankingVis.map(([k, v]) => {
+              const maxR = rankingVis[0]?.[1][metMVis] || 1;
               return <li key={k} onClick={() => irADep(k)} style={{cursor:"pointer"}} role="button" tabIndex={0}>
                 <span title={nombreDep(k)}>{nombreDep(k)}</span>
-                <div className="bar"><i style={{width:`${v[metM]/maxR*100}%`}} /></div>
-                <span>{metM==="m"?peso(v.m):miles(v.n)}</span>
+                <div className="bar"><i style={{width:`${v[metMVis]/maxR*100}%`}} /></div>
+                <span>{metMVis==="m"?peso(v.m):miles(v.n)}</span>
               </li>;
             })}
           </ol>
         </section>
       </div>
+
+      {/* Pendientes: por línea y espera (gráficos) */}
+      {tot.n > 0 && (
+        <div className="grid grid-2" style={{marginTop:20}}>
+          <section className="card">
+            <header><div><h2>Pendientes por línea</h2>
+              <p className="sub">Monto a entregar según la línea de crédito · {fmtF(desde)} a {fmtF(hasta)}</p></div></header>
+            <BarraPartes unidad="$" items={pendPorLinea.map(([l, v], i) => ({
+              clave: l, etiqueta: `${nombreLinea(l)} · ${miles(v.n)} créditos`, valor: v.m, color: colorSerie(i),
+            }))} />
+          </section>
+          {espera && (
+            <section className="card">
+              <header><div><h2>Espera de entrega</h2>
+                <p className="sub">Créditos pendientes según el tiempo desde la aprobación</p></div></header>
+              <BarrasH unidad="créditos" total={tot.n} items={espera.tramos.map((x, i) => ({
+                clave: x.id, etiqueta: x.etiqueta, valor: x.n, color: ["#6da7ec", "#3987e5", "#256abf", "#0d366b"][i], detalle: peso(x.m),
+              }))} />
+            </section>
+          )}
+        </div>
+      )}
+
+      {/* Todos los estados (base de personas): lo ya entregado y el resto de las categorías */}
+      {resumenPais && estados && (
+        <section className="card" style={{marginTop:20}} aria-label="Todas las solicitudes por estado">
+          <header><div><h2>Todas las solicitudes, por estado</h2>
+            <p className="sub">{miles(resumenPais.n)} solicitudes de crédito desde el inicio del programa · incluye lo ya pagado y lo cerrado sin desembolso</p></div></header>
+          <ResumenEstadosVista resumen={resumenPais} fechaDatos={estados.actualizado} tituloMeses="Solicitudes por mes de todo el programa" />
+        </section>
+      )}
     </>
   );
 
