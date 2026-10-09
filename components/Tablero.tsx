@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import FichaZona, { plural } from "./FichaZona";
+import { resumenEstados, type DatosEstados } from "@/lib/estadosAgregados";
 import { LogoBanco } from "./Marca";
 import { fmtF, lineaCanonica, miles, nombreDep, nombreLinea, peso } from "@/lib/formato";
 import { BARRIO_VACIO, antiguedad, esperaPromedio, fichaBarrio, fichaDepartamento, fichaLocalidad, hoyArgentina, notaBarrio, subBarrio, zonasInterior } from "@/lib/acto";
@@ -57,8 +58,8 @@ function colorMapa(v: number, max: number) {
 }
 
 /* ── Componente principal ── */
-export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
-  cubo: Cubo; cuboCap: CuboCapital; geo: GeoData | null; circ: CircuitosGeo | null; actualizado: string;
+export default function Tablero({ cubo, cuboCap, geo, circ, estados, actualizado }: {
+  cubo: Cubo; cuboCap: CuboCapital; geo: GeoData | null; circ: CircuitosGeo | null; estados: DatosEstados | null; actualizado: string;
 }) {
   const F0 = cubo.f[0], F1 = cubo.f[cubo.f.length-1];
 
@@ -204,6 +205,8 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
   const fichaLoc = useMemo(
     () => depIdx < 0 || locFicha === null ? null : fichaLocalidad(cubo, depIdx, locFicha),
     [cubo, depIdx, locFicha]);
+  const completaDep = useMemo(() => estados && dep ? resumenEstados(estados, [{ dep }]) : null, [estados, dep]);
+  const completaLoc = useMemo(() => estados && dep && locFicha !== null ? resumenEstados(estados, [{ dep, loc: cubo.loc[locFicha] }]) : null, [estados, dep, locFicha, cubo]);
   const fichaBar = useMemo(() => barrioFicha === null ? null : fichaBarrio(cuboCap, barrioFicha), [cuboCap, barrioFicha]);
   const idxBarrio = useMemo(() => new Map(cuboCap.bar.map((b, i) => [b, i] as [string, number])), [cuboCap]);
   const abrirBarrio = useCallback((b: string) => { const i = idxBarrio.get(b); if (i !== undefined) setBarrioFicha(i); }, [idxBarrio]);
@@ -605,11 +608,11 @@ export default function Tablero({ cubo, cuboCap, geo, circ, actualizado }: {
   const vistaLocalidades = dep && fichaDep ? (
     locFicha !== null && fichaLoc ? (
       <FichaZona ficha={fichaLoc} titulo={nombreLocFicha!} sub={`Localidad · Departamento ${nombreDep(dep)}`}
-        notas={[avisoFiltro]} actualizado={actualizado} titleRef={tituloRef} />
+        notas={[avisoFiltro]} actualizado={actualizado} titleRef={tituloRef} completa={completaLoc} fechaCompleta={estados?.actualizado} />
     ) : (
       <>
         <FichaZona ficha={fichaDep} titulo={nombreDep(dep)} sub={`Departamento · ${plural(zonasLoc.length, "localidad", "localidades")}`}
-          notas={[avisoFiltro]} actualizado={actualizado} titleRef={tituloRef} />
+          notas={[avisoFiltro]} actualizado={actualizado} titleRef={tituloRef} completa={completaDep} fechaCompleta={estados?.actualizado} />
 
         {/* Localidades del departamento */}
         <section className="card" style={{marginTop:20}}>

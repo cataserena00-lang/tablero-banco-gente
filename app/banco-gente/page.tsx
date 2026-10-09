@@ -1,4 +1,5 @@
-import { cargar } from "@/lib/datos";
+import { cargar, cargarOpcional } from "@/lib/datos";
+import type { DatosEstados } from "@/lib/estadosAgregados";
 import Tablero from "@/components/Tablero";
 import type { Cubo, CuboCapital, CircuitosGeo, GeoData } from "@/components/Tablero";
 
@@ -17,6 +18,7 @@ export default async function Pagina() {
       cuboCap={cargar<CuboCapital>(d, "cubo_capital")}
       geo={cargarGeo<GeoData>(d, "deptos_paths")}
       circ={cargarGeo<CircuitosGeo>(d, "circuitos", "geojson")}
+      estados={cargarOpcional<DatosEstados>(d, "estados")}
       actualizado={cargar<{ actualizado: string }>(d, "meta").actualizado}
     />
   );
