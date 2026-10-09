@@ -13,47 +13,72 @@ export const colorSerie = (i: number) => (i < PALETA.length ? PALETA[i] : COLOR_
 const pct = (p: number) => p.toLocaleString("es-AR", { maximumFractionDigits: 1 }) + " %";
 
 export interface ItemBarra { clave: string; etiqueta: string; valor: number; color: string; detalle?: string }
+interface Interaccion { seleccion?: string | null; onSelect?: (clave: string | null) => void }
 
-/** Barras horizontales con la etiqueta, el valor y el porcentaje del total a la vista (sin leyenda aparte). */
-export function BarrasH({ items, total, unidad = "créditos" }: { items: ItemBarra[]; total?: number; unidad?: string }) {
+/** Barras horizontales con la etiqueta, el valor y el porcentaje del total a la vista (sin leyenda aparte).
+    Con `onSelect`, cada barra se puede tocar para filtrar los otros gráficos; tocarla de nuevo quita el filtro. */
+export function BarrasH({ items, total, unidad = "créditos", seleccion, onSelect }: { items: ItemBarra[]; total?: number; unidad?: string } & Interaccion) {
   const max = Math.max(1, ...items.map(i => i.valor));
   const suma = total ?? items.reduce((a, i) => a + i.valor, 0);
   return (
     <ul className="viz-barras">
-      {items.map(i => (
-        <li key={i.clave} title={`${i.etiqueta}: ${miles(i.valor)} ${unidad}${suma ? ` (${pct((100 * i.valor) / suma)})` : ""}${i.detalle ? ` · ${i.detalle}` : ""}`}>
-          <span className="viz-et">{i.etiqueta}</span>
-          <span className="viz-pista" aria-hidden="true"><i style={{ width: `${i.valor ? Math.max(1.5, (i.valor / max) * 100) : 0}%`, background: i.color }} /></span>
-          <span className="viz-val">{miles(i.valor)}<small>{suma ? pct((100 * i.valor) / suma) : ""}</small></span>
-        </li>
-      ))}
+      {items.map(i => {
+        const cuerpo = (
+          <>
+            <span className="viz-et">{i.etiqueta}</span>
+            <span className="viz-pista" aria-hidden="true"><i style={{ width: `${i.valor ? Math.max(1.5, (i.valor / max) * 100) : 0}%`, background: i.color }} /></span>
+            <span className="viz-val">{miles(i.valor)}<small>{suma ? pct((100 * i.valor) / suma) : ""}</small></span>
+          </>
+        );
+        const activa = seleccion === i.clave;
+        const titulo = `${i.etiqueta}: ${miles(i.valor)} ${unidad}${suma ? ` (${pct((100 * i.valor) / suma)})` : ""}${i.detalle ? ` · ${i.detalle}` : ""}`;
+        return (
+          <li key={i.clave} title={titulo} className={seleccion && !activa ? "viz-atenuada" : undefined}>
+            {onSelect
+              ? <button type="button" className={`viz-fila${activa ? " viz-activa" : ""}`} aria-pressed={activa}
+                  onClick={() => onSelect(activa ? null : i.clave)}>{cuerpo}</button>
+              : <div className="viz-fila">{cuerpo}</div>}
+          </li>
+        );
+      })}
     </ul>
   );
 }
 
-/** Una sola barra dividida en partes (parte de un todo) con la leyenda debajo. */
-export function BarraPartes({ items, unidad = "créditos" }: { items: ItemBarra[]; unidad?: string }) {
+/** Una sola barra dividida en partes (parte de un todo) con la leyenda debajo; también se puede tocar para filtrar. */
+export function BarraPartes({ items, unidad = "créditos", seleccion, onSelect }: { items: ItemBarra[]; unidad?: string } & Interaccion) {
   const suma = items.reduce((a, i) => a + i.valor, 0);
   if (!suma) return null;
   return (
     <div className="viz-partes">
-      <div className="viz-partes-barra" role="img" aria-label={items.map(i => `${i.etiqueta}: ${pct((100 * i.valor) / suma)}`).join(", ")}>
-        {items.filter(i => i.valor > 0).map(i => (
-          <span key={i.clave} style={{ width: `${(100 * i.valor) / suma}%`, background: i.color }}
-            title={`${i.etiqueta}: ${miles(i.valor)} ${unidad} (${pct((100 * i.valor) / suma)})`} />
-        ))}
+      <div className="viz-partes-barra" role={onSelect ? "group" : "img"} aria-label={items.map(i => `${i.etiqueta}: ${pct((100 * i.valor) / suma)}`).join(", ")}>
+        {items.filter(i => i.valor > 0).map(i => {
+          const activa = seleccion === i.clave;
+          const estilo = { width: `${(100 * i.valor) / suma}%`, background: i.color, opacity: seleccion && !activa ? 0.35 : 1 };
+          const titulo = `${i.etiqueta}: ${miles(i.valor)} ${unidad} (${pct((100 * i.valor) / suma)})`;
+          return onSelect
+            ? <button key={i.clave} type="button" style={estilo} title={titulo} aria-label={titulo} aria-pressed={activa} onClick={() => onSelect(activa ? null : i.clave)} />
+            : <span key={i.clave} style={estilo} title={titulo} />;
+        })}
       </div>
       <ul className="viz-leyenda">
-        {items.map(i => (
-          <li key={i.clave}><i style={{ background: i.color }} aria-hidden="true" /><span>{i.etiqueta}</span>
-            <b>{miles(i.valor)}</b><small>{pct((100 * i.valor) / suma)}</small></li>
-        ))}
+        {items.map(i => {
+          const activa = seleccion === i.clave;
+          const cuerpo = (<><i style={{ background: i.color }} aria-hidden="true" /><span>{i.etiqueta}</span><b>{miles(i.valor)}</b><small>{pct((100 * i.valor) / suma)}</small></>);
+          return (
+            <li key={i.clave} className={seleccion && !activa ? "viz-atenuada" : undefined}>
+              {onSelect
+                ? <button type="button" className={`viz-fila${activa ? " viz-activa" : ""}`} aria-pressed={activa} onClick={() => onSelect(activa ? null : i.clave)}>{cuerpo}</button>
+                : <div className="viz-fila">{cuerpo}</div>}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );
 }
 
-export interface Serie { clave: string; etiqueta: string; color: string }
+export interface Serie { clave: string; etiqueta: string; color: string; idx?: number }   // idx: posición del valor en `v` (por defecto, el orden de la lista)
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
 const etiquetaMes = (k: string) => `${MESES[+k.slice(5, 7) - 1]} ${k.slice(2, 4)}`;
 
@@ -64,7 +89,7 @@ export function ColumnasApiladas({ meses, series, titulo, unidad = "solicitudes"
   const [foco, setFoco] = useState<number | null>(null);
   const [ocultas, setOcultas] = useState<Set<string>>(new Set());
   const W = 720, H = 240, M = { t: 10, r: 8, b: 26, l: 44 };
-  const visibles = series.map((s, j) => ({ ...s, j })).filter(s => !ocultas.has(s.clave));
+  const visibles = series.map((s, j) => ({ ...s, j: s.idx ?? j })).filter(s => !ocultas.has(s.clave));
   const totales = useMemo(() => meses.map(m => visibles.reduce((a, s) => a + (m.v[s.j] || 0), 0)), [meses, visibles]);
   const max = Math.max(1, ...totales);
   const paso = Math.pow(10, Math.floor(Math.log10(max)));
@@ -125,7 +150,7 @@ export function ColumnasApiladas({ meses, series, titulo, unidad = "solicitudes"
         <div className="tabla-detalle"><table>
           <caption className="sr-only">{titulo}</caption>
           <thead><tr><th>Mes</th>{series.map(s => <th key={s.clave} className="th-num">{s.etiqueta}</th>)}</tr></thead>
-          <tbody>{[...meses].reverse().map(m => <tr key={m.mes}><td>{etiquetaMes(m.mes)}</td>{series.map(s => <td key={s.clave} className="td-num">{miles(m.v[series.indexOf(s)] || 0)}</td>)}</tr>)}</tbody>
+          <tbody>{[...meses].reverse().map(m => <tr key={m.mes}><td>{etiquetaMes(m.mes)}</td>{series.map(s => <td key={s.clave} className="td-num">{miles(m.v[s.idx ?? series.indexOf(s)] || 0)}</td>)}</tr>)}</tbody>
         </table></div>
       </details>
     </div>

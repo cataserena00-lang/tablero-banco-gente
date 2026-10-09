@@ -358,7 +358,8 @@ body:has(.login) .pie-gob{background:rgba(255,255,255,.9)}
 
 /* ── Gráficos (components/graficos.tsx) ── */
 .viz-barras{list-style:none;margin:0;padding:0;display:grid;gap:8px}
-.viz-barras li{display:grid;grid-template-columns:minmax(120px,210px) 1fr 108px;gap:10px;align-items:center;font-size:13.5px}
+.viz-barras li{font-size:13.5px}
+.viz-barras .viz-fila{display:grid;grid-template-columns:minmax(120px,210px) 1fr 108px;gap:10px;align-items:center;width:100%}
 .viz-et{color:var(--tx)}
 .viz-pista{height:14px;background:var(--surface);border-radius:4px;overflow:hidden}
 .viz-pista i{display:block;height:100%;border-radius:0 4px 4px 0}
@@ -367,7 +368,7 @@ body:has(.login) .pie-gob{background:rgba(255,255,255,.9)}
 .viz-partes-barra{display:flex;gap:2px;height:22px;border-radius:6px;overflow:hidden}
 .viz-partes-barra span{display:block;min-width:3px}
 .viz-leyenda{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px;font-size:13.5px}
-.viz-leyenda li{display:grid;grid-template-columns:12px 1fr auto auto;gap:8px;align-items:center}
+.viz-leyenda .viz-fila{display:grid;grid-template-columns:12px 1fr auto auto;gap:8px;align-items:center;width:100%}
 .viz-leyenda i{width:12px;height:12px;border-radius:3px;display:inline-block}
 .viz-leyenda small{color:var(--tx2);min-width:52px;text-align:right}
 .viz-leyenda-fila{display:flex;flex-wrap:wrap;gap:6px 14px}
@@ -383,7 +384,7 @@ body:has(.login) .pie-gob{background:rgba(255,255,255,.9)}
 .viz-tip i{width:10px;height:10px;border-radius:2px;display:inline-block}
 .viz-tabla{margin-top:8px;font-size:13px}
 .viz-tabla summary{cursor:pointer;color:var(--celeste-txt)}
-@media(max-width:560px){.viz-barras li{grid-template-columns:1fr 92px}.viz-barras .viz-pista{grid-column:1/-1;grid-row:2}.viz-barras .viz-val{grid-row:1;grid-column:2}}
+@media(max-width:560px){.viz-barras .viz-fila{grid-template-columns:1fr 92px}.viz-barras .viz-pista{grid-column:1/-1;grid-row:2}.viz-barras .viz-val{grid-row:1;grid-column:2}}
 .viz-detalle{margin-top:12px;display:grid;gap:4px}
 .viz-detalle details{border:1px solid var(--borde);border-radius:8px;padding:6px 10px;font-size:13.5px}
 .viz-detalle summary{cursor:pointer;display:flex;gap:8px;align-items:center}
@@ -406,3 +407,44 @@ body:has(.login) .pie-gob{background:rgba(255,255,255,.9)}
 .filtro-estado-mapa{margin:0 0 12px;max-width:340px}
 .filtro-estado-mapa select{width:100%}
 .seg button:disabled{opacity:.45;cursor:not-allowed}
+
+/* Gráficos que filtran a los otros: el botón ocupa toda la fila y la fila elegida se resalta */
+button.viz-fila{font:inherit;color:inherit;text-align:left;background:none;border:1px solid transparent;border-radius:8px;padding:3px 6px;margin:-3px -6px;cursor:pointer}
+button.viz-fila:hover{background:var(--surface)}
+button.viz-fila.viz-activa{background:var(--celeste-claro);border-color:var(--celeste)}
+button.viz-fila:focus-visible,.viz-partes-barra button:focus-visible{outline:2px solid var(--celeste-osc);outline-offset:2px}
+.viz-atenuada{opacity:.55}
+.viz-partes-barra button{border:0;padding:0;cursor:pointer;display:block;min-width:3px}
+.viz-filtros{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 10px;font-size:13px}
+.viz-filtros .chip{margin:0}
+.viz-rango{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:flex-end;margin:6px 0 10px;font-size:13px}
+.viz-rango label{display:block;font-size:12px;color:var(--tx2)}
+.viz-rango input[type=month]{font:inherit;padding:5px 8px;border:1px solid var(--borde);border-radius:6px}
+
+/* Exportar desde la ficha */
+.ficha-export{position:relative;margin-left:auto}
+.ficha-export-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:5;background:#fff;border:1px solid var(--borde);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.14);display:grid;min-width:280px;overflow:hidden}
+.ficha-export-menu button{font:inherit;font-size:13.5px;text-align:left;background:#fff;border:0;border-bottom:1px solid var(--borde);padding:10px 14px;cursor:pointer}
+.ficha-export-menu button:last-child{border-bottom:0}
+.ficha-export-menu button:hover{background:var(--celeste-claro)}
+.acto-ficha>header{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+@media print{
+  body.imprimiendo-ficha>*:not(.hojas-impresion){display:none!important}
+  .hojas-impresion{display:block}
+  /* Cada hoja es una página A4: cabecera arriba, pie abajo y la ficha centrada en el medio; los bloques no se cortan */
+  .hoja{min-height:296mm;display:flex;flex-direction:column;break-inside:avoid}
+  .hoja>.card{margin:auto 0}
+  .hoja-pie{margin-top:0}
+  .hoja .kpis,.hoja .tabla-detalle,.hoja .viz-barras,.hoja .viz-partes,.hoja .viz-columnas,.hoja .viz-leyenda{break-inside:avoid}
+  .hoja .viz-columnas svg{max-height:190px}
+  .hoja .viz-barras .viz-fila{padding:0;margin:0}
+  .ficha-export{display:none}
+}
+.viz-detalle-fijo h4{margin:10px 0 4px;font-size:13.5px;display:flex;gap:8px;align-items:center}
+.viz-detalle-fijo h4 i{width:10px;height:10px;border-radius:2px;display:inline-block;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.viz-detalle-fijo h4 span{margin-left:auto;color:var(--tx2);font-weight:400}
+.viz-detalle-fijo ul{list-style:none;margin:0;padding:0;display:grid;gap:2px;font-size:12.5px}
+.viz-detalle-fijo li{display:grid;grid-template-columns:1fr auto auto;gap:12px}
+.viz-detalle-fijo li small{color:var(--tx2);min-width:110px;text-align:right}
+.viz-detalle-fijo{break-inside:avoid}
+@media print{.hoja .viz-detalle{display:block;column-count:2;column-gap:22px}.hoja .viz-detalle-fijo h4{margin:6px 0 2px}}

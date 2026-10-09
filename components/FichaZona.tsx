@@ -1,9 +1,11 @@
 "use client";
 import { useEffect, useMemo, useState, type Ref } from "react";
+import { createPortal } from "react-dom";
 import { fmtF, miles, nombreLinea, peso } from "@/lib/formato";
 import { SIN_LINEA, antiguedad, hoyArgentina, type Ficha } from "@/lib/acto";
 import type { ResumenEstados } from "@/lib/estadosAgregados";
 import ResumenEstadosVista from "./ResumenEstadosVista";
+import { CabeceraHoja, PieHoja } from "./Marca";
 
 /* Ficha de zona: cantidad, monto, líneas y antigüedad de la aprobación de una zona
    (barrio, localidad o departamento). Solo muestra agregados. */
@@ -15,11 +17,13 @@ const textoLinea = (l: string) => (l === SIN_LINEA ? "Sin línea informada" : no
 
 export type ModoFicha = "pendientes" | "completos" | "ambos";
 
-export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado, titleRef, id = "ficha-zona-titulo", completa, fechaCompleta, modoFijo }: {
+export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado, titleRef, id = "ficha-zona-titulo", completa, fechaCompleta, modoFijo, parteCompleta }: {
   ficha: Ficha;
   /** Resumen de todos los estados de la zona (departamentos y localidades). Con él aparece el botón «Datos completos». */
   completa?: ResumenEstados | null;
   fechaCompleta?: string;
+  /** En las hojas impresas, qué parte de los datos completos va en esta página. */
+  parteCompleta?: "resumen" | "evolucion";
   /** Fuerza lo que se muestra (por ejemplo "ambos" en las fichas exportadas) y oculta el botón. */
   modoFijo?: ModoFicha;
   titulo: string;
@@ -35,6 +39,19 @@ export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado,
   const [vista, setVista] = useState<"pendientes" | "completos">("pendientes");
   const modo: ModoFicha = completa ? modoFijo ?? vista : "pendientes";
   const verPend = modo !== "completos", verComp = !!completa && modo !== "pendientes";
+  // Exportar desde la ficha: se arman las hojas, se abre el diálogo de impresión ("Guardar como PDF") y se limpian
+  const [menu, setMenu] = useState(false);
+  const [imprimir, setImprimir] = useState<ContenidoExport | null>(null);
+  useEffect(() => {
+    if (!imprimir) return;
+    const tituloAntes = document.title;
+    document.title = `ficha-${titulo.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}-${new Date().toISOString().slice(0, 10)}`;
+    document.body.classList.add("imprimiendo-ficha");
+    const fin = () => { document.title = tituloAntes; document.body.classList.remove("imprimiendo-ficha"); setImprimir(null); };
+    window.addEventListener("afterprint", fin, { once: true });
+    const t = setTimeout(() => window.print(), 400);
+    return () => { clearTimeout(t); window.removeEventListener("afterprint", fin); document.title = tituloAntes; document.body.classList.remove("imprimiendo-ficha"); };
+  }, [imprimir, titulo]);
   const primera = ficha.fechas[0]?.f, ultima = ficha.fechas[ficha.fechas.length - 1]?.f;
 
   return (
@@ -45,6 +62,21 @@ export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado,
           <h2 id={id} ref={titleRef} tabIndex={-1}>{titulo}</h2>
           <p className="sub">{sub}</p>
         </div>
+        {!modoFijo && (
+          <div className="ficha-export">
+            {completa ? (
+              <>
+                <button type="button" className="acto-link" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(m => !m)}>Exportar PDF ▾</button>
+                {menu && (
+                  <div className="ficha-export-menu" role="menu">
+                    <button type="button" role="menuitem" onClick={() => { setMenu(false); setImprimir("pendientes"); }}>Solo pendientes de entrega</button>
+                    <button type="button" role="menuitem" onClick={() => { setMenu(false); setImprimir("completa"); }}>Ficha completa (pendientes + todos los estados)</button>
+                  </div>
+                )}
+              </>
+            ) : <button type="button" className="acto-link" onClick={() => setImprimir("pendientes")}>Exportar PDF</button>}
+          </div>
+        )}
         {completa && !modoFijo && (
           <div className="seg" role="group" aria-label="Qué mostrar de la zona">
             <button type="button" aria-pressed={vista === "pendientes"} onClick={() => setVista("pendientes")}>Pendientes de entrega</button>
@@ -116,11 +148,54 @@ export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado,
       {verComp && (
         <>
           {verPend && <h3 className="acto-sub acto-sub-grande">Todos los estados</h3>}
-          <ResumenEstadosVista resumen={completa!} fechaDatos={fechaCompleta} />
+          <ResumenEstadosVista resumen={completa!} fechaDatos={fechaCompleta} interactivo={!modoFijo} parte={parteCompleta} />
         </>
       )}
       {notas.filter(Boolean).map((n, i) => <p key={i} className="nota">{n}</p>)}
+      {imprimir && typeof document !== "undefined" && createPortal(
+        <div className="hojas-impresion">
+          <style>{"@page{size:A4 portrait;margin:0}"}</style>
+          <HojasFicha ficha={ficha} titulo={titulo} sub={sub} notas={notas} actualizado={actualizado} completa={completa}
+            fechaCompleta={fechaCompleta} contenido={imprimir} id={`impr-${id}`} />
+        </div>, document.body)}
       {verPend && <p className="nota">La ficha muestra todos los créditos pendientes, sin filtro de fecha. Es una foto de la base al {fmtF(actualizado)}: los que se entregan desaparecen en la próxima actualización.</p>}
     </section>
+  );
+}
+
+export type ContenidoExport = "pendientes" | "completa";
+
+/** Hojas impresas de una zona: una con los pendientes y, si se pidió la ficha completa, otra con todos los estados.
+    Cada hoja es una página A4 con su cabecera y su pie, y el contenido centrado entre los dos. */
+export function HojasFicha({ ficha, titulo, sub, notas, actualizado, completa, fechaCompleta, contenido, id }: {
+  ficha: Ficha; titulo: string; sub: string; notas?: (string | null | undefined | false)[]; actualizado: string;
+  completa?: ResumenEstados | null; fechaCompleta?: string; contenido: ContenidoExport; id: string;
+}) {
+  const conEstados = contenido === "completa" && !!completa;
+  return (
+    <>
+      <div className="hoja">
+        <CabeceraHoja actualizado={fmtF(actualizado)} />
+        <FichaZona ficha={ficha} titulo={titulo} sub={sub} notas={notas} actualizado={actualizado} id={id}
+          completa={conEstados ? completa : null} fechaCompleta={fechaCompleta} modoFijo={conEstados ? "pendientes" : undefined} />
+        <PieHoja />
+      </div>
+      {conEstados && (
+        <div className="hoja">
+          <CabeceraHoja actualizado={fmtF(actualizado)} />
+          <FichaZona ficha={ficha} titulo={titulo} sub={sub} actualizado={actualizado} id={`${id}-estados`}
+            completa={completa} fechaCompleta={fechaCompleta} modoFijo="completos" parteCompleta="resumen" />
+          <PieHoja />
+        </div>
+      )}
+      {conEstados && (
+        <div className="hoja">
+          <CabeceraHoja actualizado={fmtF(actualizado)} />
+          <FichaZona ficha={ficha} titulo={titulo} sub={sub} notas={notas} actualizado={actualizado} id={`${id}-evolucion`}
+            completa={completa} fechaCompleta={fechaCompleta} modoFijo="completos" parteCompleta="evolucion" />
+          <PieHoja />
+        </div>
+      )}
+    </>
   );
 }

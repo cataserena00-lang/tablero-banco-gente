@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import type { Cubo, CuboCapital } from "./Tablero";
-import FichaZona, { plural } from "./FichaZona";
-import { CabeceraHoja, LogoBanco, PieHoja } from "./Marca";
+import FichaZona, { HojasFicha, plural } from "./FichaZona";
+import { LogoBanco } from "./Marca";
 import { fmtF, nombreDep, peso } from "@/lib/formato";
 import { BARRIO_VACIO } from "@/lib/acto";
 import { resumenEstados, type DatosEstados, type ResumenEstados, type Zona as ZonaEstado } from "@/lib/estadosAgregados";
@@ -176,23 +176,14 @@ export default function ExportarFichas({ cubo, cuboCap, estados, actualizado }: 
           {/* Sin márgenes del navegador: la franja de colores llega al borde de la hoja y no se imprimen fecha ni URL */}
           <style>{"@page{size:A4 portrait;margin:0}"}</style>
           {elegidas.length > 1 && (
-            <div className="hoja">
-              <CabeceraHoja actualizado={fmtF(actualizado)} />
-              <FichaZona ficha={total} titulo="Resumen total" id="ficha-total"
-                sub={`${elegidas.length} zonas seleccionadas`}
-                notas={[`Zonas incluidas: ${nombresResumen}.`, hayRepetidas && "Las zonas contenidas en otra elegida (por ejemplo, una localidad dentro de un departamento) se cuentan una sola vez.",
-                  completa && hayBarrios && "Los datos de todos los estados no incluyen los barrios de Córdoba elegidos (la base de solicitudes no trae el barrio), salvo que estén dentro de un departamento o la localidad Córdoba elegidos."]}
-                actualizado={actualizado} completa={completaTotal} fechaCompleta={estados?.actualizado} modoFijo={completa ? "ambos" : undefined} />
-              <PieHoja />
-            </div>
+            <HojasFicha ficha={total} titulo="Resumen total" id="ficha-total" sub={`${elegidas.length} zonas seleccionadas`}
+              notas={[`Zonas incluidas: ${nombresResumen}.`, hayRepetidas && "Las zonas contenidas en otra elegida (por ejemplo, una localidad dentro de un departamento) se cuentan una sola vez.",
+                completa && hayBarrios && "Los datos de todos los estados no incluyen los barrios de Córdoba elegidos (la base de solicitudes no trae el barrio), salvo que estén dentro de un departamento o la localidad Córdoba elegidos."]}
+              actualizado={actualizado} completa={completaTotal} fechaCompleta={estados?.actualizado} contenido={completa ? "completa" : "pendientes"} />
           )}
           {fichas.map(({ z, ficha }) => (
-            <div className="hoja" key={z.clave}>
-              <CabeceraHoja actualizado={fmtF(actualizado)} />
-              <FichaZona ficha={ficha} titulo={mostrar(z)} sub={subZona(z)} actualizado={actualizado} id={`ficha-${z.clave.replace(/\W/g, "-")}`}
-                completa={completaDe(z)} fechaCompleta={estados?.actualizado} modoFijo={completaDe(z) ? "ambos" : undefined} />
-              <PieHoja />
-            </div>
+            <HojasFicha key={z.clave} ficha={ficha} titulo={mostrar(z)} sub={subZona(z)} actualizado={actualizado} id={`ficha-${z.clave.replace(/\W/g, "-")}`}
+              completa={completaDe(z)} fechaCompleta={estados?.actualizado} contenido={completaDe(z) ? "completa" : "pendientes"} />
           ))}
         </div>
       )}

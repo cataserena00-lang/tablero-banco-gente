@@ -50,7 +50,10 @@ def test_agregar_y_armar_sin_datos_personales(tmp_path):
     subprocess.run([sys.executable, str(AQUI / "procesar_estados.py"), "--input", str(csv_), "--salida", str(salida)], check=True, capture_output=True)
     texto = (salida / "estados.json").read_text(encoding="utf-8")
     datos = json.loads(texto)
+    assert datos["version"] == 2
     assert sum(z[4] for z in datos["zonas"]) == datos["creditos"]
+    assert all(len(z) == 6 for z in datos["zonas"]) and all(len(r) == 6 for r in datos["serie"])
+    assert sum(r[4] for r in datos["serie"]) <= datos["creditos"]
     assert set(datos["lineas"]) == {pe.LIBRE, pe.INICIAR, pe.POTENCIAR, pe.OTRAS}
     assert "CORDOBA" in datos["loc"] and "CAPITAL" in datos["dep"]
     # Nada nominal: ni nombres ni CUIL ni documentos del CSV de prueba

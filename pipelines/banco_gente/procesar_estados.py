@@ -14,7 +14,8 @@ Formato de estados.json (todo son índices a las listas del mismo archivo):
   dep, loc, estados, lineas   listas de nombres (departamentos y localidades sin tildes y en mayúsculas)
   meses                       "AAAA-MM" del año y mes de la solicitud
   zonas                       [dep, loc, estado, linea, creditos, monto]
-  serie                       [mes, dep, estado, creditos, monto]
+  serie                       [mes, dep, estado, linea, creditos, monto]
+  version                     2 (la versión 1 no traía la línea en `serie`)
 """
 import argparse
 import hashlib
@@ -43,6 +44,7 @@ DEPARTAMENTOS = [
 SIN_DATO = "SIN DATO"
 # Grafías alternativas de departamentos (ya sin tildes ni puntuación)
 ALIAS_DEPARTAMENTO = {"PTE ROQUE SAENZ PENA": "PRESIDENTE ROQUE SAENZ PENA", "PRES ROQUE SAENZ PENA": "PRESIDENTE ROQUE SAENZ PENA"}
+VERSION = 2   # formato de estados.json; si cambia, se regenera aunque el CSV sea el mismo
 LOCALIDAD_CAPITAL = "CORDOBA"   # el CSV la trae como "CORDOBA CAPITAL"; el resto del tablero, como "CORDOBA"
 
 LIBRE, INICIAR, POTENCIAR, OTRAS = "Libre disponibilidad", "Iniciar emprendimiento", "Potenciar emprendimiento", "Otras líneas"
@@ -124,7 +126,7 @@ def agregar(lector, columnas: list[str]) -> dict:
         z[0] += 1; z[1] += m
         mk = mes_clave(get(fila, "ano"), get(fila, "mes"))
         if mk:
-            s = serie[(mk, dep, est)]
+            s = serie[(mk, dep, est, lin)]
             s[0] += 1; s[1] += m
         n += 1
     return {"filas": n, "zonas": zonas, "serie": serie}
@@ -139,10 +141,10 @@ def armar(res: dict, actualizado: str) -> dict:
     mi = {x: i for i, x in enumerate(meses)}
     lini = {x: i for i, x in enumerate(LINEAS)}
     return {
-        "actualizado": actualizado, "creditos": res["filas"],
+        "version": VERSION, "actualizado": actualizado, "creditos": res["filas"],
         "dep": deps, "loc": locs, "estados": ests, "lineas": LINEAS, "meses": meses,
         "zonas": [[di[d], li[l], ei[e], lini[ln], v[0], v[1]] for (d, l, e, ln), v in sorted(res["zonas"].items())],
-        "serie": [[mi[m], di[d], ei[e], v[0], v[1]] for (m, d, e), v in sorted(res["serie"].items())],
+        "serie": [[mi[m], di[d], ei[e], lini[ln], v[0], v[1]] for (m, d, e, ln), v in sorted(res["serie"].items())],
     }
 
 
@@ -175,7 +177,8 @@ def main():
         huella = cp.huella_archivo(ruta)
         destino = SALIDA / "estados.json"
         meta = SALIDA / "estados_huella.txt"
-        if destino.exists() and meta.exists() and meta.read_text().strip() == huella and not os.environ.get("FORZAR"):
+        if destino.exists() and meta.exists() and meta.read_text().strip() == huella and not os.environ.get("FORZAR") \
+                and json.loads(destino.read_text(encoding="utf-8")).get("version") == VERSION:
             print("Sin cambios en el archivo de origen; no se regenera.")
             return
         f, lector = cp.abrir_csv(ruta)
