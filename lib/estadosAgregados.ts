@@ -15,7 +15,9 @@ export interface FilaEstado { estado: string; n: number; m: number }
 export interface FilaCategoria { categoria: string; n: number; m: number; estados: FilaEstado[] }
 /** Solicitudes de una zona agrupadas por estado puntual y línea (la base de todos los gráficos de la ficha). */
 export interface Celda { estado: string; categoria: string; linea: string; n: number; m: number }
-export interface PuntoSerie { mes: string; categoria: string; linea: string | null; n: number }
+export interface PuntoSerie { mes: string; categoria: string; linea: string | null; n: number; m: number }
+/** Qué se suma en la evolución mensual: cantidad de solicitudes o monto (con monto solo cuentan los estados con dinero entregado o comprometido). */
+export type CampoSerie = "n" | "m";
 export interface ResumenEstados {
   n: number; m: number;
   celdas: Celda[];
@@ -59,17 +61,17 @@ function serieMensual(d: DatosEstados, deps: Set<number>, v2: boolean): PuntoSer
   const acc = new Map<string, PuntoSerie>();
   for (const fila of d.serie) {
     const [mi, di, ei] = fila;
-    const ln = v2 ? fila[3] : -1, cn = v2 ? fila[4] : fila[3];
+    const ln = v2 ? fila[3] : -1, cn = v2 ? fila[4] : fila[3], cm = v2 ? fila[5] : fila[4];
     if (deps.size && !deps.has(di)) continue;
     const categoria = categoriaDe(d.estados[ei]), linea = ln >= 0 ? d.lineas[ln] : null;
     const k = `${mi}|${categoria}|${linea}`;
-    const p = acc.get(k) ?? { mes: d.meses[mi], categoria, linea, n: 0 };
-    p.n += cn; acc.set(k, p);
+    const p = acc.get(k) ?? { mes: d.meses[mi], categoria, linea, n: 0, m: 0 };
+    p.n += cn; p.m += cm; acc.set(k, p);
   }
   return acc.size ? [...acc.values()] : null;
 }
 
-export interface FiltroResumen { categoria?: string | null; linea?: string | null }
+export interface FiltroResumen { categoria?: string | null; linea?: string | null; campo?: CampoSerie }
 export interface VistaResumen {
   n: number; m: number;
   categorias: FilaCategoria[];   // según la línea elegida (la categoría elegida se resalta, no se filtra)
@@ -102,18 +104,19 @@ export function vistaResumen(r: ResumenEstados, f: FiltroResumen = {}): VistaRes
   });
   const lineas = [...porLinea.values()].sort((a, b) => b.n - a.n);
   const mesesSinLinea = !!lin && !!r.serie && !r.serieConLinea;
-  return { n, m, categorias, lineas, meses: mesesSinLinea ? null : serieCompleta(r.serie, cat, lin), mesesSinLinea };
+  return { n, m, categorias, lineas, meses: mesesSinLinea ? null : serieCompleta(r.serie, cat, lin, f.campo ?? "n"), mesesSinLinea };
 }
 
 /** Los meses sin solicitudes entre el primero y el último figuran en cero. */
-function serieCompleta(serie: PuntoSerie[] | null, cat: string | null, lin: string | null): VistaResumen["meses"] {
+function serieCompleta(serie: PuntoSerie[] | null, cat: string | null, lin: string | null, campo: CampoSerie): VistaResumen["meses"] {
   if (!serie) return null;
   const porMes = new Map<string, number[]>();
   for (const p of serie) {
     if (cat && p.categoria !== cat) continue;
     if (lin && p.linea !== lin) continue;
+    if (campo === "m" && !CON_MONTO.has(p.categoria)) continue;
     const v = porMes.get(p.mes) ?? new Array(etiquetasSerie.length).fill(0);
-    v[etiquetasSerie.indexOf(p.categoria)] += p.n; porMes.set(p.mes, v);
+    v[etiquetasSerie.indexOf(p.categoria)] += p[campo]; porMes.set(p.mes, v);
   }
   const claves = [...new Set(serie.map(p => p.mes))].sort();
   if (!claves.length) return null;

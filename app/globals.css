@@ -367,6 +367,8 @@ body:has(.login) .pie-gob{background:rgba(255,255,255,.9)}
 .viz-val small{display:block;font-weight:400;color:var(--tx2);font-size:11.5px}
 .viz-partes-barra{display:flex;gap:2px;height:22px;border-radius:6px;overflow:hidden}
 .viz-partes-barra span{display:block;min-width:3px}
+.viz-partes-barra.con-et{height:30px}
+.viz-partes-barra.con-et span,.viz-partes-barra.con-et button{display:flex;align-items:center;justify-content:center;font:inherit;font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums}
 .viz-leyenda{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px;font-size:13.5px}
 .viz-leyenda .viz-fila{display:grid;grid-template-columns:12px 1fr auto auto;gap:8px;align-items:center;width:100%}
 .viz-leyenda i{width:12px;height:12px;border-radius:3px;display:inline-block}
@@ -419,6 +421,8 @@ button.viz-fila:focus-visible,.viz-partes-barra button:focus-visible{outline:2px
 .viz-filtros .chip{margin:0}
 .viz-rango{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:flex-end;margin:6px 0 10px;font-size:13px}
 .viz-rango label{display:block;font-size:12px;color:var(--tx2)}
+.viz-rango select{font:inherit;padding:5px 8px;border:1px solid var(--borde);border-radius:6px;background:#fff;max-width:100%}
+@media(max-width:560px){.viz-rango>div,.viz-rango select{width:100%}.viz-rango .seg{width:100%}.viz-rango .seg button{flex:1}}
 .viz-rango input[type=month]{font:inherit;padding:5px 8px;border:1px solid var(--borde);border-radius:6px}
 
 /* Exportar desde la ficha */

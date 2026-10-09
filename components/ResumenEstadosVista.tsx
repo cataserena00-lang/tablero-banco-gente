@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { miles, peso } from "@/lib/formato";
+import { miles, nombreDep, peso } from "@/lib/formato";
 import { CATEGORIAS } from "@/lib/estados";
-import { CON_MONTO, PAGADOS, etiquetasSerie, vistaResumen, type ResumenEstados } from "@/lib/estadosAgregados";
+import { CON_MONTO, PAGADOS, etiquetasSerie, resumenEstados, vistaResumen, type CampoSerie, type DatosEstados, type ResumenEstados } from "@/lib/estadosAgregados";
 import { BarrasH, BarraPartes, ColumnasApiladas, colorSerie } from "./graficos";
 
 /* Resumen de todos los estados de una zona (o de todo el programa): cuántas solicitudes hay en cada categoría, el detalle
@@ -13,11 +13,14 @@ const colorCat = (cat: string) => colorSerie(etiquetasSerie.indexOf(cat));
 const colorLinea = (linea: string, i: number) => (linea === "Otras líneas" ? "#9aa3b2" : colorSerie(i));
 const ATAJOS = [["12", "Últimos 12 meses"], ["24", "Últimos 24 meses"], ["todo", "Todo el período"]] as const;
 const etiquetaMes = (k: string) => `${k.slice(5, 7)}/${k.slice(0, 4)}`;
+const millones = (n: number) => `$ ${(n / 1e6).toLocaleString("es-AR", { maximumFractionDigits: 0 })} M`;
 
 export type ParteResumen = "todo" | "resumen" | "evolucion";
 
-export default function ResumenEstadosVista({ resumen, fechaDatos, tituloMeses = "Solicitudes por mes", interactivo = true, parte = "todo" }: {
+export default function ResumenEstadosVista({ resumen, fechaDatos, tituloMeses = "Solicitudes por mes", interactivo = true, parte = "todo", datosFiltrables }: {
   resumen: ResumenEstados; fechaDatos?: string; tituloMeses?: string;
+  /** Si se pasa (panorama), el gráfico mensual suma un filtro por departamento y el cambio entre cantidad y monto. */
+  datosFiltrables?: DatosEstados;
   /** En las hojas impresas se reparte en dos páginas: "resumen" (indicadores, estados y líneas) y "evolucion" (meses y detalle por estado). */
   parte?: ParteResumen;
   /** En las hojas impresas no hay clics: se muestra todo sin filtros. */
@@ -28,7 +31,9 @@ export default function ResumenEstadosVista({ resumen, fechaDatos, tituloMeses =
   const [atajo, setAtajo] = useState<string>("24");
   const [desdeMes, setDesdeMes] = useState("");
   const [hastaMes, setHastaMes] = useState("");
-  useEffect(() => { setSelCat(null); setSelLinea(null); setAtajo("24"); }, [resumen]);
+  const [dep, setDep] = useState("");                    // "" = todos los departamentos (solo con `datosFiltrables`)
+  const [campo, setCampo] = useState<CampoSerie>("n");   // cantidad o monto en el gráfico mensual
+  useEffect(() => { setSelCat(null); setSelLinea(null); setAtajo("24"); setDep(""); setCampo("n"); }, [resumen]);
 
   const vista = useMemo(() => vistaResumen(resumen, { categoria: selCat, linea: selLinea }), [resumen, selCat, selLinea]);
   const porCat = useMemo(() => new Map(vista.categorias.map(c => [c.categoria, c])), [vista]);
@@ -40,8 +45,14 @@ export default function ResumenEstadosVista({ resumen, fechaDatos, tituloMeses =
     return { pagadas: suma(PAGADOS), pend: suma(["Aprobados pendientes de pago"]), cerradas: suma(["Cerrados sin desembolso"]) };
   }, [resumen, selCat, selLinea]);
 
+  // Evolución mensual: con los filtros cruzados y, en el panorama, el departamento y la métrica elegidos
+  const resumenSerie = useMemo(() => datosFiltrables && dep ? resumenEstados(datosFiltrables, [{ dep }]) : resumen, [datosFiltrables, dep, resumen]);
+  const vistaSerie = useMemo(() => vistaResumen(resumenSerie, { categoria: selCat, linea: selLinea, campo }), [resumenSerie, selCat, selLinea, campo]);
+  const deps = useMemo(() => datosFiltrables ? [...datosFiltrables.dep].sort((a, b) => nombreDep(a).localeCompare(nombreDep(b), "es")) : [], [datosFiltrables]);
+  const sinMonto = campo === "m" && !!selCat && !CON_MONTO.has(selCat);   // en esos estados el monto es solo lo solicitado
+
   // Rango de meses del gráfico mensual
-  const meses = vista.meses;
+  const meses = vistaSerie.meses;
   const primero = meses?.[0]?.mes ?? "", ultimo = meses?.[meses.length - 1]?.mes ?? "";
   const { desde, hasta } = useMemo(() => {
     if (!meses?.length) return { desde: "", hasta: "" };
@@ -95,13 +106,13 @@ export default function ResumenEstadosVista({ resumen, fechaDatos, tituloMeses =
         items={[...CATEGORIAS, "Sin clasificar"].filter(c => porCat.has(c)).map(c => {
           const f = porCat.get(c)!;
           return { clave: c, etiqueta: c, valor: f.n, color: colorCat(c), detalle: CON_MONTO.has(c) ? peso(f.m) : undefined };
-        })} />
+        }).sort((a, b) => b.valor - a.valor)} />
       {interactivo && <details className="viz-todo"><summary>Ver el detalle de cada estado</summary>{detalle}</details>}
 
       {lineas.length > 0 && (
         <>
           <h3 className="acto-sub">Solicitudes por línea{selCat ? ` · ${selCat}` : ""}</h3>
-          <BarraPartes unidad="solicitudes" seleccion={selLinea} onSelect={interactivo ? setSelLinea : undefined}
+          <BarraPartes unidad="solicitudes" etiquetas seleccion={selLinea} onSelect={interactivo ? setSelLinea : undefined}
             items={lineas.map((l, i) => ({ clave: l.linea, etiqueta: l.linea, valor: l.n, color: colorLinea(l.linea, i) }))} />
         </>
       )}
@@ -115,21 +126,38 @@ export default function ResumenEstadosVista({ resumen, fechaDatos, tituloMeses =
               <div className="seg" role="group" aria-label="Período del gráfico">
                 {ATAJOS.map(([k, l]) => <button key={k} type="button" aria-pressed={atajo === k} onClick={() => setAtajo(k)}>{l}</button>)}
               </div>
+              {datosFiltrables && (
+                <div><label htmlFor="viz-dep">Departamento</label>
+                  <select id="viz-dep" value={dep} onChange={e => setDep(e.target.value)}>
+                    <option value="">Todos los departamentos</option>
+                    {deps.map(d => <option key={d} value={d}>{nombreDep(d)}</option>)}
+                  </select></div>
+              )}
+              {datosFiltrables && (
+                <div className="seg" role="group" aria-label="Métrica del gráfico mensual">
+                  <button type="button" aria-pressed={campo === "n"} onClick={() => setCampo("n")}>Cantidad</button>
+                  <button type="button" aria-pressed={campo === "m"} onClick={() => setCampo("m")}>Monto</button>
+                </div>
+              )}
               <div><label htmlFor="viz-desde">Desde</label>
                 <input id="viz-desde" type="month" min={primero} max={ultimo} value={desde} onChange={e => { if (e.target.value) { setDesdeMes(e.target.value); setHastaMes(hasta); setAtajo("personal"); } }} /></div>
               <div><label htmlFor="viz-hasta">Hasta</label>
                 <input id="viz-hasta" type="month" min={primero} max={ultimo} value={hasta} onChange={e => { if (e.target.value) { setHastaMes(e.target.value); setDesdeMes(desde); setAtajo("personal"); } }} /></div>
             </div>
           )}
-          <p className="nota acto-rango">Según el año y el mes de la solicitud · {etiquetaMes(desde)} a {etiquetaMes(hasta)} ({visibles.length} {visibles.length === 1 ? "mes" : "meses"}).</p>
-          {visibles.length > 0
-            ? <ColumnasApiladas meses={visibles} titulo={tituloMeses}
-                series={etiquetasSerie.map((c, j) => ({ clave: c, etiqueta: c, color: colorSerie(j), idx: j })).filter(s => visibles.some(m => m.v[s.idx] > 0))} />
-            : <p className="nota">No hay solicitudes en ese período.</p>}
+          <p className="nota acto-rango">Según el año y el mes de la solicitud · {etiquetaMes(desde)} a {etiquetaMes(hasta)} ({visibles.length} {visibles.length === 1 ? "mes" : "meses"}){dep ? ` · ${nombreDep(dep)}` : ""}.
+            {campo === "m" ? " En monto se cuentan solo los estados con dinero entregado o comprometido." : ""}</p>
+          {sinMonto
+            ? <p className="nota">En «{selCat}» el monto es solo lo solicitado, por eso no se muestra. Pasá a Cantidad para ver esos meses.</p>
+            : visibles.length > 0 && visibles.some(m => m.v.some(x => x > 0))
+              ? <ColumnasApiladas meses={visibles} titulo={tituloMeses} unidad={campo === "n" ? "solicitudes" : ""}
+                  formatoEje={campo === "n" ? miles : millones} formatoValor={campo === "n" ? miles : peso}
+                  series={etiquetasSerie.map((c, j) => ({ clave: c, etiqueta: c, color: colorSerie(j), idx: j })).filter(s => visibles.some(m => m.v[s.idx] > 0))} />
+              : <p className="nota">No hay solicitudes en ese período{dep ? ` para ${nombreDep(dep)}` : ""}.</p>}
         </>
       )}
       {verEvolucion && !interactivo && <><h3 className="acto-sub">Detalle de cada estado</h3>{detalle}</>}
-      {vista.mesesSinLinea && <p className="nota">La evolución mensual todavía no distingue la línea; se actualiza en la próxima carga de datos.</p>}
+      {vistaSerie.mesesSinLinea && <p className="nota">La evolución mensual todavía no distingue la línea; se actualiza en la próxima carga de datos.</p>}
       <p className="nota">Datos de la base de solicitudes{fechaDatos ? ` al ${fechaDatos.slice(8, 10)}/${fechaDatos.slice(5, 7)}/${fechaDatos.slice(0, 4)}` : ""}. Las aprobadas pendientes de pago pueden no coincidir exactamente con los pendientes de entrega, que salen de otra base.</p>
     </>
   );
