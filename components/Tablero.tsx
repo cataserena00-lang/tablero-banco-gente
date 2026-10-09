@@ -1,9 +1,11 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import FichaZona, { plural } from "./FichaZona";
 import { CON_MONTO, resumenEstados, resumenTotal, type DatosEstados } from "@/lib/estadosAgregados";
 import { CATEGORIAS, categoriaDe } from "@/lib/estados";
 import ResumenEstadosVista from "./ResumenEstadosVista";
+import HojasPanorama from "./HojasPanorama";
 import { BarraPartes, BarrasH, colorSerie } from "./graficos";
 import { LogoBanco } from "./Marca";
 import { fmtF, lineaCanonica, miles, nombreDep, nombreLinea, peso } from "@/lib/formato";
@@ -83,6 +85,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, estados, actualizado
   const [catBarrio, setCatBarrio] = useState<CatBarrio>("todos");
   const [locFicha, setLocFicha] = useState<number|null>(null);       // ficha de localidad abierta (índice en cubo.loc)
   const [barrioFicha, setBarrioFicha] = useState<number|null>(null); // ficha de barrio abierta (índice en cuboCap.bar)
+  const [imprimirPanorama, setImprimirPanorama] = useState(false);   // se arman las hojas del resumen general y se abre el diálogo de impresión
 
   const chartRef = useRef<HTMLDivElement>(null);
   const tipGRef = useRef<HTMLDivElement>(null);
@@ -347,6 +350,18 @@ export default function Tablero({ cubo, cuboCap, geo, circ, estados, actualizado
     chips.push({ label: catBarrio === "sin" ? "Barrio: sin barrio (dato vacío)" : "Barrio: solo con barrio", clear: () => setCatBarrio("todos") });
   if (estadoSel !== PENDIENTES && vista === "panorama") chips.push({ label: `Estado del mapa: ${nombreEstadoSel}`, clear: () => setEstadoSel(PENDIENTES) });
   if (dep && vista === "panorama") chips.push({ label: `Departamento: ${nombreDep(dep)}`, clear: () => setDep(null) });
+
+  /* Exportar el resumen general: se montan las hojas A4, se abre el diálogo de impresión ("Guardar como PDF") y se limpian */
+  useEffect(() => {
+    if (!imprimirPanorama) return;
+    const tituloAntes = document.title;
+    document.title = `resumen-general-banco-gente-${new Date().toISOString().slice(0, 10)}`;
+    document.body.classList.add("imprimiendo-ficha");
+    const fin = () => { document.title = tituloAntes; document.body.classList.remove("imprimiendo-ficha"); setImprimirPanorama(false); };
+    window.addEventListener("afterprint", fin, { once: true });
+    const t = setTimeout(() => window.print(), 400);
+    return () => { clearTimeout(t); window.removeEventListener("afterprint", fin); document.title = tituloAntes; document.body.classList.remove("imprimiendo-ficha"); };
+  }, [imprimirPanorama]);
 
   /* ── SVG Gráfico ── */
   const [chartW, setChartW] = useState(1000);
@@ -880,11 +895,25 @@ export default function Tablero({ cubo, cuboCap, geo, circ, estados, actualizado
         {botonVolver}
         {!enFicha && filtrosUI}
         {breadcrumb}
-        {!enFicha && tituloVista}
+        {!enFicha && (vista === "panorama" ? (
+          <div className="vista-titulo-fila">
+            {tituloVista}
+            <button type="button" className="acto-link" disabled={imprimirPanorama} onClick={() => setImprimirPanorama(true)}>
+              {imprimirPanorama ? "Preparando…" : "Exportar PDF"}
+            </button>
+          </div>
+        ) : tituloVista)}
         {vista === "panorama" && vistaPanorama}
         {vista === "localidades" && vistaLocalidades}
         {vista === "barrios" && vistaBarrios}
       </div></main>
+      {imprimirPanorama && vista === "panorama" && typeof document !== "undefined" && createPortal(
+        <div className="hojas-impresion">
+          <style>{"@page{size:A4 portrait;margin:0}"}</style>
+          <HojasPanorama actualizado={actualizado} filtros={chips.map(c => c.label)} desde={desde} hasta={hasta} tot={tot} espera={espera}
+            barras={barras} metG={metG} pendPorLinea={pendPorLinea} ranking={rankingVis} sinDatos={sinDatosVis} verEstado={verEstado}
+            conMonto={conMontoVis} metRank={metMVis} nombreEstado={nombreEstadoSel} resumenPais={resumenPais} fechaEstados={estados?.actualizado} />
+        </div>, document.body)}
     </>
   );
 }
