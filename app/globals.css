@@ -456,12 +456,19 @@ button.viz-fila:focus-visible,.viz-partes-barra button:focus-visible{outline:2px
 @media print{.hoja .viz-detalle{display:block;column-count:2;column-gap:22px}.hoja .viz-detalle-fijo h4{margin:6px 0 2px}}
 
 /* Hojas impresas del resumen general: compactas para que cada una entre en una página A4 con su cabecera y su pie */
-.hoja-panorama .hoja-dos-col{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-top:6px}
-.hoja-panorama .hoja-dos-col .tabla-detalle{font-size:11.5px}
-.hoja.hoja-panorama .acto-ficha .hoja-dos-col .tabla-detalle th,.hoja.hoja-panorama .acto-ficha .hoja-dos-col .tabla-detalle td{padding:4px 5px}
+.hoja-panorama .hoja-dos-col{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px 14px;margin-top:6px}
+.hoja-panorama .hoja-dos-col .tabla-detalle{font-size:11px;overflow:hidden}
+.hoja-panorama .hoja-dos-col table{table-layout:fixed;width:100%}
+.hoja-panorama .hoja-dos-col th{font-size:10px;letter-spacing:0;white-space:normal;vertical-align:bottom}
+.hoja-panorama .hoja-dos-col th:nth-child(1){width:33%}
+.hoja-panorama .hoja-dos-col th:nth-child(2){width:19%}
+.hoja-panorama .hoja-dos-col th:nth-child(3){width:30%}
+.hoja-panorama .hoja-dos-col th:nth-child(4){width:18%}
+.hoja.hoja-panorama .acto-ficha .hoja-dos-col .tabla-detalle th,.hoja.hoja-panorama .acto-ficha .hoja-dos-col .tabla-detalle td{padding:4px 3px}
 .hoja.hoja-panorama .acto-ficha .tabla-ranking{font-size:12px}
-.hoja.hoja-panorama .acto-ficha .tabla-ranking th,.hoja.hoja-panorama .acto-ficha .tabla-ranking td{padding:3px 8px}
-.hoja-panorama .tabla-ranking .td-barra{width:22%}
+.hoja.hoja-panorama .acto-ficha .tabla-ranking th,.hoja.hoja-panorama .acto-ficha .tabla-ranking td{padding:2px 8px}
+.hoja-panorama .tabla-ranking td:nth-child(2){white-space:nowrap}
+.hoja-panorama .tabla-ranking .td-barra{width:16%}
 .hoja-panorama .viz-columnas svg{max-height:150px}
 .hoja-panorama .viz-barras{gap:3px}
 .hoja-panorama .viz-barras .viz-val{display:flex;gap:8px;align-items:baseline;justify-content:flex-end}
