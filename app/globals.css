@@ -143,6 +143,8 @@ svg text{font-family:inherit}
 /* volver + título de vista */
 .volver{display:inline-flex;align-items:center;gap:8px;font:inherit;font-size:15px;font-weight:600;color:#fff;background:var(--primario);border:0;border-radius:8px;padding:10px 16px;margin-bottom:14px;cursor:pointer}
 .volver:hover{background:var(--primario-hover)}
+.vista-titulo-fila{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:18px}
+.vista-titulo-fila .vista-titulo{margin:0}
 .vista-titulo{margin:18px 0 0;font-size:20px;font-weight:700;letter-spacing:-.01em}
 .vista-titulo:focus{outline:none}
 .vista-titulo:focus-visible{outline:2px solid var(--celeste-osc);outline-offset:4px;border-radius:4px}
@@ -452,3 +454,17 @@ button.viz-fila:focus-visible,.viz-partes-barra button:focus-visible{outline:2px
 .viz-detalle-fijo li small{color:var(--tx2);min-width:110px;text-align:right}
 .viz-detalle-fijo{break-inside:avoid}
 @media print{.hoja .viz-detalle{display:block;column-count:2;column-gap:22px}.hoja .viz-detalle-fijo h4{margin:6px 0 2px}}
+
+/* Hojas impresas del resumen general: compactas para que cada una entre en una página A4 con su cabecera y su pie */
+.hoja-panorama .hoja-dos-col{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;margin-top:6px}
+.hoja-panorama .hoja-dos-col .tabla-detalle{font-size:11.5px}
+.hoja.hoja-panorama .acto-ficha .hoja-dos-col .tabla-detalle th,.hoja.hoja-panorama .acto-ficha .hoja-dos-col .tabla-detalle td{padding:4px 5px}
+.hoja.hoja-panorama .acto-ficha .tabla-ranking{font-size:12px}
+.hoja.hoja-panorama .acto-ficha .tabla-ranking th,.hoja.hoja-panorama .acto-ficha .tabla-ranking td{padding:3px 8px}
+.hoja-panorama .tabla-ranking .td-barra{width:22%}
+.hoja-panorama .viz-columnas svg{max-height:150px}
+.hoja-panorama .viz-barras{gap:3px}
+.hoja-panorama .viz-barras .viz-val{display:flex;gap:8px;align-items:baseline;justify-content:flex-end}
+.hoja-panorama .viz-barras .viz-val small{display:inline;min-width:44px;text-align:right}
+.hoja-panorama .viz-leyenda{margin-top:6px;gap:3px}
+.hoja-panorama .viz-detalle-fijo{margin-bottom:2px}
