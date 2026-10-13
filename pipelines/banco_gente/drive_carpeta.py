@@ -150,7 +150,7 @@ def xlsx_a_csv(origen: Path, destino: Path) -> int:
 
 def estados_a_csv(carpeta_id: str, destino_csv: Path) -> None:
     """Baja «BASE ESTADO DE CREDITOS» de la carpeta y la deja como CSV en `destino_csv` (convirtiéndola si es un Excel)."""
-    crudo = destino_csv.with_suffix(".descarga")
+    crudo = destino_csv.with_name(destino_csv.stem + "_descarga.xlsx")   # openpyxl solo abre archivos con extensión de Excel
     bajar_por_nombre(carpeta_id, NOMBRE_ESTADOS, crudo)
     if es_xlsx(crudo):
         filas = xlsx_a_csv(crudo, destino_csv)
