@@ -5,7 +5,7 @@ Uso:
   python pipelines/banco_gente/procesar.py                          # descarga de Drive
 """
 import argparse, io, json, os, re, sys, unicodedata, hashlib
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 import pandas as pd, yaml
 
@@ -41,11 +41,18 @@ def descargar_drive(file_id: str) -> bytes:
 
 
 def parsear_fecha(serie: pd.Series) -> pd.Series:
-    """Acepta fechas reales, texto o números seriales de Excel (ej. 46073)."""
-    num = pd.to_numeric(serie, errors="coerce")
+    """Acepta fechas reales, texto o números seriales de Excel (ej. 46073), también mezclados en la misma columna.
+    Las fechas reales van primero: convertirlas a número (ns desde 1970) las rompería, y eso dejaba la columna vacía
+    cuando el Excel traía celdas de fecha en vez de texto o números."""
+    if pd.api.types.is_datetime64_any_dtype(serie):
+        return serie
+    reales = serie.map(lambda v: isinstance(v, (datetime, date, pd.Timestamp)))
+    directas = pd.to_datetime(serie.where(reales), errors="coerce")
+    resto = serie.where(~reales)
+    num = pd.to_numeric(resto, errors="coerce")
     serial = pd.to_datetime(num, unit="D", origin="1899-12-30", errors="coerce")
-    texto = pd.to_datetime(serie.where(num.isna()), errors="coerce")
-    return serial.fillna(texto)
+    texto = pd.to_datetime(resto.where(num.isna()), errors="coerce")
+    return directas.fillna(serial).fillna(texto)
 
 
 def extraer_barrio(dom: str) -> str:
@@ -101,6 +108,12 @@ def main():
         "linea": df[c["linea"]].map(norm).replace("", "SIN DATO"),
         "domicilio": df[c["domicilio"]].map(norm),
     })
+
+    # Si casi ninguna fecha se entiende, el archivo cambió de formato: no se pisan los datos buenos con un tablero vacío
+    con_fecha = int(d.fecha.notna().sum())
+    if len(d) and con_fecha < 0.5 * len(d):
+        sys.exit(f"Solo {con_fecha} de {len(d)} filas tienen una fecha de aprobación que se entienda: no se actualizan los datos. "
+                 f"Revisar la columna «{c['fecha']}» del Excel.")
 
     es_cap = (d.localidad == cfg["capital"]["localidad"]) & \
              (d.departamento == cfg["capital"]["departamento"])
