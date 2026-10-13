@@ -10,7 +10,7 @@ import HojasPanorama from "./HojasPanorama";
 import { BarraPartes, BarrasH, colorSerie } from "./graficos";
 import { LogoBanco } from "./Marca";
 import { fmtF, lineaCanonica, miles, nombreDep, nombreLinea, peso } from "@/lib/formato";
-import { BARRIO_VACIO, DEP_CAPITAL, LOC_CAPITAL, antiguedad, esperaPromedio, fichaBarrio, fichaDepartamento, fichaLocalidad, hoyArgentina, notaBarrio, subBarrio, zonasInterior } from "@/lib/acto";
+import { BARRIO_VACIO, DEP_CAPITAL, LOC_CAPITAL, antiguedad, esperaPromedio, fichaBarrio, fichaCircuito, fichaDepartamento, fichaLocalidad, hoyArgentina, notaBarrio, subBarrio, zonasInterior } from "@/lib/acto";
 import MapaCircuitosCarga from "./mapa/MapaCircuitosCarga";
 import type { CircuitosGeo, InfoCircuito } from "./mapa/MapaCircuitos";
 
@@ -244,6 +244,19 @@ export default function Tablero({ cubo, cuboCap, geo, circ, estados, verPersonas
   const completaDep = useMemo(() => estados && dep ? resumenEstados(estados, [{ dep }]) : null, [estados, dep]);
   const completaLoc = useMemo(() => estados && dep && locFicha !== null ? resumenEstados(estados, [{ dep, loc: cubo.loc[locFicha] }]) : null, [estados, dep, locFicha, cubo]);
   const fichaBar = useMemo(() => barrioFicha === null ? null : fichaBarrio(cuboCap, barrioFicha), [cuboCap, barrioFicha]);
+  // Circuito elegido en Capital: su ficha (suma de sus barrios) para exportar el informe y la base de pendientes
+  const exportCirc = useMemo(() => {
+    if (!circSel) return null;
+    const sin = circSel === SIN_CIRCUITO;
+    const i = sin ? -1 : (cuboCap.cir ?? []).findIndex(c => c.c === circSel);
+    const nBarrios = (cuboCap.bar_cir ?? []).filter((x, b) => x === i && cuboCap.rows.some(r => r[1] === b)).length;
+    return {
+      ficha: fichaCircuito(cuboCap, sin ? null : circSel),
+      titulo: sin ? "Sin circuito asignado" : `Circuito ${circSel} – ${nombreDep(cuboCap.cir?.[i]?.n ?? "")}`,
+      sub: `Circuito de Córdoba Capital${sin ? " · barrios sin circuito" : ` · ${plural(nBarrios, "barrio", "barrios")}`}`,
+      codigo: sin ? "__sin__" : circSel,
+    };
+  }, [cuboCap, circSel]);
   const idxBarrio = useMemo(() => new Map(cuboCap.bar.map((b, i) => [b, i] as [string, number])), [cuboCap]);
   const abrirBarrio = useCallback((b: string) => { const i = idxBarrio.get(b); if (i !== undefined) setBarrioFicha(i); }, [idxBarrio]);
   const avisoFiltro = (desde !== F0 || hasta !== F1 || mes) ? "El filtro de fecha del resumen no se aplica a la ficha." : null;
@@ -795,6 +808,13 @@ export default function Tablero({ cubo, cuboCap, geo, circ, estados, verPersonas
             <option value="sin">Sin barrio – dato vacío ({miles(sinBarrio.n)})</option>
           </select>
         </div>
+        {exportCirc && (
+          <div className="filtro-sel">
+            <span className="etiqueta-fija">Exportar este circuito</span>
+            <FichaZona soloExportar ficha={exportCirc.ficha} titulo={exportCirc.titulo} sub={exportCirc.sub} actualizado={actualizado} id="circuito"
+              excel={verPersonas ? { dep: DEP_CAPITAL, loc: LOC_CAPITAL, circuito: exportCirc.codigo } : null} />
+          </div>
+        )}
       </section>
 
       {/* Mapa de circuitos (coroplético) */}

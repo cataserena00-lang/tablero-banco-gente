@@ -45,6 +45,17 @@ export function fichaBarrio(cc: CuboCapital, bar: number): Ficha {
   return armarFicha(filas, cc.f, cc.lin);
 }
 
+/** Un circuito de Córdoba Capital (suma de sus barrios). `codigo` null: los barrios sin circuito asignado. */
+export function fichaCircuito(cc: CuboCapital, codigo: string | null): Ficha {
+  const filas: Fila[] = [];
+  for (const r of cc.rows) {
+    const ci = cc.bar_cir?.[r[1]] ?? -1;
+    const c = ci >= 0 ? cc.cir?.[ci]?.c ?? null : null;
+    if (c === codigo) filas.push([r[0], r[2], r[3], r[4]]);
+  }
+  return armarFicha(filas, cc.f, cc.lin);
+}
+
 export function fichaLocalidad(c: Cubo, dep: number, loc: number): Ficha {
   const filas: Fila[] = [];
   for (const r of c.rows) if (r[1] === dep && r[2] === loc) filas.push([r[0], r[3], r[4], r[5]]);
