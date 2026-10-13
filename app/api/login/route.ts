@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { COOKIE, SESION_SEGUNDOS, crearSesion, verificarCredenciales } from "@/lib/auth";
+import { registrarAcceso } from "@/lib/personas";
 
 export async function POST(req: Request) {
   const f = await req.formData();
@@ -9,6 +10,7 @@ export async function POST(req: Request) {
   if (!acceso) {
     return NextResponse.redirect(new URL("/login?error=1", base), 303);
   }
+  await registrarAcceso(u, acceso.rol, "ingreso", null);   // quién entró y cuándo (lo ve el perfil admin); no frena el ingreso si falla
   const res = NextResponse.redirect(new URL("/banco-gente", base), 303);   // directo al tablero
   res.cookies.set(COOKIE, await crearSesion(u, acceso.rol), {
     httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: SESION_SEGUNDOS,

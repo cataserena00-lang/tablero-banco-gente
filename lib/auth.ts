@@ -2,11 +2,15 @@
 const enc = new TextEncoder();
 export const COOKIE = "sesion";
 
-// Perfiles: "completo" (todo, incluida la vista nominal cuando exista) y "agregado" (solo datos agregados).
+// Perfiles: "admin" (todo lo del completo y además la solapa de actividad de los usuarios), "completo" (todo, incluida
+// la vista nominal) y "agregado" (solo datos agregados).
 // Sin rol explícito (o con uno desconocido) se asigna "agregado": el mínimo privilegio es el valor por defecto.
-export type Rol = "completo" | "agregado";
+export type Rol = "admin" | "completo" | "agregado";
 export const ROL_POR_DEFECTO: Rol = "agregado";
-const aRol = (v?: string): Rol => v === "completo" ? "completo" : ROL_POR_DEFECTO;
+const RANGO: Record<Rol, number> = { agregado: 0, completo: 1, admin: 2 };
+/** ¿El rol alcanza para lo que pide `minimo`? (admin incluye completo, y completo incluye agregado). */
+export const tieneRol = (rol: Rol | undefined, minimo: Rol) => !!rol && RANGO[rol] >= RANGO[minimo];
+const aRol = (v?: string): Rol => v === "admin" ? "admin" : v === "completo" ? "completo" : ROL_POR_DEFECTO;
 const DURACION_MS = 1000 * 60 * 60 * 12; // 12 h
 
 const hex = (b: ArrayBuffer) => [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, "0")).join("");
@@ -47,26 +51,29 @@ async function coincide(guardado: string, clave: string, hmacClave: string) {
 
 // DASHBOARD_USERS = "usuario:hash,otro:hash" (formato original, hash con AUTH_SECRET).
 // DASHBOARD_USERS_EXTRA = más usuarios en el mismo formato; acepta además hashes pbkdf2.… (ver scripts/hash-password.mjs).
-// Cada entrada puede terminar en "|completo" o "|agregado" (ej.: "ana:pbkdf2.100000.sal.hash|completo").
+// Cada entrada puede terminar en "|admin", "|completo" o "|agregado" (ej.: "ana:pbkdf2.100000.sal.hash|completo").
+// DASHBOARD_ADMIN = "usuario:hash" de los administradores (mismo formato; el perfil admin se asigna siempre, aunque falte el sufijo).
 // Devuelve el rol del usuario si usuario y clave son correctos, o null.
 export async function verificarCredenciales(usuario: string, clave: string): Promise<{ rol: Rol } | null> {
   const lista = [process.env.DASHBOARD_USERS, process.env.DASHBOARD_USERS_EXTRA]
     .flatMap(v => (v ?? "").split(",")).map(x => x.trim()).filter(Boolean);
+  const admins = (process.env.DASHBOARD_ADMIN ?? "").split(",").map(x => x.trim()).filter(Boolean);
+  const entradas = [...lista.map(par => ({ par, forzado: undefined as Rol | undefined })), ...admins.map(par => ({ par, forzado: "admin" as Rol }))];
   const hmacClave = await hmac(clave, secreto());
   let rol: Rol | null = null;
   const candidatos: string[] = [];   // formato de las entradas que tienen ese usuario (para diagnosticar)
-  for (const par of lista) {
+  for (const { par, forzado } of entradas) {
     const i = par.indexOf(":");
     if (i < 0 || par.slice(0, i) !== usuario) continue;
     const [guardado, rolTxt] = par.slice(i + 1).split("|");
     candidatos.push(formatoDe(guardado));
     if (await coincide(guardado, clave, hmacClave)) {
-      const r = aRol(rolTxt);
-      if (rol !== "completo") rol = r;   // si hay dos entradas válidas, vale el perfil completo solo si alguna lo declara
+      const r = forzado ?? aRol(rolTxt);
+      if (!rol || RANGO[r] > RANGO[rol]) rol = r;   // si hay dos entradas válidas, vale el perfil más alto que alguna declare
     }
   }
   // Solo metadatos: nunca la clave ni los hashes
-  if (!rol) console.warn("login fallido", { usuario, entradasConfiguradas: lista.length, formatosDelUsuario: candidatos });
+  if (!rol) console.warn("login fallido", { usuario, entradasConfiguradas: entradas.length, formatosDelUsuario: candidatos });
   return rol ? { rol } : null;
 }
 // Token de sesión: "<usuario>.<rol>.<expira>.<firma>" (firmado con AUTH_SECRET: el rol no se puede alterar).

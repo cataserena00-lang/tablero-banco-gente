@@ -94,9 +94,10 @@ export function BarraPartes({ items, unidad = "créditos", seleccion, onSelect, 
 
 export interface Serie { clave: string; etiqueta: string; color: string; idx?: number }   // idx: posición del valor en `v` (por defecto, el orden de la lista)
 const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
-const etiquetaMes = (k: string) => `${MESES[+k.slice(5, 7) - 1]} ${k.slice(2, 4)}`;
+// "2026-03" -> "mar 26"; con día ("2026-03-15") -> "15/03"
+const etiquetaMes = (k: string) => (k.length > 7 ? `${k.slice(8, 10)}/${k.slice(5, 7)}` : `${MESES[+k.slice(5, 7) - 1]} ${k.slice(2, 4)}`);
 
-/** Columnas apiladas por mes. `datos[i].v[j]` es el valor de la serie j en el mes i. */
+/** Columnas apiladas por mes (o por día si las claves son "AAAA-MM-DD"). `meses[i].v[j]` es el valor de la serie j en ese período. */
 export function ColumnasApiladas({ meses, series, titulo, unidad = "solicitudes", formatoEje = miles, formatoValor = miles }: {
   meses: { mes: string; v: number[] }[]; series: Serie[]; titulo: string; unidad?: string;
   /** Cómo se escriben los valores en el eje y en el detalle (por defecto, números con puntos de miles). */

@@ -17,8 +17,8 @@ const MAX_LISTA = 10;
 const plano = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 const nombreBarrio = (b: string) => (b === "" ? BARRIO_VACIO : nombreDep(b));
 
-export default function PlanificacionEntregas({ cubo, cuboCap, estados, actualizado }: {
-  cubo: Cubo; cuboCap: CuboCapital; estados: DatosEstados | null; actualizado: string;
+export default function PlanificacionEntregas({ cubo, cuboCap, estados, verPersonas = false, actualizado }: {
+  cubo: Cubo; cuboCap: CuboCapital; estados: DatosEstados | null; verPersonas?: boolean; actualizado: string;
 }) {
   const [ambito, setAmbito] = useState<Ambito>("capital");
   const [busq, setBusq] = useState("");
@@ -148,7 +148,8 @@ export default function PlanificacionEntregas({ cubo, cuboCap, estados, actualiz
           <p className="nota acto-vacio">Todavía no elegiste una zona.</p>
         ) : (
           <FichaZona ficha={ficha} titulo={encabezado.titulo} sub={encabezado.sub} notas={[encabezado.nota]}
-            actualizado={actualizado} titleRef={tituloRef} id="acto-titulo" completa={completa} fechaCompleta={estados?.actualizado} />
+            actualizado={actualizado} titleRef={tituloRef} id="acto-titulo" completa={completa} fechaCompleta={estados?.actualizado}
+            personas={!verPersonas ? null : sel?.t === "loc" ? { dep: cubo.dep[sel.dep], loc: cubo.loc[sel.loc] } : { noDisponible: "El listado de personas por barrio no está disponible: la base de personas no trae el barrio. Podés exportar el de la localidad Córdoba." }} />
         )}
       </div></main>
     </>

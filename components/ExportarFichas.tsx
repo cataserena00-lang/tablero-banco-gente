@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Cubo, CuboCapital } from "./Tablero";
 import FichaZona, { HojasFicha, plural } from "./FichaZona";
 import { LogoBanco } from "./Marca";
+import { avisarExportable } from "@/lib/clienteActividad";
 import { fmtF, nombreDep, peso } from "@/lib/formato";
 import { BARRIO_VACIO } from "@/lib/acto";
 import { resumenEstados, type DatosEstados, type ResumenEstados, type Zona as ZonaEstado } from "@/lib/estadosAgregados";
@@ -67,6 +68,7 @@ export default function ExportarFichas({ cubo, cuboCap, estados, actualizado }: 
   // Imprimir: primero se montan las hojas, después se abre el diálogo del navegador ("Guardar como PDF").
   useEffect(() => {
     if (!imprimiendo) return;
+    avisarExportable({ tipo: "fichas", zonas: elegidas.map(z => mostrar(z)), contenido: completa ? "completa" : "pendientes", cantidad: elegidas.length });
     const tituloAntes = document.title;
     document.title = `fichas-banco-gente-${new Date().toISOString().slice(0, 10)}`;
     const fin = () => { document.title = tituloAntes; setImprimiendo(false); };
