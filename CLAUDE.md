@@ -8,9 +8,10 @@ Tablero web (Next.js) con login que muestra datos agregados del Banco de la Gent
 Drive (.xlsx) -> GitHub Action semanal -> pipelines/banco_gente/procesar.py -> data/banco_gente/*.json -> commit a main -> Vercel redeploya
 ```
 
-- La Action ("Actualizar datos", `.github/workflows/actualizar-datos.yml`) corre los lunes 06:00 hora Argentina o a mano con "Run workflow" (opción `forzar`).
+- Las bases salen de una carpeta de Drive (`BG_DRIVE_CARPETA_ID`) con dos archivos de nombre fijo: `BASE PENDIENTES` y `BASE ESTADO DE CREDITOS` (ver README, «Bases semanales en Drive»; `pipelines/banco_gente/drive_carpeta.py`).
+- Las Actions ("Actualizar datos", `.github/workflows/actualizar-datos.yml`, y "Actualizar personas") corren los lunes 16:00 y los miércoles 14:00 hora Argentina o a mano con "Run workflow" (opción `forzar`).
 - La Action commitea los JSON de `data/` directo a `main`. Antes de pushear una rama, hacer `git fetch origin main` y rebase/merge, para no pisar datos nuevos.
-- El repo y el proyecto de Vercel son de la cuenta de Catalina (`cataserena00-lang`). Los secretos (`GOOGLE_SERVICE_ACCOUNT_JSON`, `BG_DRIVE_FILE_ID` en GitHub; `AUTH_SECRET`, `DASHBOARD_USERS` en Vercel) no están en el repo y no se piden ni se escriben acá.
+- El repo y el proyecto de Vercel son de la cuenta de Catalina (`cataserena00-lang`). Los secretos (`GOOGLE_SERVICE_ACCOUNT_JSON` en GitHub; `AUTH_SECRET`, `DASHBOARD_USERS` en Vercel) no están en el repo y no se piden ni se escriben acá.
 
 ## Estructura
 

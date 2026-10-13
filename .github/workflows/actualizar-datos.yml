@@ -2,7 +2,9 @@ name: Actualizar datos
 
 on:
   schedule:
-    - cron: "0 9 * * 1"
+    # Lunes 16:00 y miércoles 14:00, hora de Argentina (UTC-3): levanta las bases nuevas de la carpeta de Drive
+    - cron: "0 19 * * 1"
+    - cron: "0 17 * * 3"
   workflow_dispatch:
     inputs:
       forzar:
@@ -27,6 +29,7 @@ jobs:
       - name: Procesar Banco de la Gente
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          BG_DRIVE_CARPETA_ID: ${{ vars.BG_DRIVE_CARPETA_ID || '1QBqTJIaitDlqKRT89CQ_2uY4BC7gtLHl' }}
           BG_DRIVE_FILE_ID: ${{ vars.BG_DRIVE_FILE_ID }}
           FORZAR: ${{ inputs.forzar && '1' || '' }}
         run: python pipelines/banco_gente/procesar.py
@@ -35,6 +38,7 @@ jobs:
       - name: Cargar pendientes a Neon
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          BG_DRIVE_CARPETA_ID: ${{ vars.BG_DRIVE_CARPETA_ID || '1QBqTJIaitDlqKRT89CQ_2uY4BC7gtLHl' }}
           BG_DRIVE_FILE_ID: ${{ vars.BG_DRIVE_FILE_ID }}
           NEON_DATABASE_URL_CARGA: ${{ secrets.NEON_DATABASE_URL_CARGA }}
           FORZAR: ${{ inputs.forzar && '1' || '' }}
@@ -49,4 +53,4 @@ jobs:
           git config user.name "github-actions"
           git config user.email "actions@users.noreply.github.com"
           git add data
-          git diff --staged --quiet || (git commit -m "Actualización automática de datos" && git push)
+          git diff --staged --quiet || (git commit -m "Actualización automática de datos" && git pull --rebase origin main && git push)

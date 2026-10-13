@@ -4,7 +4,9 @@ name: Actualizar personas
 # Los datos son NOMINALES: no se commitean ni se imprimen en el log (solo cantidades y nombres de columnas).
 on:
   schedule:
-    - cron: "30 9 * * 1"     # lunes 06:30 hora Argentina (09:30 UTC)
+    # Lunes 16:00 y miércoles 14:00, hora de Argentina (UTC-3): levanta las bases nuevas de la carpeta de Drive
+    - cron: "0 19 * * 1"
+    - cron: "0 17 * * 3"
   workflow_dispatch:
     inputs:
       forzar:
@@ -22,7 +24,7 @@ permissions:
 jobs:
   personas:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -31,6 +33,7 @@ jobs:
       - name: Cargar personas
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          BG_DRIVE_CARPETA_ID: ${{ vars.BG_DRIVE_CARPETA_ID || '1QBqTJIaitDlqKRT89CQ_2uY4BC7gtLHl' }}
           BG_ESTADOS_FILE_ID: ${{ vars.BG_ESTADOS_FILE_ID || '1MwkGjSMb_Qq1aRBN4l6h5d1mM4WYn0Ha' }}
           NEON_DATABASE_URL_CARGA: ${{ secrets.NEON_DATABASE_URL_CARGA }}
           FORZAR: ${{ inputs.forzar && '1' || '' }}
@@ -49,7 +52,7 @@ jobs:
   estados:
     if: ${{ !inputs.solo_encabezado }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     permissions:
       contents: write
     steps:
@@ -61,6 +64,7 @@ jobs:
       - name: Calcular agregados por estado
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          BG_DRIVE_CARPETA_ID: ${{ vars.BG_DRIVE_CARPETA_ID || '1QBqTJIaitDlqKRT89CQ_2uY4BC7gtLHl' }}
           BG_ESTADOS_FILE_ID: ${{ vars.BG_ESTADOS_FILE_ID || '1MwkGjSMb_Qq1aRBN4l6h5d1mM4WYn0Ha' }}
           FORZAR: ${{ inputs.forzar && '1' || '' }}
         run: python pipelines/banco_gente/procesar_estados.py

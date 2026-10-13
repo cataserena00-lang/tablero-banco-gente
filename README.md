@@ -10,7 +10,7 @@ Drive (.xlsx) ─► GitHub Actions (semanal) ─► pipelines/<base>/procesar.p
 2. **Cuenta de servicio de Google**: en Google Cloud crear una, habilitar Drive API, generar clave JSON, y compartir el archivo de Drive (solo lectura) con el mail de la cuenta de servicio.
 3. En GitHub > Settings > Secrets and variables > Actions:
    - Secret `GOOGLE_SERVICE_ACCOUNT_JSON` = contenido del JSON.
-   - Variable `BG_DRIVE_FILE_ID` = ID del archivo (el tramo largo de la URL de Drive).
+   - Variable `BG_DRIVE_CARPETA_ID` = ID de la carpeta de Drive con las bases semanales (ver «Bases semanales en Drive»). `BG_DRIVE_FILE_ID` / `BG_ESTADOS_FILE_ID` (ID de un archivo) siguen funcionando si no hay carpeta.
 4. **Vercel**: importar el repo. En Environment Variables definir:
    - `AUTH_SECRET` = cadena larga aleatoria.
    - `DASHBOARD_USERS` = `usuario:hash,otro:hash`. Cada hash se genera con
@@ -41,7 +41,7 @@ Pantalla `/banco-gente/personas` con una fila por **persona** (`ESTADOS CREDITOS
 - **Puesta en marcha (una sola vez):**
   1. Crear el proyecto en Neon (región São Paulo) y, desde su consola, los roles `carga` y `lectura`.
   2. Ejecutar `pipelines/banco_gente/personas_schema.sql` como propietario de la base (extensión de búsqueda, permisos y tabla `accesos`).
-  3. GitHub (Settings > Secrets and variables > Actions): secreto `NEON_DATABASE_URL_CARGA` (conexión del rol `carga`) y, si cambia el archivo, la variable `BG_ESTADOS_FILE_ID`. La cuenta de servicio de Drive debe tener acceso de lectura al CSV.
+  3. GitHub (Settings > Secrets and variables > Actions): secreto `NEON_DATABASE_URL_CARGA` (conexión del rol `carga`) y, si cambia la carpeta de Drive, la variable `BG_DRIVE_CARPETA_ID`. La cuenta de servicio de Drive debe tener acceso de lectura a la carpeta.
   4. Vercel: variable `DATABASE_URL_LECTURA` (conexión del rol `lectura`, solo lectura), tipo *sensitive*.
   5. Correr el workflow *Actualizar personas*. Con la opción `solo_encabezado` muestra las columnas del CSV sin cargar nada.
 - **Seguridad:** consultas parametrizadas, 50 filas por página, `Cache-Control: no-store`, y cada búsqueda, ficha o exportación queda registrada en la tabla `accesos` (usuario, rol, acción, filtros). El rol `lectura` solo puede leer `personas` y `personas_resumen` e insertar en `accesos`.
@@ -114,3 +114,10 @@ Si el mapa base no carga, el tablero sigue funcionando: los circuitos se muestra
 - **Quién y cómo:** `/api/pendientes/exportar` y `/api/pendientes/contar` verifican el rol en el servidor (`exigirRol("completo")`), el Excel se arma en el servidor (`lib/excelPendientes.ts`) y cada descarga queda registrada en `accesos` (visible en la solapa de actividad del admin). Hasta que corra la primera carga, el menú avisa que el listado todavía no está disponible.
 - **Circuitos de Córdoba Capital:** en el listado de barrios de Capital, al elegir un circuito aparece «Exportar este circuito» (informe de pendientes en PDF y, para completo y admin, la base de pendientes en Excel). «Sin circuito asignado» también se puede exportar. El informe suma los barrios del circuito (`fichaCircuito` en `lib/acto.ts`) y el Excel filtra por el circuito de cada crédito (`?zdep=CAPITAL&zloc=CORDOBA&circuito=004A`), con los mismos números que el tablero. La pantalla *Exportar fichas* suma la pestaña «Circuitos de Capital» (varios circuitos a la vez, sin doble conteo con los barrios y la localidad Córdoba).
 - La vista de personas acepta una zona con `?zdep=COLON&zloc=LA CALERA`.
+
+## Bases semanales en Drive
+- **Carpeta:** https://drive.google.com/drive/folders/1QBqTJIaitDlqKRT89CQ_2uY4BC7gtLHl (variable `BG_DRIVE_CARPETA_ID`; la cuenta de servicio de Drive tiene que poder leerla). Cada semana una persona de Desarrollo Social mueve los Excel de la semana anterior a la subcarpeta *Versiones anteriores* y carga, **con estos nombres**, las bases nuevas:
+  - `BASE PENDIENTES`: créditos aprobados pendientes de entrega (alimenta el tablero, las fichas y el Excel por zona).
+  - `BASE ESTADO DE CREDITOS`: todas las solicitudes y su estado (alimenta la vista de personas y los agregados por estado).
+- El nombre se compara sin extensión, sin tildes y sin distinguir mayúsculas; si hay dos con el mismo nombre se usa el modificado más recientemente. Pueden ser `.xlsx` (el de estados se convierte a CSV en streaming, `drive_carpeta.py`) o, el de estados, `.csv`. Si falta alguno, el workflow falla y el log dice qué archivos ve (solo nombres).
+- **Cuándo se actualiza:** los **lunes a las 16:00** y los **miércoles a las 14:00** (hora de Argentina), en los workflows *Actualizar datos* y *Actualizar personas*; también a mano con *Run workflow*. Si el archivo no cambió desde la última corrida, no se recarga. GitHub puede demorar unos minutos en disparar las tareas programadas.

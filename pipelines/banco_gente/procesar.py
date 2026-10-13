@@ -11,6 +11,7 @@ import pandas as pd, yaml
 
 sys.path.insert(0, str(Path(__file__).parent))
 import barrios_match as bm
+import drive_carpeta as dc
 
 AQUI = Path(__file__).parent
 SALIDA = AQUI.parent.parent / "data" / "banco_gente"
@@ -75,6 +76,8 @@ def main():
 
     if a.input:
         raw = Path(a.input).read_bytes()
+    elif os.environ.get("BG_DRIVE_CARPETA_ID"):
+        raw = dc.pendientes_bytes(os.environ["BG_DRIVE_CARPETA_ID"])   # «BASE PENDIENTES» de la carpeta de Drive
     else:
         raw = descargar_drive(os.environ[cfg["drive_file_id_env"]])
     huella = hashlib.sha256(raw).hexdigest()

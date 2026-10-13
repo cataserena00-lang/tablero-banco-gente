@@ -10,7 +10,8 @@ Uso:
 Variables de entorno:
   NEON_DATABASE_URL_CARGA        conexión del rol "carga" (escritura). Obligatoria salvo --solo-encabezado.
   GOOGLE_SERVICE_ACCOUNT_JSON    cuenta de servicio con acceso de lectura al archivo (si no se usa --input).
-  BG_ESTADOS_FILE_ID             ID del archivo en Drive (si no se usa --input).
+  BG_DRIVE_CARPETA_ID            ID de la carpeta de Drive con «BASE ESTADO DE CREDITOS» (si no se usa --input).
+  BG_ESTADOS_FILE_ID             alternativa de antes: ID del archivo.
   FORZAR=1                       recarga aunque el archivo no haya cambiado.
 
 Cada fila del CSV es una SOLICITUD (un Nro Formulario distinto), no un estado de un mismo trámite: una persona
@@ -164,6 +165,16 @@ def huella_archivo(ruta: Path) -> str:
     return h.hexdigest()
 
 
+def descargar_estados(destino: Path) -> None:
+    """Deja en `destino` el CSV de estados: «BASE ESTADO DE CREDITOS» de la carpeta de Drive (si es un Excel, se convierte a CSV);
+    sin carpeta configurada, el archivo de antes por su ID."""
+    if os.environ.get("BG_DRIVE_CARPETA_ID"):
+        import drive_carpeta
+        drive_carpeta.estados_a_csv(os.environ["BG_DRIVE_CARPETA_ID"], destino)
+    else:
+        descargar_drive(os.environ["BG_ESTADOS_FILE_ID"], destino)
+
+
 def descargar_drive(file_id: str, destino: Path) -> None:
     from google.oauth2 import service_account
     from googleapiclient.discovery import build
@@ -308,7 +319,7 @@ def main():
             ruta = Path(a.input)
         else:
             ruta = Path(tmp) / "estados.csv"
-            descargar_drive(os.environ["BG_ESTADOS_FILE_ID"], ruta)
+            descargar_estados(ruta)
         if a.solo_encabezado:
             f, lector = abrir_csv(ruta)
             with f:
