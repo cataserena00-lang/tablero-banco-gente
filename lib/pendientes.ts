@@ -14,9 +14,15 @@ export interface ColumnaPend { nombre: string; tipo: string }   // tipo: "text" 
 function condiciones(z: ZonaPendientes) {
   const where = ["zona_dep = $1"], params: unknown[] = [z.dep];
   if (z.loc !== undefined) { params.push(z.loc); where.push(`zona_loc = $${params.length}`); }
-  if (z.barrio !== undefined) { params.push(z.barrio); where.push(`barrio = $${params.length}`); }
+  // «Sin barrio informado» ("") se guarda como nulo en la base: se compara sin distinguir nulo de vacío
+  if (z.barrio !== undefined) { params.push(z.barrio); where.push(`COALESCE(barrio, '') = $${params.length}`); }
   return { sql: "WHERE " + where.join(" AND "), params };
 }
+
+// Columnas internas y columnas que NO se exportan: los datos de la cuenta bancaria (CBU y número de cuenta) no hacen falta
+// para el listado y no deben salir de la base.
+const INTERNAS = ["id", "zona_dep", "zona_loc"];
+const EXCLUIDAS = ["ctacbu", "cuentanumero"];
 
 // Columnas de la tabla (las arma el cargador a partir del Excel), leídas una vez; sin las internas
 let _cols: Promise<ColumnaPend[]> | null = null;
@@ -27,7 +33,7 @@ async function columnas(): Promise<ColumnaPend[]> {
     "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'pendientes' ORDER BY ordinal_position",
   ).then(r => {
     if (!r.length) throw Object.assign(new Error("sin_tabla"), { code: "42P01" });
-    return r.map(x => ({ nombre: x.column_name, tipo: x.data_type })).filter(c => !["id", "zona_dep", "zona_loc"].includes(c.nombre));
+    return r.map(x => ({ nombre: x.column_name, tipo: x.data_type })).filter(c => !INTERNAS.includes(c.nombre) && !EXCLUIDAS.includes(c.nombre));
   }).catch(e => { _cols = null; throw e; });
   return _cols;
 }
