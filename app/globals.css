@@ -482,3 +482,7 @@ button.viz-fila:focus-visible,.viz-partes-barra button:focus-visible{outline:2px
 .ficha-export-solo{position:relative;display:inline-block}
 .ficha-export-solo .ficha-export{margin-left:0}
 .ficha-export-solo .ficha-export-menu{right:auto;left:0}
+.menu-bienvenida{white-space:normal;line-height:1.35}
+.menu-bienvenida span{display:block;font-size:11.5px;color:var(--tx2)}
+.menu-bienvenida b{display:block;font-size:13.5px;color:var(--tx);font-weight:600}
+.menu-bienvenida small{display:block;font-size:11.5px;color:var(--tx2)}

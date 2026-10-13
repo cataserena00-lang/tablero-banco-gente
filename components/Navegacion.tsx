@@ -32,7 +32,7 @@ const ITEMS: Item[] = [
 ];
 const CLAVE = "bg_menu_colapsado";
 
-export default function Navegacion({ completo, admin = false, usuario }: { completo: boolean; admin?: boolean; usuario: string }) {
+export default function Navegacion({ completo, admin = false, usuario, nombre = null }: { completo: boolean; admin?: boolean; usuario: string; nombre?: string | null }) {
   const ruta = usePathname() ?? "";
   const [colapsado, setColapsado] = useState(false);
   useEffect(() => { try { setColapsado(localStorage.getItem(CLAVE) === "1"); } catch { /* sin almacenamiento: queda abierto */ } }, []);
@@ -65,7 +65,13 @@ export default function Navegacion({ completo, admin = false, usuario }: { compl
           <form method="post" action="/api/logout">
             <button type="submit" className="menu-item" title={colapsado ? "Salir" : undefined} aria-label="Salir"><Icono k="salir" /><span className="menu-texto">Salir</span></button>
           </form>
-          <p className="menu-usuario menu-texto">{usuario} · {admin ? "Administración" : completo ? "Perfil completo" : "Datos agregados"}</p>
+          {nombre ? (
+            <p className="menu-usuario menu-bienvenida menu-texto">
+              <span>Bienvenido/a</span><b>{nombre}</b><small>{admin ? "Administración" : completo ? "Perfil completo" : "Datos agregados"}</small>
+            </p>
+          ) : (
+            <p className="menu-usuario menu-texto">{usuario} · {admin ? "Administración" : completo ? "Perfil completo" : "Datos agregados"}</p>
+          )}
           <button type="button" className="menu-colapsar" onClick={alternar} aria-expanded={!colapsado}
             aria-label={colapsado ? "Expandir el menú" : "Contraer el menú"} title={colapsado ? "Expandir el menú" : "Contraer el menú"}>
             <Icono k={colapsado ? "der" : "izq"} />

@@ -10,6 +10,7 @@ interface Evento { id: number; creado: string; usuario: string; rol: string; acc
 interface ResumenUsuario { usuario: string; rol: string; ingresos: number; ultimo_ingreso: string | null; exportables: number; consultas: number; ultimo: string }
 interface Respuesta {
   filas: Evento[]; total: number; pagina: number; porPagina: number;
+  nombres?: Record<string, string>;
   resumen: { dias: number; usuarios: ResumenUsuario[]; porDia: { dia: string; ingresos: number; exportables: number }[]; todosLosUsuarios: string[] };
 }
 
@@ -80,6 +81,7 @@ export default function Actividad() {
   }, [usuario, grupo, desde, hasta, periodo, pagina]);
 
   const r = datos?.resumen;
+  const quien = (u: string) => datos?.nombres?.[u] ? `${datos.nombres[u]} (${u})` : u;
   const tot = useMemo(() => (r?.usuarios ?? []).reduce((a, u) => ({ ingresos: a.ingresos + u.ingresos, exportables: a.exportables + u.exportables, consultas: a.consultas + u.consultas }), { ingresos: 0, exportables: 0, consultas: 0 }), [r]);
   const serieDias = useMemo(() => {
     if (!r) return [];
@@ -101,7 +103,7 @@ export default function Actividad() {
           <label htmlFor="a-usu">Usuario</label>
           <select id="a-usu" value={usuario} onChange={e => { setUsuario(e.target.value); setPagina(1); }}>
             <option value="">Todos</option>
-            {(r?.todosLosUsuarios ?? []).map(u => <option key={u} value={u}>{u}</option>)}
+            {(r?.todosLosUsuarios ?? []).map(u => <option key={u} value={u}>{quien(u)}</option>)}
           </select>
         </div>
         <div className="filtro-sel">
@@ -134,12 +136,12 @@ export default function Actividad() {
             <section className="card">
               <header><div><h2>Ingresos por usuario</h2><p className="sub">Últimos {r!.dias} días</p></div></header>
               {r!.usuarios.some(u => u.ingresos) ? <BarrasH unidad="ingresos" items={r!.usuarios.filter(u => u.ingresos).map(u => ({
-                clave: u.usuario, etiqueta: u.usuario, valor: u.ingresos, color: colorSerie(0), detalle: `${PERFIL[u.rol] ?? u.rol}${u.ultimo_ingreso ? ` · último: ${fecha(u.ultimo_ingreso)}` : ""}` }))} /> : <p className="nota">Sin ingresos en el período.</p>}
+                clave: u.usuario, etiqueta: datos.nombres?.[u.usuario] ?? u.usuario, valor: u.ingresos, color: colorSerie(0), detalle: `${PERFIL[u.rol] ?? u.rol}${u.ultimo_ingreso ? ` · último: ${fecha(u.ultimo_ingreso)}` : ""}` }))} /> : <p className="nota">Sin ingresos en el período.</p>}
             </section>
             <section className="card">
               <header><div><h2>Exportables por usuario</h2><p className="sub">Últimos {r!.dias} días</p></div></header>
               {r!.usuarios.some(u => u.exportables) ? <BarrasH unidad="exportables" items={[...r!.usuarios].filter(u => u.exportables).sort((a, b) => b.exportables - a.exportables).map(u => ({
-                clave: u.usuario, etiqueta: u.usuario, valor: u.exportables, color: colorSerie(1), detalle: PERFIL[u.rol] ?? u.rol }))} /> : <p className="nota">Sin exportables en el período.</p>}
+                clave: u.usuario, etiqueta: datos.nombres?.[u.usuario] ?? u.usuario, valor: u.exportables, color: colorSerie(1), detalle: PERFIL[u.rol] ?? u.rol }))} /> : <p className="nota">Sin exportables en el período.</p>}
             </section>
           </div>
 
@@ -155,7 +157,7 @@ export default function Actividad() {
                       {datos.filas.map(e => (
                         <tr key={e.id}>
                           <td className="td-loc">{fecha(e.creado)}</td>
-                          <td className="td-loc"><b>{e.usuario}</b></td>
+                          <td className="td-loc"><b>{datos.nombres?.[e.usuario] ?? e.usuario}</b>{datos.nombres?.[e.usuario] && <small className="cat-estado"> {e.usuario}</small>}</td>
                           <td className="td-loc">{PERFIL[e.rol] ?? e.rol}</td>
                           <td className="td-loc">{ACCION[e.accion] ?? e.accion}</td>
                           <td className="td-loc">{describir(e)}</td>
