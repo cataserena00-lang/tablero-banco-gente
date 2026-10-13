@@ -228,6 +228,9 @@ SQL_INTERCAMBIO = [
     "ALTER INDEX personas_resumen_paso_pkey RENAME TO personas_resumen_pkey",
     "GRANT SELECT ON personas TO lectura",
     "GRANT SELECT ON personas_resumen TO lectura",
+    # Rol de solo lectura sin privilegios de Neon (lectura_ro): si existe, también puede leer las tablas nuevas
+    "DO $$ BEGIN IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'lectura_ro') THEN "
+    "EXECUTE 'GRANT SELECT ON personas, personas_resumen TO lectura_ro'; END IF; END $$",
 ]
 
 

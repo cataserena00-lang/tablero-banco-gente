@@ -28,3 +28,12 @@ GRANT USAGE ON SEQUENCE accesos_id_seq TO lectura;
 
 -- La conexión "lectura" no puede crear nada ni tocar otras tablas.
 REVOKE CREATE ON SCHEMA public FROM lectura;
+
+-- RECOMENDADO: un rol de lectura realmente de solo lectura. Los roles que se crean desde la consola de Neon quedan dentro de
+-- "neon_superuser" y heredan permisos de escritura sobre todo. Un rol creado con SQL no los hereda:
+--   CREATE ROLE lectura_ro LOGIN PASSWORD '<clave larga>';
+--   GRANT USAGE ON SCHEMA public TO lectura_ro;
+--   GRANT INSERT, SELECT ON accesos TO lectura_ro;
+--   GRANT USAGE ON SEQUENCE accesos_id_seq TO lectura_ro;
+-- (el SELECT sobre personas y personas_resumen lo otorga el cargador en cada carga, porque esas tablas son de "carga").
+-- Después se usa lectura_ro en DATABASE_URL_LECTURA.
