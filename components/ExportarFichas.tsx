@@ -17,13 +17,15 @@ import {
 
 const MAX_LISTA = 100;
 const plano = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
-const mostrar = (z: Zona) => (z.tipo === "bar" && z.nombre === "" ? BARRIO_VACIO : nombreDep(z.nombre));
+const mostrar = (z: Zona) => z.tipo === "circ" ? (z.codigo ? `Circuito ${z.codigo} – ${nombreDep(z.nombre)}` : "Sin circuito asignado")
+  : z.tipo === "bar" && z.nombre === "" ? BARRIO_VACIO : nombreDep(z.nombre);
 const TIPOS: { id: Tipo; titulo: string; buscar: string }[] = [
   { id: "dep", titulo: "Departamentos", buscar: "Buscar departamento" },
   { id: "loc", titulo: "Localidades", buscar: "Buscar localidad" },
   { id: "bar", titulo: "Barrios de Córdoba", buscar: "Buscar barrio" },
+  { id: "circ", titulo: "Circuitos de Capital", buscar: "Buscar circuito" },
 ];
-const subZona = (z: Zona) => z.tipo === "dep" ? "Departamento" : z.tipo === "loc" ? `Localidad · Departamento ${nombreDep(z.depto!)}` : "Barrio de Córdoba Capital";
+const subZona = (z: Zona) => z.tipo === "dep" ? "Departamento" : z.tipo === "loc" ? `Localidad · Departamento ${nombreDep(z.depto!)}` : z.tipo === "circ" ? "Circuito de Córdoba Capital" : "Barrio de Córdoba Capital";
 
 export default function ExportarFichas({ cubo, cuboCap, estados, actualizado }: { cubo: Cubo; cuboCap: CuboCapital; estados: DatosEstados | null; actualizado: string }) {
   const [tipo, setTipo] = useState<Tipo>("dep");
@@ -39,7 +41,7 @@ export default function ExportarFichas({ cubo, cuboCap, estados, actualizado }: 
 
   const q = plano(busq.trim());
   const candidatos = useMemo(() => {
-    const base = tipo === "dep" ? zonas.deps : tipo === "loc" ? zonas.locs : zonas.barrios;
+    const base = tipo === "dep" ? zonas.deps : tipo === "loc" ? zonas.locs : tipo === "circ" ? zonas.circuitos : zonas.barrios;
     return base.filter(z => (tipo !== "loc" || !depFiltro || String(z.dep) === depFiltro) && (!q || plano(mostrar(z)).includes(q)));
   }, [tipo, zonas, depFiltro, q]);
   const visibles = candidatos.slice(0, MAX_LISTA);
@@ -47,19 +49,19 @@ export default function ExportarFichas({ cubo, cuboCap, estados, actualizado }: 
   const elegidas = useMemo(() => [...sel.values()], [sel]);
   const excede = elegidas.length > MAX_ZONAS;
   const fichas = useMemo(() => elegidas.map(z => ({ z, ficha: fichaDeZona(z, cubo, cuboCap) })), [elegidas, cubo, cuboCap]);
-  const total = useMemo(() => sumarFichas(zonasSinSuperposicion(elegidas, cubo).map(z => fichaDeZona(z, cubo, cuboCap))),
+  const total = useMemo(() => sumarFichas(zonasSinSuperposicion(elegidas, cubo, cuboCap).map(z => fichaDeZona(z, cubo, cuboCap))),
     [elegidas, cubo, cuboCap]);
-  const hayRepetidas = useMemo(() => zonasSinSuperposicion(elegidas, cubo).length < elegidas.length, [elegidas, cubo]);
+  const hayRepetidas = useMemo(() => zonasSinSuperposicion(elegidas, cubo, cuboCap).length < elegidas.length, [elegidas, cubo]);
 
   // Ficha completa (pendientes + todos los estados): solo departamentos y localidades; los barrios no tienen datos por estado
-  const conEstados = !!estados && elegidas.some(z => z.tipo !== "bar");
+  const conEstados = !!estados && elegidas.some(z => z.tipo === "dep" || z.tipo === "loc");
   const completa = contenido === "completa" && conEstados;
   const selectorEstados = (z: Zona): ZonaEstado => z.tipo === "dep" ? { dep: z.nombre } : { dep: z.depto!, loc: z.nombre };
-  const completaDe = (z: Zona): ResumenEstados | null => completa && estados && z.tipo !== "bar" ? resumenEstados(estados, [selectorEstados(z)]) : null;
+  const completaDe = (z: Zona): ResumenEstados | null => completa && estados && (z.tipo === "dep" || z.tipo === "loc") ? resumenEstados(estados, [selectorEstados(z)]) : null;
   const completaTotal = useMemo(() => completa && estados
-    ? resumenEstados(estados, zonasSinSuperposicion(elegidas, cubo).filter(z => z.tipo !== "bar").map(selectorEstados)) : null,
+    ? resumenEstados(estados, zonasSinSuperposicion(elegidas, cubo, cuboCap).filter(z => z.tipo === "dep" || z.tipo === "loc").map(selectorEstados)) : null,
     [completa, estados, elegidas, cubo]);   // eslint-disable-line react-hooks/exhaustive-deps
-  const hayBarrios = elegidas.some(z => z.tipo === "bar");
+  const hayBarrios = elegidas.some(z => z.tipo === "bar" || z.tipo === "circ");
 
   const alternar = (z: Zona) => setSel(a => { const m = new Map(a); if (m.has(z.clave)) m.delete(z.clave); else m.set(z.clave, z); return m; });
   const tildarTodos = () => setSel(a => { const m = new Map(a); candidatos.forEach(z => m.set(z.clave, z)); return m; });
@@ -94,7 +96,7 @@ export default function ExportarFichas({ cubo, cuboCap, estados, actualizado }: 
         <main className="dash"><div className="wrap">
           <h2 className="vista-titulo">Exportar fichas</h2>
           <p className="acto-intro">
-            Tildá los departamentos, localidades o barrios de Córdoba que querés incluir. Se genera una ficha por zona y, si elegiste más de una,
+            Tildá los departamentos, localidades, barrios o circuitos de Córdoba Capital que querés incluir. Se genera una ficha por zona y, si elegiste más de una,
             una página de resumen total. En el diálogo de impresión elegí «Guardar como PDF».
           </p>
 
@@ -162,7 +164,7 @@ export default function ExportarFichas({ cubo, cuboCap, estados, actualizado }: 
                 <legend>Contenido de las fichas de departamentos y localidades</legend>
                 <label><input type="radio" name="contenido" checked={contenido === "pendientes"} onChange={() => setContenido("pendientes")} /> Solo pendientes de entrega</label>
                 <label><input type="radio" name="contenido" checked={contenido === "completa"} onChange={() => setContenido("completa")} /> Ficha completa (pendientes + todos los estados)</label>
-                {contenido === "completa" && hayBarrios && <p className="nota">Los barrios de Córdoba salen siempre con la ficha de pendientes: la base de solicitudes no trae el barrio.</p>}
+                {contenido === "completa" && hayBarrios && <p className="nota">Los barrios y circuitos de Córdoba salen siempre con la ficha de pendientes: la base de solicitudes no trae el barrio.</p>}
               </fieldset>
             )}
             {excede && <p className="nota" role="alert">Elegiste más de {MAX_ZONAS} zonas. Quitá algunas para generar el PDF.</p>}
@@ -180,7 +182,7 @@ export default function ExportarFichas({ cubo, cuboCap, estados, actualizado }: 
           {elegidas.length > 1 && (
             <HojasFicha ficha={total} titulo="Resumen total" id="ficha-total" sub={`${elegidas.length} zonas seleccionadas`}
               notas={[`Zonas incluidas: ${nombresResumen}.`, hayRepetidas && "Las zonas contenidas en otra elegida (por ejemplo, una localidad dentro de un departamento) se cuentan una sola vez.",
-                completa && hayBarrios && "Los datos de todos los estados no incluyen los barrios de Córdoba elegidos (la base de solicitudes no trae el barrio), salvo que estén dentro de un departamento o la localidad Córdoba elegidos."]}
+                completa && hayBarrios && "Los datos de todos los estados no incluyen los barrios ni circuitos de Córdoba elegidos (la base de solicitudes no trae el barrio), salvo que estén dentro de un departamento o la localidad Córdoba elegidos."]}
               actualizado={actualizado} completa={completaTotal} fechaCompleta={estados?.actualizado} contenido={completa ? "completa" : "pendientes"} />
           )}
           {fichas.map(({ z, ficha }) => (

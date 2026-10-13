@@ -6,8 +6,9 @@ import { conexion, consulta } from "@/lib/personas";
 
 export const MAX_FILAS_EXCEL = 100_000;
 
-/** Zona a exportar. `barrio` solo en Capital: "" es «sin barrio informado»; sin `barrio`, no se filtra por barrio. */
-export interface ZonaPendientes { dep: string; loc?: string; barrio?: string }
+/** Zona a exportar. `barrio` y `circuito` solo en Capital (código del circuito, o SIN_CIRCUITO_PEND): "" es «sin barrio informado»; sin `barrio`, no se filtra por barrio. */
+export const SIN_CIRCUITO_PEND = "__sin__";   // valor de `circuito` para «sin circuito asignado»
+export interface ZonaPendientes { dep: string; loc?: string; barrio?: string; circuito?: string }
 export type Celda = string | number | Date | null;
 export interface ColumnaPend { nombre: string; tipo: string }   // tipo: "text" | "double precision" | "date"
 
@@ -16,6 +17,11 @@ function condiciones(z: ZonaPendientes) {
   if (z.loc !== undefined) { params.push(z.loc); where.push(`zona_loc = $${params.length}`); }
   // «Sin barrio informado» ("") se guarda como nulo en la base: se compara sin distinguir nulo de vacío
   if (z.barrio !== undefined) { params.push(z.barrio); where.push(`COALESCE(barrio, '') = $${params.length}`); }
+  // Circuito de Capital: el código es lo que va antes de " - " en la columna `circuito`
+  if (z.circuito !== undefined) {
+    if (z.circuito === SIN_CIRCUITO_PEND) where.push("circuito IS NULL");
+    else { params.push(z.circuito); where.push(`split_part(circuito, ' - ', 1) = $${params.length}`); }
+  }
   return { sql: "WHERE " + where.join(" AND "), params };
 }
 

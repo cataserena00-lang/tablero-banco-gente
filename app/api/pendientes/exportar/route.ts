@@ -22,7 +22,8 @@ export async function GET(req: Request) {
     if (r.excede) return NextResponse.json({ error: "demasiadas", total: r.total }, { status: 413, headers: SIN_CACHE });
     if (!r.total) return NextResponse.json({ error: "sin_datos" }, { status: 404, headers: SIN_CACHE });
     await registrarAcceso(s.usuario, s.rol, "exportacion", { tipo: "pendientes_excel", ...zona }, r.total);
-    const nombreZona = [zona.dep, zona.loc, zona.barrio === "" ? "sin barrio" : zona.barrio].filter(x => x).join(" · ");
+    const nombreZona = [zona.dep, zona.loc, zona.circuito === undefined ? null : zona.circuito === "__sin__" ? "sin circuito" : `circuito ${zona.circuito}`,
+      zona.barrio === "" ? "sin barrio" : zona.barrio].filter(x => x).join(" · ");
     const fecha = new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Cordoba", dateStyle: "short", timeStyle: "short" });
     const buf = await armarExcel({ zona: nombreZona, columnas: r.columnas, filas: r.filas, usuario: s.usuario, fecha });
     const archivo = `pendientes-${slug(nombreZona) || "zona"}-${new Date().toISOString().slice(0, 10)}.xlsx`;

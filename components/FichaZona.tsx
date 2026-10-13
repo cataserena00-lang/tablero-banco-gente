@@ -20,22 +20,25 @@ export type ModoFicha = "pendientes" | "completos" | "ambos";
 
 /** Zona cuyo listado de créditos pendientes se puede bajar a Excel (solo perfil completo y admin). `barrio` solo en Capital:
     "" es «sin barrio informado». Sale de la base de pendientes, que sí trae el barrio. */
-export interface ExcelZona { dep: string; loc?: string; barrio?: string }
+export interface ExcelZona { dep: string; loc?: string; barrio?: string; circuito?: string }
 const paramsZona = (z: ExcelZona) => {
   const p = new URLSearchParams({ zdep: z.dep });
   if (z.loc !== undefined) p.set("zloc", z.loc);
   if (z.barrio !== undefined) p.set("barrio", z.barrio);
+  if (z.circuito !== undefined) p.set("circuito", z.circuito);
   return p;
 };
 const slug = (t: string) => t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado, titleRef, id = "ficha-zona-titulo", completa, fechaCompleta, modoFijo, parteCompleta, excel }: {
+export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado, titleRef, id = "ficha-zona-titulo", completa, fechaCompleta, modoFijo, parteCompleta, excel, soloExportar }: {
   ficha: Ficha;
   /** Resumen de todos los estados de la zona (departamentos y localidades). Con él aparece el botón «Datos completos». */
   completa?: ResumenEstados | null;
   fechaCompleta?: string;
   /** Si se pasa, el menú de exportación ofrece el listado de créditos pendientes de la zona en Excel. */
   excel?: ExcelZona | null;
+  /** Solo el botón de exportación, sin la tarjeta de la ficha (por ejemplo, para exportar un circuito desde el listado). */
+  soloExportar?: boolean;
   /** En las hojas impresas, qué parte de los datos completos va en esta página. */
   parteCompleta?: "resumen" | "evolucion";
   /** Fuerza lo que se muestra (por ejemplo "ambos" en las fichas exportadas) y oculta el botón. */
@@ -101,15 +104,7 @@ export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado,
   }, [imprimir, titulo]);
   const primera = ficha.fechas[0]?.f, ultima = ficha.fechas[ficha.fechas.length - 1]?.f;
 
-  return (
-    <section className="card acto-ficha" aria-labelledby={id}>
-      <header>
-        <div>
-          <p className="zona-etiqueta">Ficha de zona</p>
-          <h2 id={id} ref={titleRef} tabIndex={-1}>{titulo}</h2>
-          <p className="sub">{sub}</p>
-        </div>
-        {!modoFijo && (
+  const exportUI = (
           <div className="ficha-export">
             {completa || excel ? (
               <>
@@ -133,7 +128,35 @@ export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado,
               </>
             ) : <button type="button" className="acto-link" onClick={() => setImprimir("pendientes")}>Exportar PDF</button>}
           </div>
-        )}
+  );
+  const portalImpresion = (
+    <>
+      {imprimir && typeof document !== "undefined" && createPortal(
+        <div className="hojas-impresion">
+          <style>{"@page{size:A4 portrait;margin:0}"}</style>
+          <HojasFicha ficha={ficha} titulo={titulo} sub={sub} notas={notas} actualizado={actualizado} completa={completa}
+            fechaCompleta={fechaCompleta} contenido={imprimir} id={`impr-${id}`} />
+        </div>, document.body)}
+    </>
+  );
+  if (soloExportar) {
+    return (
+      <div className="ficha-export-solo">
+        {exportUI}
+        {aviso && <p className="nota" role="alert">{aviso}</p>}
+        {portalImpresion}
+      </div>
+    );
+  }
+  return (
+    <section className="card acto-ficha" aria-labelledby={id}>
+      <header>
+        <div>
+          <p className="zona-etiqueta">Ficha de zona</p>
+          <h2 id={id} ref={titleRef} tabIndex={-1}>{titulo}</h2>
+          <p className="sub">{sub}</p>
+        </div>
+        {!modoFijo && exportUI}
         {completa && !modoFijo && (
           <div className="seg" role="group" aria-label="Qué mostrar de la zona">
             <button type="button" aria-pressed={vista === "pendientes"} onClick={() => setVista("pendientes")}>Pendientes de entrega</button>
@@ -209,13 +232,8 @@ export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado,
         </>
       )}
       {notas.filter(Boolean).map((n, i) => <p key={i} className="nota">{n}</p>)}
-      {aviso && <p className="nota" role="alert">{aviso}</p>}
-      {imprimir && typeof document !== "undefined" && createPortal(
-        <div className="hojas-impresion">
-          <style>{"@page{size:A4 portrait;margin:0}"}</style>
-          <HojasFicha ficha={ficha} titulo={titulo} sub={sub} notas={notas} actualizado={actualizado} completa={completa}
-            fechaCompleta={fechaCompleta} contenido={imprimir} id={`impr-${id}`} />
-        </div>, document.body)}
+      {!soloExportar && <>{aviso && <p className="nota" role="alert">{aviso}</p>}</>}
+      {!soloExportar && portalImpresion}
       {verPend && <p className="nota">La ficha muestra todos los créditos pendientes, sin filtro de fecha. Es una foto de la base al {fmtF(actualizado)}: los que se entregan desaparecen en la próxima actualización.</p>}
     </section>
   );

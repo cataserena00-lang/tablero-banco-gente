@@ -34,7 +34,7 @@ function describir(e: Evento): string {
   }
   if (e.accion === "ficha") return `Abrió la ficha de la persona n.º ${texto(d.id)}`;
   if (e.accion === "exportacion" && d.tipo === "pendientes_excel") {
-    const zona = [d.dep, d.loc, d.barrio === "" ? "sin barrio" : d.barrio].map(texto).filter(Boolean).join(" · ");
+    const zona = [d.dep, d.loc, d.circuito === "__sin__" ? "sin circuito" : d.circuito ? `circuito ${texto(d.circuito)}` : "", d.barrio === "" ? "sin barrio" : d.barrio].map(texto).filter(Boolean).join(" · ");
     return `Excel de pendientes · ${zona}`;
   }
   if (e.accion === "exportacion" && d.tipo === "ficha") return `PDF de la ficha de la persona n.º ${texto(d.id)}`;
