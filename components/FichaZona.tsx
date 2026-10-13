@@ -6,8 +6,6 @@ import { SIN_LINEA, antiguedad, hoyArgentina, type Ficha } from "@/lib/acto";
 import type { ResumenEstados } from "@/lib/estadosAgregados";
 import ResumenEstadosVista from "./ResumenEstadosVista";
 import { CabeceraHoja, PieHoja } from "./Marca";
-import Link from "next/link";
-import { MAX_EXPORTACION, etiquetaColumna, periodo } from "@/lib/personasComun";
 import { avisarExportable } from "@/lib/clienteActividad";
 
 /* Ficha de zona: cantidad, monto, líneas y antigüedad de la aprobación de una zona
@@ -20,21 +18,24 @@ const textoLinea = (l: string) => (l === SIN_LINEA ? "Sin línea informada" : no
 
 export type ModoFicha = "pendientes" | "completos" | "ambos";
 
-/** Personas de la zona (solo perfil completo). Los barrios no se pueden: la base de personas no trae el barrio. */
-export type PersonasZona = { dep: string; loc?: string } | { noDisponible: string };
-export interface TablaPersonas { columnas: string[]; filas: Record<string, string | number | null>[] }
-// Columnas del listado impreso (el año y el mes se juntan en "Última solicitud")
-const COLUMNAS_LISTADO = ["nombre", "cuil", "nro_doc", "estado", "categoria", "linea", "ano", "mes"];
-const paramsZona = (z: { dep: string; loc?: string }) => { const p = new URLSearchParams({ zdep: z.dep }); if (z.loc) p.set("zloc", z.loc); return p; };
+/** Zona cuyo listado de créditos pendientes se puede bajar a Excel (solo perfil completo y admin). `barrio` solo en Capital:
+    "" es «sin barrio informado». Sale de la base de pendientes, que sí trae el barrio. */
+export interface ExcelZona { dep: string; loc?: string; barrio?: string }
+const paramsZona = (z: ExcelZona) => {
+  const p = new URLSearchParams({ zdep: z.dep });
+  if (z.loc !== undefined) p.set("zloc", z.loc);
+  if (z.barrio !== undefined) p.set("barrio", z.barrio);
+  return p;
+};
 const slug = (t: string) => t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
-export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado, titleRef, id = "ficha-zona-titulo", completa, fechaCompleta, modoFijo, parteCompleta, personas }: {
+export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado, titleRef, id = "ficha-zona-titulo", completa, fechaCompleta, modoFijo, parteCompleta, excel }: {
   ficha: Ficha;
   /** Resumen de todos los estados de la zona (departamentos y localidades). Con él aparece el botón «Datos completos». */
   completa?: ResumenEstados | null;
   fechaCompleta?: string;
-  /** Si se pasa, el menú de exportación ofrece el listado de personas de la zona (y la vista completa con personas). */
-  personas?: PersonasZona | null;
+  /** Si se pasa, el menú de exportación ofrece el listado de créditos pendientes de la zona en Excel. */
+  excel?: ExcelZona | null;
   /** En las hojas impresas, qué parte de los datos completos va en esta página. */
   parteCompleta?: "resumen" | "evolucion";
   /** Fuerza lo que se muestra (por ejemplo "ambos" en las fichas exportadas) y oculta el botón. */
@@ -54,58 +55,48 @@ export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado,
   const verPend = modo !== "completos", verComp = !!completa && modo !== "pendientes";
   // Exportar desde la ficha: se arman las hojas, se abre el diálogo de impresión ("Guardar como PDF") y se limpian
   const [menu, setMenu] = useState(false);
-  const [imprimir, setImprimir] = useState<ImpresionFicha | null>(null);
-  // Personas de la zona: cuántas son (se pide al abrir el menú) y estado de la descarga
-  const zonaPersonas = personas && "dep" in personas ? personas : null;
+  const [imprimir, setImprimir] = useState<ContenidoExport | null>(null);
+  // Excel de pendientes de la zona: cuántos créditos son (se pide al abrir el menú) y estado de la descarga
   const [cuenta, setCuenta] = useState<number | null | "error">(null);
   const [trabajando, setTrabajando] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
+  const claveExcel = excel ? paramsZona(excel).toString() : "";
+  useEffect(() => { setCuenta(null); setAviso(null); }, [claveExcel]);
   useEffect(() => {
-    if (!menu || !zonaPersonas || cuenta !== null) return;
+    if (!menu || !excel || cuenta !== null) return;
     const ctl = new AbortController();
-    fetch(`/api/personas/contar?${paramsZona(zonaPersonas)}`, { signal: ctl.signal })
+    fetch(`/api/pendientes/contar?${claveExcel}`, { signal: ctl.signal })
       .then(r => r.ok ? r.json() : Promise.reject(r.status)).then((d: { total: number }) => setCuenta(d.total))
       .catch(e => { if (e?.name !== "AbortError") setCuenta("error"); });
     return () => ctl.abort();
-  }, [menu, zonaPersonas, cuenta]);
-  useEffect(() => { setCuenta(null); setAviso(null); }, [zonaPersonas?.dep, zonaPersonas?.loc]);
-  const personasOk = typeof cuenta === "number" && cuenta > 0 && cuenta <= MAX_EXPORTACION;
-  const pedirPersonas = async (formato: "pdf" | "json", columnas: string[]) => {
-    const p = paramsZona(zonaPersonas!); p.set("columnas", columnas.join(","));
-    if (formato === "json") p.set("formato", "json");
-    const r = await fetch(`/api/personas/exportar?${p}`);
-    if (!r.ok) throw r.status;
-    return r;
-  };
-  const mensajeError = (e: unknown) => e === 403 ? "No tenés permiso para exportar personas." : e === 413 ? `Hay más de ${miles(MAX_EXPORTACION)} personas en la zona: usá la vista de personas para acotar.` : e === 503 ? "La base de personas no está disponible todavía." : "No se pudo generar. Probá de nuevo.";
-  const listadoPdf = async () => {
+  }, [menu, excel, cuenta, claveExcel]);
+  const descargarExcel = async () => {
+    if (!excel) return;
     setMenu(false); setTrabajando(true); setAviso(null);
     try {
-      const url = URL.createObjectURL(await (await pedirPersonas("pdf", ["nombre", "cuil", "nro_doc", "localidad", "categoria", "estado", "linea", "ano", "mes"])).blob());
+      const r = await fetch(`/api/pendientes/exportar?${claveExcel}`);
+      if (!r.ok) throw r.status;
+      const url = URL.createObjectURL(await r.blob());
       const a = document.createElement("a");
-      a.href = url; a.download = `personas-${slug(titulo)}-${new Date().toISOString().slice(0, 10)}.pdf`;
+      a.href = url; a.download = `pendientes-${slug(titulo)}-${new Date().toISOString().slice(0, 10)}.xlsx`;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 10000);
-    } catch (e) { setAviso(mensajeError(e)); }
-    setTrabajando(false);
-  };
-  const vistaConPersonas = async () => {
-    setMenu(false); setTrabajando(true); setAviso(null);
-    try {
-      const d = await (await pedirPersonas("json", COLUMNAS_LISTADO)).json() as TablaPersonas;
-      setImprimir({ contenido: completa ? "completa" : "pendientes", personas: d });
-    } catch (e) { setAviso(mensajeError(e)); }
+    } catch (e) {
+      setAviso(e === 403 ? "No tenés permiso para exportar este listado." : e === 404 ? "Esta zona no tiene créditos pendientes en la base."
+        : e === 413 ? "La zona tiene demasiados créditos para un solo Excel." : e === 503 ? "El listado de pendientes todavía no está disponible: se carga con la próxima actualización de datos."
+        : "No se pudo generar el Excel. Probá de nuevo.");
+    }
     setTrabajando(false);
   };
   useEffect(() => {
     if (!imprimir) return;
-    avisarExportable({ tipo: "ficha", zonas: [titulo], contenido: imprimir.personas ? "completa+personas" : imprimir.contenido, cantidad: imprimir.personas?.filas.length });
+    avisarExportable({ tipo: "ficha", zonas: [titulo], contenido: imprimir });
     const tituloAntes = document.title;
     document.title = `ficha-${slug(titulo)}-${new Date().toISOString().slice(0, 10)}`;
     document.body.classList.add("imprimiendo-ficha");
     const fin = () => { document.title = tituloAntes; document.body.classList.remove("imprimiendo-ficha"); setImprimir(null); };
     window.addEventListener("afterprint", fin, { once: true });
-    const t = setTimeout(() => window.print(), 400 + (imprimir.personas?.filas.length ?? 0) * 0.3);
+    const t = setTimeout(() => window.print(), 400);
     return () => { clearTimeout(t); window.removeEventListener("afterprint", fin); document.title = tituloAntes; document.body.classList.remove("imprimiendo-ficha"); };
   }, [imprimir, titulo]);
   const primera = ficha.fechas[0]?.f, ultima = ficha.fechas[ficha.fechas.length - 1]?.f;
@@ -120,39 +111,27 @@ export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado,
         </div>
         {!modoFijo && (
           <div className="ficha-export">
-            {completa || personas ? (
+            {completa || excel ? (
               <>
                 <button type="button" className="acto-link" aria-haspopup="menu" aria-expanded={menu} disabled={trabajando} onClick={() => setMenu(m => !m)}>
-                  {trabajando ? "Preparando…" : "Exportar PDF ▾"}</button>
+                  {trabajando ? "Preparando…" : "Exportar ▾"}</button>
                 {menu && (
                   <div className="ficha-export-menu" role="menu">
-                    <button type="button" role="menuitem" onClick={() => { setMenu(false); setImprimir({ contenido: "pendientes" }); }}>Solo pendientes de entrega</button>
-                    {completa && <button type="button" role="menuitem" onClick={() => { setMenu(false); setImprimir({ contenido: "completa" }); }}>Ficha completa (pendientes + todos los estados)</button>}
-                    {zonaPersonas && (
+                    <button type="button" role="menuitem" onClick={() => { setMenu(false); setImprimir("pendientes"); }}>Informe de pendientes de entrega (PDF)</button>
+                    {completa && <button type="button" role="menuitem" onClick={() => { setMenu(false); setImprimir("completa"); }}>Ficha completa: pendientes + todos los estados (PDF)</button>}
+                    {excel && (
                       <>
-                        <button type="button" role="menuitem" disabled={!personasOk} onClick={listadoPdf}>
-                          Listado de personas{typeof cuenta === "number" ? ` (${miles(cuenta)})` : ""}</button>
-                        <button type="button" role="menuitem" disabled={!personasOk} onClick={vistaConPersonas}>
-                          Vista completa: ficha + personas{typeof cuenta === "number" ? ` (${miles(cuenta)})` : ""}</button>
-                        {cuenta === null && <p className="nota">Contando las personas de la zona…</p>}
-                        {cuenta === "error" && <p className="nota">No se pudo contar las personas de la zona.</p>}
-                        {typeof cuenta === "number" && cuenta === 0 && <p className="nota">No hay personas con esta zona en la base.</p>}
-                        {typeof cuenta === "number" && cuenta > MAX_EXPORTACION && (
-                          <p className="nota">Hay {miles(cuenta)} personas: más que el máximo de {miles(MAX_EXPORTACION)} por PDF.{" "}
-                            <Link href={`/banco-gente/personas?${paramsZona(zonaPersonas)}`}>Abrir la vista de personas de la zona</Link> para acotar los filtros.</p>
-                        )}
-                      </>
-                    )}
-                    {personas && "noDisponible" in personas && (
-                      <>
-                        <button type="button" role="menuitem" disabled>Listado de personas</button>
-                        <p className="nota">{personas.noDisponible}</p>
+                        <button type="button" role="menuitem" disabled={typeof cuenta !== "number" || cuenta === 0} onClick={descargarExcel}>
+                          Base de pendientes de la zona (Excel){typeof cuenta === "number" ? ` · ${miles(cuenta)}` : ""}</button>
+                        {cuenta === null && <p className="nota">Contando los créditos de la zona…</p>}
+                        {cuenta === "error" && <p className="nota">El listado de pendientes todavía no está disponible: se carga con la próxima actualización de datos.</p>}
+                        {cuenta === 0 && <p className="nota">Esta zona no tiene créditos pendientes en la base.</p>}
                       </>
                     )}
                   </div>
                 )}
               </>
-            ) : <button type="button" className="acto-link" onClick={() => setImprimir({ contenido: "pendientes" })}>Exportar PDF</button>}
+            ) : <button type="button" className="acto-link" onClick={() => setImprimir("pendientes")}>Exportar PDF</button>}
           </div>
         )}
         {completa && !modoFijo && (
@@ -235,7 +214,7 @@ export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado,
         <div className="hojas-impresion">
           <style>{"@page{size:A4 portrait;margin:0}"}</style>
           <HojasFicha ficha={ficha} titulo={titulo} sub={sub} notas={notas} actualizado={actualizado} completa={completa}
-            fechaCompleta={fechaCompleta} contenido={imprimir.contenido} personas={imprimir.personas} id={`impr-${id}`} />
+            fechaCompleta={fechaCompleta} contenido={imprimir} id={`impr-${id}`} />
         </div>, document.body)}
       {verPend && <p className="nota">La ficha muestra todos los créditos pendientes, sin filtro de fecha. Es una foto de la base al {fmtF(actualizado)}: los que se entregan desaparecen en la próxima actualización.</p>}
     </section>
@@ -243,15 +222,12 @@ export default function FichaZona({ ficha, titulo, sub, notas = [], actualizado,
 }
 
 export type ContenidoExport = "pendientes" | "completa";
-interface ImpresionFicha { contenido: ContenidoExport; personas?: TablaPersonas | null }
 
 /** Hojas impresas de una zona: una con los pendientes y, si se pidió la ficha completa, otra con todos los estados.
     Cada hoja es una página A4 con su cabecera y su pie, y el contenido centrado entre los dos. */
-export function HojasFicha({ ficha, titulo, sub, notas, actualizado, completa, fechaCompleta, contenido, id, personas }: {
+export function HojasFicha({ ficha, titulo, sub, notas, actualizado, completa, fechaCompleta, contenido, id }: {
   ficha: Ficha; titulo: string; sub: string; notas?: (string | null | undefined | false)[]; actualizado: string;
   completa?: ResumenEstados | null; fechaCompleta?: string; contenido: ContenidoExport; id: string;
-  /** Si se pasa, al final se agrega el listado de personas de la zona. */
-  personas?: TablaPersonas | null;
 }) {
   const conEstados = contenido === "completa" && !!completa;
   return (
@@ -278,30 +254,6 @@ export function HojasFicha({ ficha, titulo, sub, notas, actualizado, completa, f
           <PieHoja />
         </div>
       )}
-      {personas && <HojaPersonas titulo={titulo} personas={personas} actualizado={actualizado} />}
     </>
   );
 }
-
-/** Listado de personas de la zona (varias páginas: el encabezado de la tabla se repite en cada una). Datos nominales: solo perfil completo. */
-function HojaPersonas({ titulo, personas, actualizado }: { titulo: string; personas: TablaPersonas; actualizado: string }) {
-  const cols = ["nombre", "cuil", "nro_doc", "estado", "categoria", "linea", "ultima"];
-  const celda = (f: Record<string, string | number | null>, c: string) => c === "ultima" ? periodo(f.ano, f.mes) : f[c] === null || f[c] === "" || f[c] === undefined ? "—" : String(f[c]);
-  return (
-    <div className="hoja hoja-personas">
-      <CabeceraHoja actualizado={fmtF(actualizado)} />
-      <section className="card">
-        <p className="zona-etiqueta">Personas</p>
-        <h2>{titulo}</h2>
-        <p className="sub">{plural(personas.filas.length, "persona", "personas")} · cada una con los datos de su última solicitud</p>
-        <table className="tabla-personas-impresa">
-          <thead><tr>{cols.map(c => <th key={c}>{etiquetaColumna(c)}</th>)}</tr></thead>
-          <tbody>{personas.filas.map((f, i) => <tr key={i}>{cols.map(c => <td key={c}>{celda(f, c)}</td>)}</tr>)}</tbody>
-        </table>
-        <p className="nota">Información confidencial: contiene datos personales. Uso interno del Banco de la Gente.</p>
-      </section>
-      <PieHoja />
-    </div>
-  );
-}
-

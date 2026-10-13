@@ -24,9 +24,7 @@ export async function GET(req: Request) {
   try {
     const r = await exportarPersonas(filtros, columnas);
     if (r.excede) return NextResponse.json({ error: "demasiadas", total: r.total }, { status: 413, headers: SIN_CACHE });
-    await registrarAcceso(s.usuario, s.rol, "exportacion", { ...filtros, columnas: r.columnas, ...(u.get("formato") === "json" ? { formato: "json" } : {}) }, r.total);
-    // Para armar la vista completa (ficha + personas) en el navegador: las mismas filas, en JSON y con el mismo límite
-    if (u.get("formato") === "json") return NextResponse.json({ columnas: r.columnas, filas: r.filas, total: r.total }, { headers: SIN_CACHE });
+    await registrarAcceso(s.usuario, s.rol, "exportacion", { ...filtros, columnas: r.columnas }, r.total);
     const aplicados = (["departamento", "localidad", "categoria", "estado", "linea"] as const)
       .filter(k => filtros[k]?.trim()).map(k => `${etiquetaColumna(k)}: ${filtros[k]!.trim()}`);
     if (filtros.zdep?.trim()) aplicados.unshift(`Zona: ${filtros.zdep.trim()}${filtros.zloc?.trim() ? ` · ${filtros.zloc.trim()}` : ""}`);

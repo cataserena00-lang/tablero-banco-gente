@@ -30,6 +30,20 @@ jobs:
           BG_DRIVE_FILE_ID: ${{ vars.BG_DRIVE_FILE_ID }}
           FORZAR: ${{ inputs.forzar && '1' || '' }}
         run: python pipelines/banco_gente/procesar.py
+      # Listado de créditos pendientes (NOMINAL) en Neon, para exportar a Excel por zona desde las fichas.
+      # No se commitea ni se imprime en el log (solo cantidades). Sin el secreto NEON_DATABASE_URL_CARGA no se carga nada.
+      - name: Cargar pendientes a Neon
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          BG_DRIVE_FILE_ID: ${{ vars.BG_DRIVE_FILE_ID }}
+          NEON_DATABASE_URL_CARGA: ${{ secrets.NEON_DATABASE_URL_CARGA }}
+          FORZAR: ${{ inputs.forzar && '1' || '' }}
+        run: |
+          if [ -z "$NEON_DATABASE_URL_CARGA" ]; then
+            echo "Falta el secreto NEON_DATABASE_URL_CARGA: no se carga la base de pendientes."
+          else
+            python pipelines/banco_gente/cargar_pendientes.py
+          fi
       - name: Commit de datos (dispara el deploy en Vercel)
         run: |
           git config user.name "github-actions"
