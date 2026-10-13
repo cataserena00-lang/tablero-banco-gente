@@ -19,21 +19,22 @@ function condiciones(z: ZonaPendientes) {
   return { sql: "WHERE " + where.join(" AND "), params };
 }
 
-// Columnas internas y columnas que NO se exportan: los datos de la cuenta bancaria (CBU y número de cuenta) no hacen falta
-// para el listado y no deben salir de la base.
-const INTERNAS = ["id", "zona_dep", "zona_loc"];
-const EXCLUIDAS = ["ctacbu", "cuentanumero"];
+// Columnas del Excel, en este orden (las pidió el Banco). Es una lista cerrada: el resto de lo que trae el Excel de origen
+// (CBU, cuenta bancaria, garante, etc.) nunca sale de la base. «linea_oficial» es la línea con su nombre oficial.
+export const COLUMNAS_EXCEL = ["cuil", "sexo", "solicitante", "localidad", "departamento", "telefono", "mail", "linea_oficial",
+  "monto_credito", "estado_prestamo", "fecha_aprobacion"];
 
-// Columnas de la tabla (las arma el cargador a partir del Excel), leídas una vez; sin las internas
+// Tipo de cada columna de la lista, leído una vez de la tabla
 let _cols: Promise<ColumnaPend[]> | null = null;
 async function columnas(): Promise<ColumnaPend[]> {
   const sql = conexion();
   if (!sql) throw new Error("sin_base");
   _cols ??= consulta<{ column_name: string; data_type: string }>(sql,
-    "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'pendientes' ORDER BY ordinal_position",
+    "SELECT column_name, data_type FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'pendientes'",
   ).then(r => {
     if (!r.length) throw Object.assign(new Error("sin_tabla"), { code: "42P01" });
-    return r.map(x => ({ nombre: x.column_name, tipo: x.data_type })).filter(c => !INTERNAS.includes(c.nombre) && !EXCLUIDAS.includes(c.nombre));
+    const tipos = new Map(r.map(x => [x.column_name, x.data_type]));
+    return COLUMNAS_EXCEL.filter(c => tipos.has(c)).map(c => ({ nombre: c, tipo: tipos.get(c)! }));
   }).catch(e => { _cols = null; throw e; });
   return _cols;
 }
