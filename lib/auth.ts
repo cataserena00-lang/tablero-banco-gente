@@ -52,13 +52,19 @@ async function coincide(guardado: string, clave: string, hmacClave: string) {
 // DASHBOARD_USERS = "usuario:hash,otro:hash" (formato original, hash con AUTH_SECRET).
 // DASHBOARD_USERS_EXTRA = más usuarios en el mismo formato; acepta además hashes pbkdf2.… (ver scripts/hash-password.mjs).
 // Cada entrada puede terminar en "|admin", "|completo" o "|agregado" (ej.: "ana:pbkdf2.100000.sal.hash|completo").
+// DASHBOARD_COMPLETOS = "usuario:hash,otro:hash" de los usuarios con perfil completo (mismo formato; el perfil completo se asigna siempre).
 // DASHBOARD_ADMIN = "usuario:hash" de los administradores (mismo formato; el perfil admin se asigna siempre, aunque falte el sufijo).
 // Devuelve el rol del usuario si usuario y clave son correctos, o null.
 export async function verificarCredenciales(usuario: string, clave: string): Promise<{ rol: Rol } | null> {
   const lista = [process.env.DASHBOARD_USERS, process.env.DASHBOARD_USERS_EXTRA]
     .flatMap(v => (v ?? "").split(",")).map(x => x.trim()).filter(Boolean);
   const admins = (process.env.DASHBOARD_ADMIN ?? "").split(",").map(x => x.trim()).filter(Boolean);
-  const entradas = [...lista.map(par => ({ par, forzado: undefined as Rol | undefined })), ...admins.map(par => ({ par, forzado: "admin" as Rol }))];
+  const completos = (process.env.DASHBOARD_COMPLETOS ?? "").split(",").map(x => x.trim()).filter(Boolean);
+  const entradas = [
+    ...lista.map(par => ({ par, forzado: undefined as Rol | undefined })),
+    ...completos.map(par => ({ par, forzado: "completo" as Rol })),
+    ...admins.map(par => ({ par, forzado: "admin" as Rol })),
+  ];
   const hmacClave = await hmac(clave, secreto());
   let rol: Rol | null = null;
   const candidatos: string[] = [];   // formato de las entradas que tienen ese usuario (para diagnosticar)
