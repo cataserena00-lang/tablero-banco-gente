@@ -27,8 +27,10 @@ const COLUMNAS_HISTORIAL = ["nro_formulario", "estado", "linea", "monto_prestabl
 // En la ficha lateral no se repite lo que ya está arriba (datos de la persona) ni el año y el mes (van como período)
 const FIJOS_PERSONA = ["nombre", "cuil", "nro_doc", "departamento", "localidad"];
 
-export default function VistaPersonas() {
+export default function VistaPersonas({ zonaInicial = null }: { zonaInicial?: { dep: string; loc?: string } | null }) {
   const [f, setF] = useState<Filtros>(VACIOS);
+  // Zona que viene de una ficha del tablero (nombres del tablero); se aplica además de los filtros y se puede quitar
+  const [zona, setZona] = useState<{ dep: string; loc?: string } | null>(zonaInicial);
   const [busq, setBusq] = useState("");           // texto escrito; pasa a `f.q` con una pausa
   const [pagina, setPagina] = useState(1);
   const [fac, setFac] = useState<Facetas>({ departamentos: [], localidades: [], estados: [], categorias: [], estadosPorCategoria: {}, lineas: [] });
@@ -62,6 +64,7 @@ export default function VistaPersonas() {
     const ctl = new AbortController();
     const p = new URLSearchParams({ pagina: String(pagina) });
     (Object.keys(f) as (keyof Filtros)[]).forEach(k => f[k] && p.set(k, f[k]));
+    if (zona) { p.set("zdep", zona.dep); if (zona.loc) p.set("zloc", zona.loc); }
     setCargando(true); setError(null);
     fetch(`/api/personas?${p}`, { signal: ctl.signal })
       .then(async r => r.ok ? r.json() : Promise.reject(r.status))
@@ -69,13 +72,13 @@ export default function VistaPersonas() {
       .catch(e => { if (e?.name === "AbortError") return; setCargando(false);
         setError(e === 403 ? "No tenés permiso para ver esta información." : e === 503 ? "La base de personas no está disponible todavía." : "No se pudo cargar. Probá de nuevo."); });
     return () => ctl.abort();
-  }, [f, pagina]);
+  }, [f, pagina, zona]);
 
   const cambiar = useCallback((k: keyof Filtros, v: string) => {
     setF(a => ({ ...a, [k]: v, ...(k === "departamento" ? { localidad: "" } : {}), ...(k === "categoria" ? { estado: "" } : {}) })); setPagina(1);
   }, []);
-  const limpiar = () => { setF(VACIOS); setBusq(""); setPagina(1); };
-  const hayFiltros = Object.values(f).some(Boolean) || busq !== "";
+  const limpiar = () => { setF(VACIOS); setBusq(""); setZona(null); setPagina(1); };
+  const hayFiltros = Object.values(f).some(Boolean) || busq !== "" || zona !== null;
 
   // Detalle de una persona (solicitudes): se pide una sola vez y lo usan tanto el desplegable como la ficha lateral
   const pedirDetalle = useCallback((id: number) => {
@@ -107,6 +110,7 @@ export default function VistaPersonas() {
     if (!cols.length || excede || !datos?.total) return;
     const p = new URLSearchParams({ columnas: cols.join(",") });
     (Object.keys(f) as (keyof Filtros)[]).forEach(k => f[k] && p.set(k, f[k]));
+    if (zona) { p.set("zdep", zona.dep); if (zona.loc) p.set("zloc", zona.loc); }
     setExp(e => ({ ...e, generando: true, error: null }));
     try {
       const r = await fetch(`/api/personas/exportar?${p}`);
@@ -204,6 +208,13 @@ export default function VistaPersonas() {
               <option value="">Todas</option>
               {opciones(fac.lineas, f.linea).map(v => <option key={v} value={v}>{v}</option>)}
             </select>
+          </div>
+        )}
+        {zona && (
+          <div className="filtro-sel">
+            <span className="etiqueta-fija">Zona de la ficha</span>
+            <span className="chip">{zona.dep}{zona.loc ? ` · ${zona.loc}` : ""}
+              <button type="button" aria-label="Quitar la zona" onClick={() => { setZona(null); setPagina(1); }}>×</button></span>
           </div>
         )}
         {hayFiltros && <button type="button" className="limpiar" onClick={limpiar}>Limpiar filtros</button>}

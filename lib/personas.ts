@@ -31,9 +31,11 @@ export const baseConfigurada = () => conexion() !== null;
 export const tablaFaltante = (e: unknown) => (e as { code?: string } | null)?.code === "42P01";
 
 // Consulta parametrizada (los valores van como $1, $2... nunca pegados al texto) con filas tipadas
-const consulta = async <T>(sql: Sql, texto: string, params: unknown[] = []) => (await sql.query(texto, params)) as unknown as T[];
+export const consulta = async <T>(sql: Sql, texto: string, params: unknown[] = []) => (await sql.query(texto, params)) as unknown as T[];
 
 export interface Filtros {
+  /** Zona de una ficha (nombres como figuran en el tablero): departamento y, opcionalmente, localidad. Se comparan sin tildes ni puntuación. */
+  zdep?: string; zloc?: string;
   q?: string; departamento?: string; localidad?: string; categoria?: string; estado?: string; linea?: string; pagina?: number;
 }
 export type Fila = Record<string, string | number | null>;
@@ -61,9 +63,23 @@ export function tokensBusqueda(q: string | undefined): string[] {
 }
 const escaparLike = (t: string) => t.replace(/[\\%_]/g, c => "\\" + c);
 
+/** Clave de comparación de nombres de zona: sin tildes, en mayúsculas y solo letras y números separados por un espacio. */
+export const claveZona = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toUpperCase().replace(/[^A-Z0-9]+/g, " ").trim();
+// Mismo cálculo en SQL (la Ñ pierde la tilde igual que en claveZona)
+const sqlClave = (col: string) => `regexp_replace(translate(upper("${col}"), 'ÁÉÍÓÚÜÑ', 'AEIOUUN'), '[^A-Z0-9]+', ' ', 'g')`;
+// Grafías de la base de personas que difieren del nombre del tablero
+const ALIAS_DEP: Record<string, string[]> = { "PRESIDENTE ROQUE SAENZ PENA": ["PTE ROQUE SAENZ PENA", "PRES ROQUE SAENZ PENA"] };
+const ALIAS_LOC: Record<string, string[]> = { "CAPITAL|CORDOBA": ["CORDOBA CAPITAL"] };
+
 export function condiciones(f: Filtros) {
   const where: string[] = [], params: unknown[] = [];
   const p = (v: unknown) => { params.push(v); return `$${params.length}`; };
+  const zdep = f.zdep ? claveZona(f.zdep) : "";
+  if (zdep) {
+    where.push(`${sqlClave("departamento")} = ANY(${p([zdep, ...(ALIAS_DEP[zdep] ?? [])])}::text[])`);
+    const zloc = f.zloc ? claveZona(f.zloc) : "";
+    if (zloc) where.push(`${sqlClave("localidad")} = ANY(${p([zloc, ...(ALIAS_LOC[`${zdep}|${zloc}`] ?? [])])}::text[])`);
+  }
   for (const c of ["departamento", "localidad"] as const) {
     const v = f[c]?.trim();
     if (v) where.push(`"${c}" = ${p(v)}`);   // el nombre de columna sale de una lista fija
@@ -170,8 +186,12 @@ export async function exportarPersonas(f: Filtros, columnas: string[]) {
   return { total, columnas: elegidas, filas, excede: false };
 }
 
+/** Qué se registra en `accesos`: consultas de personas, ingresos al tablero y exportables generados (los PDF de personas
+    y las fichas que se imprimen desde el navegador). */
+export type AccionRegistro = "busqueda" | "ficha" | "exportacion" | "ingreso" | "exportable";
+
 /** Deja constancia de quién consultó qué. Si falla no interrumpe la consulta, y nunca se imprime el contenido. */
-export async function registrarAcceso(usuario: string, rol: string, accion: "busqueda" | "ficha" | "exportacion", detalle: unknown, resultados?: number) {
+export async function registrarAcceso(usuario: string, rol: string, accion: AccionRegistro, detalle: unknown, resultados?: number) {
   try {
     const sql = conexion();
     if (!sql) return;
@@ -180,4 +200,12 @@ export async function registrarAcceso(usuario: string, rol: string, accion: "bus
   } catch (e) {
     console.error("No se pudo registrar el acceso", (e as Error)?.name);
   }
+}
+
+/** Cantidad de personas de una zona (sin registrar acceso: lo usa el menú de exportación para saber si entra en un PDF). */
+export async function contarPersonas(f: Filtros) {
+  const sql = conexion();
+  if (!sql) throw new Error("sin_base");
+  const { sql: where, params } = condiciones(f);
+  return (await consulta<{ n: number }>(sql, `SELECT count(*)::int AS n FROM personas_resumen ${where}`, params))[0]?.n ?? 0;
 }

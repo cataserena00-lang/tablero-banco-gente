@@ -12,6 +12,7 @@ export async function GET(req: Request) {
   if (!baseConfigurada()) return NextResponse.json({ error: "sin_base" }, { status: 503, headers: SIN_CACHE });
   const u = new URL(req.url).searchParams;
   const filtros = {
+    zdep: u.get("zdep") ?? undefined, zloc: u.get("zloc") ?? undefined,
     q: u.get("q") ?? undefined, departamento: u.get("departamento") ?? undefined, localidad: u.get("localidad") ?? undefined,
     categoria: u.get("categoria") ?? undefined, estado: u.get("estado") ?? undefined, linea: u.get("linea") ?? undefined, pagina: Number(u.get("pagina")) || 1,
   };

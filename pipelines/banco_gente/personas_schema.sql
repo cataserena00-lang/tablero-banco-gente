@@ -11,17 +11,19 @@ GRANT USAGE, CREATE ON SCHEMA public TO carga;
 GRANT USAGE ON SCHEMA public TO lectura;
 ALTER DEFAULT PRIVILEGES FOR ROLE carga IN SCHEMA public GRANT SELECT ON TABLES TO lectura;
 
--- Registro de accesos: quién buscó o abrió qué. "lectura" solo puede INSERTAR (no leer ni borrar).
+-- Registro de accesos: ingresos al tablero, consultas de personas y exportables generados (quién y cuándo).
+-- "lectura" puede INSERTAR y LEER (la solapa de actividad del perfil admin lee esta tabla); nunca modificar ni borrar.
 CREATE TABLE IF NOT EXISTS accesos (
   id        bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   creado    timestamptz NOT NULL DEFAULT now(),
   usuario   text NOT NULL,
   rol       text NOT NULL,
-  accion    text NOT NULL,          -- 'busqueda' | 'ficha' | 'exportacion'
+  accion    text NOT NULL,          -- 'busqueda' | 'ficha' | 'exportacion' | 'ingreso' | 'exportable'
   detalle   jsonb,                  -- filtros usados o id de la ficha
   resultados integer
 );
-GRANT INSERT ON accesos TO lectura;
+CREATE INDEX IF NOT EXISTS ix_accesos_creado ON accesos (creado DESC);
+GRANT INSERT, SELECT ON accesos TO lectura;
 GRANT USAGE ON SEQUENCE accesos_id_seq TO lectura;
 
 -- La conexión "lectura" no puede crear nada ni tocar otras tablas.

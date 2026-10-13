@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import FichaZona, { plural } from "./FichaZona";
+import { avisarExportable } from "@/lib/clienteActividad";
 import { CON_MONTO, resumenEstados, resumenTotal, type DatosEstados } from "@/lib/estadosAgregados";
 import { CATEGORIAS, categoriaDe } from "@/lib/estados";
 import ResumenEstadosVista from "./ResumenEstadosVista";
@@ -65,8 +66,8 @@ function colorMapa(v: number, max: number) {
 }
 
 /* ── Componente principal ── */
-export default function Tablero({ cubo, cuboCap, geo, circ, estados, actualizado }: {
-  cubo: Cubo; cuboCap: CuboCapital; geo: GeoData | null; circ: CircuitosGeo | null; estados: DatosEstados | null; actualizado: string;
+export default function Tablero({ cubo, cuboCap, geo, circ, estados, verPersonas = false, actualizado }: {
+  cubo: Cubo; cuboCap: CuboCapital; geo: GeoData | null; circ: CircuitosGeo | null; estados: DatosEstados | null; verPersonas?: boolean; actualizado: string;
 }) {
   const F0 = cubo.f[0], F1 = cubo.f[cubo.f.length-1];
 
@@ -355,6 +356,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, estados, actualizado
   useEffect(() => {
     if (!imprimirPanorama) return;
     const tituloAntes = document.title;
+    avisarExportable({ tipo: "panorama" });
     document.title = `resumen-general-banco-gente-${new Date().toISOString().slice(0, 10)}`;
     document.body.classList.add("imprimiendo-ficha");
     const fin = () => { document.title = tituloAntes; document.body.classList.remove("imprimiendo-ficha"); setImprimirPanorama(false); };
@@ -700,11 +702,13 @@ export default function Tablero({ cubo, cuboCap, geo, circ, estados, actualizado
   const vistaLocalidades = dep && fichaDep ? (
     locFicha !== null && fichaLoc ? (
       <FichaZona ficha={fichaLoc} titulo={nombreLocFicha!} sub={`Localidad · Departamento ${nombreDep(dep)}`}
-        notas={[avisoFiltro]} actualizado={actualizado} titleRef={tituloRef} completa={completaLoc} fechaCompleta={estados?.actualizado} />
+        notas={[avisoFiltro]} actualizado={actualizado} titleRef={tituloRef} completa={completaLoc} fechaCompleta={estados?.actualizado}
+        personas={verPersonas ? { dep, loc: cubo.loc[locFicha] } : null} />
     ) : (
       <>
         <FichaZona ficha={fichaDep} titulo={nombreDep(dep)} sub={`Departamento · ${plural(zonasLoc.length, "localidad", "localidades")}`}
-          notas={[avisoFiltro]} actualizado={actualizado} titleRef={tituloRef} completa={completaDep} fechaCompleta={estados?.actualizado} />
+          notas={[avisoFiltro]} actualizado={actualizado} titleRef={tituloRef} completa={completaDep} fechaCompleta={estados?.actualizado}
+          personas={verPersonas ? { dep } : null} />
 
         {/* Localidades del departamento */}
         <section className="card" style={{marginTop:20}}>
@@ -877,7 +881,8 @@ export default function Tablero({ cubo, cuboCap, geo, circ, estados, actualizado
   );
   const vistaBarrios = barrioFicha !== null && fichaBar ? (
     <FichaZona ficha={fichaBar} titulo={nombreBarrioFicha!} sub={subBarrio(cuboCap, barrioFicha)}
-      notas={[notaBarrio(cuboCap.bar[barrioFicha]), avisoFiltro]} actualizado={actualizado} titleRef={tituloRef} />
+      notas={[notaBarrio(cuboCap.bar[barrioFicha]), avisoFiltro]} actualizado={actualizado} titleRef={tituloRef}
+      personas={verPersonas ? { noDisponible: "El listado de personas por barrio no está disponible: la base de personas no trae el barrio. Podés exportar el de la localidad Córdoba." } : null} />
   ) : listaBarrios;
 
   /* ── RENDER ── */

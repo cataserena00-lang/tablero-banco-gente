@@ -15,6 +15,7 @@ export async function GET(req: Request) {
   if (!baseConfigurada()) return NextResponse.json({ error: "sin_base" }, { status: 503, headers: SIN_CACHE });
   const u = new URL(req.url).searchParams;
   const filtros: Filtros = {
+    zdep: u.get("zdep") ?? undefined, zloc: u.get("zloc") ?? undefined,
     q: u.get("q") ?? undefined, departamento: u.get("departamento") ?? undefined, localidad: u.get("localidad") ?? undefined,
     categoria: u.get("categoria") ?? undefined, estado: u.get("estado") ?? undefined, linea: u.get("linea") ?? undefined,
   };
@@ -23,9 +24,12 @@ export async function GET(req: Request) {
   try {
     const r = await exportarPersonas(filtros, columnas);
     if (r.excede) return NextResponse.json({ error: "demasiadas", total: r.total }, { status: 413, headers: SIN_CACHE });
-    await registrarAcceso(s.usuario, s.rol, "exportacion", { ...filtros, columnas: r.columnas }, r.total);
+    await registrarAcceso(s.usuario, s.rol, "exportacion", { ...filtros, columnas: r.columnas, ...(u.get("formato") === "json" ? { formato: "json" } : {}) }, r.total);
+    // Para armar la vista completa (ficha + personas) en el navegador: las mismas filas, en JSON y con el mismo límite
+    if (u.get("formato") === "json") return NextResponse.json({ columnas: r.columnas, filas: r.filas, total: r.total }, { headers: SIN_CACHE });
     const aplicados = (["departamento", "localidad", "categoria", "estado", "linea"] as const)
       .filter(k => filtros[k]?.trim()).map(k => `${etiquetaColumna(k)}: ${filtros[k]!.trim()}`);
+    if (filtros.zdep?.trim()) aplicados.unshift(`Zona: ${filtros.zdep.trim()}${filtros.zloc?.trim() ? ` · ${filtros.zloc.trim()}` : ""}`);
     if (filtros.q?.trim()) aplicados.push(`Búsqueda: ${filtros.q.trim()}`);
     const fecha = new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Cordoba", dateStyle: "short", timeStyle: "short" });
     const pdf = await generarPdfPersonas({ columnas: r.columnas, filas: r.filas, filtros: aplicados, usuario: s.usuario, fecha });
