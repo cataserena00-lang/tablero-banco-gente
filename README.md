@@ -112,3 +112,14 @@ Si el mapa base no carga, el tablero sigue funcionando: los circuitos se muestra
 - En las fichas de **localidad y departamento** (solo perfil completo y admin) el menú «Exportar PDF» ofrece, además de la ficha, el **listado de personas** de la zona (PDF del servidor) y la **vista completa: ficha + personas** (la ficha completa más el listado, en un solo PDF). Máximo 5.000 personas por PDF; si la zona tiene más, el menú lo avisa y enlaza a la vista de personas ya filtrada por la zona (`/banco-gente/personas?zdep=COLON&zloc=LA CALERA`).
 - Las zonas se comparan sin tildes ni puntuación y con los alias conocidos (por ejemplo, la localidad Córdoba de la Capital figura como «CORDOBA CAPITAL» en la base de personas).
 - **Barrios de Córdoba:** el listado de personas no está disponible, porque la base de personas no trae el domicilio ni el barrio.
+
+### Variables de Vercel de los usuarios (resumen)
+| Variable | Qué contiene | Perfil |
+|---|---|---|
+| `AUTH_SECRET` | Secreto con el que se firma la sesión | — |
+| `DASHBOARD_USERS`, `DASHBOARD_USERS_EXTRA` | `usuario:hash` (con sufijo opcional `\|completo`, `\|agregado` o `\|admin`; sin sufijo es agregado) | según sufijo |
+| `DASHBOARD_COMPLETOS` | `usuario:hash,otro:hash` | completo |
+| `DASHBOARD_ADMIN` | `usuario:hash` | admin |
+| `DATABASE_URL_LECTURA` | Conexión de Neon con el usuario `lectura_ro` (solo lectura; inserta y lee `accesos`) | — |
+
+Los hashes se generan con `node scripts/hash-password.mjs --pbkdf2 "clave"`. Las variables se aplican en el siguiente deploy: después de cambiarlas hay que redeployar.
