@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
-import { COOKIE, SESION_SEGUNDOS, crearSesion, verificarCredenciales } from "@/lib/auth";
+import { COOKIE, SESION_SEGUNDOS, crearSesion, normalizarUsuario, verificarCredenciales } from "@/lib/auth";
 import { registrarAcceso } from "@/lib/personas";
 
 export async function POST(req: Request) {
   const f = await req.formData();
-  const u = String(f.get("usuario") ?? ""), c = String(f.get("clave") ?? "");
+  const u = normalizarUsuario(String(f.get("usuario") ?? "")), c = String(f.get("clave") ?? "");
   const base = new URL(req.url);
   const acceso = await verificarCredenciales(u, c);
   if (!acceso) {

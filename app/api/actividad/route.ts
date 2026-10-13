@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { exigirRol } from "@/lib/sesion";
 import { baseConfigurada, registrarAcceso, tablaFaltante } from "@/lib/personas";
+import { nombreDe } from "@/lib/auth";
 import { listarEventos, resumenActividad } from "@/lib/actividad";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,13 @@ export async function GET(req: Request) {
         hasta: u.get("hasta") ?? undefined, pagina: Number(u.get("pagina")) || 1 }),
       resumenActividad(dias),
     ]);
-    return NextResponse.json({ ...eventos, resumen }, { headers: SIN_CACHE });
+    // El usuario es el CUIL: se agrega el nombre de la persona (de las variables de Vercel) para que el listado se entienda
+    const nombres: Record<string, string> = {};
+    for (const u of [...eventos.filas.map(f => f.usuario), ...resumen.usuarios.map(x => x.usuario), ...resumen.todosLosUsuarios]) {
+      const n = nombreDe(u);
+      if (n) nombres[u] = n;
+    }
+    return NextResponse.json({ ...eventos, resumen, nombres }, { headers: SIN_CACHE });
   } catch (e) {
     // 42501 = el rol de lectura todavía no tiene permiso de lectura sobre `accesos`
     if (tablaFaltante(e)) return NextResponse.json({ error: "sin_base" }, { status: 503, headers: SIN_CACHE });

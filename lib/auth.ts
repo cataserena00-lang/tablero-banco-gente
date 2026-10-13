@@ -51,7 +51,9 @@ async function coincide(guardado: string, clave: string, hmacClave: string) {
 
 // DASHBOARD_USERS = "usuario:hash,otro:hash" (formato original, hash con AUTH_SECRET).
 // DASHBOARD_USERS_EXTRA = más usuarios en el mismo formato; acepta además hashes pbkdf2.… (ver scripts/hash-password.mjs).
-// Cada entrada puede terminar en "|admin", "|completo" o "|agregado" (ej.: "ana:pbkdf2.100000.sal.hash|completo").
+// Cada entrada puede terminar en "|admin", "|completo" o "|agregado" (ej.: "ana:pbkdf2.100000.sal.hash|completo") y, después,
+// llevar el nombre de la persona para el saludo del menú: "20297145674:pbkdf2.100000.sal.hash|completo|Marcos Torres Lima"
+// (el nombre no puede tener comas). El usuario puede ser el CUIL; los nombres viven en Vercel, no en el repositorio.
 // DASHBOARD_COMPLETOS = "usuario:hash,otro:hash" de los usuarios con perfil completo (mismo formato; el perfil completo se asigna siempre).
 // DASHBOARD_ADMIN = "usuario:hash" de los administradores (mismo formato; el perfil admin se asigna siempre, aunque falte el sufijo).
 // Devuelve el rol del usuario si usuario y clave son correctos, o null.
@@ -71,7 +73,7 @@ export async function verificarCredenciales(usuario: string, clave: string): Pro
   for (const { par, forzado } of entradas) {
     const i = par.indexOf(":");
     if (i < 0 || par.slice(0, i) !== usuario) continue;
-    const [guardado, rolTxt] = par.slice(i + 1).split("|");
+    const [guardado, rolTxt] = par.slice(i + 1).split("|");   // el tercer campo (nombre) no interviene en el ingreso
     candidatos.push(formatoDe(guardado));
     if (await coincide(guardado, clave, hmacClave)) {
       const r = forzado ?? aRol(rolTxt);
@@ -82,6 +84,25 @@ export async function verificarCredenciales(usuario: string, clave: string): Pro
   if (!rol) console.warn("login fallido", { usuario, entradasConfiguradas: entradas.length, formatosDelUsuario: candidatos });
   return rol ? { rol } : null;
 }
+/** Nombre de la persona (para el saludo), si la entrada del usuario lo trae. Solo lee las variables de entorno. */
+export function nombreDe(usuario: string): string | null {
+  const todas = [process.env.DASHBOARD_USERS, process.env.DASHBOARD_USERS_EXTRA, process.env.DASHBOARD_COMPLETOS, process.env.DASHBOARD_ADMIN]
+    .flatMap(v => (v ?? "").split(",")).map(x => x.trim()).filter(Boolean);
+  for (const par of todas) {
+    const i = par.indexOf(":");
+    if (i < 0 || par.slice(0, i) !== usuario) continue;
+    const nombre = par.slice(i + 1).split("|")[2]?.trim();
+    if (nombre) return nombre;
+  }
+  return null;
+}
+
+/** El usuario puede ser el CUIL: se acepta con guiones, puntos o espacios (20-29714567-4 -> 20297145674). Otros usuarios, tal cual. */
+export const normalizarUsuario = (u: string) => {
+  const t = u.trim();
+  return /^[\d.\-\s]+$/.test(t) && /\d/.test(t) ? t.replace(/\D/g, "") : t;
+};
+
 // Token de sesión: "<usuario>.<rol>.<expira>.<firma>" (firmado con AUTH_SECRET: el rol no se puede alterar).
 // Los tokens anteriores, "<usuario>.<expira>.<firma>", siguen siendo válidos y valen como rol "agregado".
 export async function crearSesion(usuario: string, rol: Rol = ROL_POR_DEFECTO) {
