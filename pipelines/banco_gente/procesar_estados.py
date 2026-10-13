@@ -8,7 +8,7 @@ para mostrar, además de lo pendiente de entrega, lo que ya se hizo en cada zona
 
 Uso:
   python pipelines/banco_gente/procesar_estados.py --input estados.csv     # local
-  python pipelines/banco_gente/procesar_estados.py                          # descarga de Drive (BG_ESTADOS_FILE_ID)
+  python pipelines/banco_gente/procesar_estados.py                          # descarga de Drive (carpeta BG_DRIVE_CARPETA_ID)
 
 Formato de estados.json (todo son índices a las listas del mismo archivo):
   dep, loc, estados, lineas   listas de nombres (departamentos y localidades sin tildes y en mayúsculas)
@@ -173,7 +173,7 @@ def main():
             ruta = Path(a.input)
         else:
             ruta = Path(tmp) / "estados.csv"
-            cp.descargar_drive(os.environ["BG_ESTADOS_FILE_ID"], ruta)
+            cp.descargar_estados(ruta)
         huella = cp.huella_archivo(ruta)
         destino = SALIDA / "estados.json"
         meta = SALIDA / "estados_huella.txt"

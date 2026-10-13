@@ -11,7 +11,8 @@ Uso:
 Variables de entorno:
   NEON_DATABASE_URL_CARGA        conexión del rol "carga" (escritura). Obligatoria salvo --solo-encabezado.
   GOOGLE_SERVICE_ACCOUNT_JSON    cuenta de servicio con acceso de lectura al archivo (si no se usa --input).
-  BG_DRIVE_FILE_ID               ID del Excel en Drive (si no se usa --input).
+  BG_DRIVE_CARPETA_ID            ID de la carpeta de Drive con «BASE PENDIENTES» (si no se usa --input).
+  BG_DRIVE_FILE_ID               alternativa de antes: ID del Excel.
   FORZAR=1                       recarga aunque el archivo no haya cambiado.
 
 La tabla `pendientes` se reconstruye completa en cada carga (tabla de paso + intercambio en una transacción). Trae TODAS las
@@ -37,6 +38,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).parent))
 import barrios_match as bm  # noqa: E402
 import cargar_personas as cp  # noqa: E402
+import drive_carpeta as dc  # noqa: E402
 import procesar as pr  # noqa: E402
 import procesar_estados as pe  # noqa: E402
 
@@ -166,7 +168,12 @@ def main():
     ap.add_argument("--solo-encabezado", action="store_true", help="imprime las columnas del Excel; no carga nada")
     a = ap.parse_args()
     cfg = yaml.safe_load((AQUI / "config.yaml").read_text(encoding="utf-8"))
-    raw = Path(a.input).read_bytes() if a.input else pr.descargar_drive(os.environ[cfg["drive_file_id_env"]])
+    if a.input:
+        raw = Path(a.input).read_bytes()
+    elif os.environ.get("BG_DRIVE_CARPETA_ID"):
+        raw = dc.pendientes_bytes(os.environ["BG_DRIVE_CARPETA_ID"])   # «BASE PENDIENTES» de la carpeta de Drive
+    else:
+        raw = pr.descargar_drive(os.environ[cfg["drive_file_id_env"]])
     huella = hashlib.sha256(raw).hexdigest()
     df = pd.read_excel(io.BytesIO(raw))
     if a.solo_encabezado:
