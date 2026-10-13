@@ -14,7 +14,7 @@ interface Respuesta {
 }
 
 const PERFIL: Record<string, string> = { admin: "Administración", completo: "Completo", agregado: "Agregado" };
-const ACCION: Record<string, string> = { ingreso: "Ingreso", busqueda: "Búsqueda de personas", ficha: "Ficha de persona", exportacion: "PDF de personas", exportable: "Exportable" };
+const ACCION: Record<string, string> = { ingreso: "Ingreso", busqueda: "Búsqueda de personas", ficha: "Ficha de persona", exportacion: "Exportación (PDF/Excel)", exportable: "Exportable" };
 const GRUPOS: [string, string][] = [["", "Todas las acciones"], ["ingreso", "Ingresos"], ["exportable", "Exportables"], ["consulta", "Consultas de personas"]];
 const PERIODOS: [number, string][] = [[7, "Últimos 7 días"], [30, "Últimos 30 días"], [90, "Últimos 90 días"]];
 const ETQ_FILTRO: Record<string, string> = { zdep: "Zona", q: "Búsqueda", departamento: "Departamento", localidad: "Localidad", categoria: "Estado", estado: "Estado puntual", linea: "Línea" };
@@ -33,6 +33,10 @@ function describir(e: Evento): string {
     return `${d.tipo === "fichas" ? "Fichas" : "Ficha"}: ${zonas.slice(0, 4).join(", ")}${zonas.length > 4 ? ` y ${zonas.length - 4} más` : ""} · ${cont}${d.cantidad && d.contenido === "completa+personas" ? ` · ${miles(Number(d.cantidad))} personas` : ""}`;
   }
   if (e.accion === "ficha") return `Abrió la ficha de la persona n.º ${texto(d.id)}`;
+  if (e.accion === "exportacion" && d.tipo === "pendientes_excel") {
+    const zona = [d.dep, d.loc, d.barrio === "" ? "sin barrio" : d.barrio].map(texto).filter(Boolean).join(" · ");
+    return `Excel de pendientes · ${zona}`;
+  }
   if (e.accion === "exportacion" && d.tipo === "ficha") return `PDF de la ficha de la persona n.º ${texto(d.id)}`;
   const filtros = Object.entries(ETQ_FILTRO).filter(([k]) => texto(d[k])).map(([k, l]) => `${l}: ${texto(d[k])}`);
   const base = e.accion === "exportacion" ? "PDF de personas" : "Búsqueda";

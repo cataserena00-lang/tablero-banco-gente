@@ -108,18 +108,8 @@ Si el mapa base no carga, el tablero sigue funcionando: los circuitos se muestra
 - **Qué se registra** en la tabla `accesos` de Neon: ingresos al tablero (`/api/login`), búsquedas y fichas de personas, PDF de personas (servidor) y los exportables que se arman en el navegador —fichas, exportar fichas y resumen general— que avisan a `POST /api/actividad` con datos de una lista cerrada. No se guardan los intentos de ingreso fallidos. La conexión de lectura necesita `INSERT` y `SELECT` sobre `accesos` (ver `personas_schema.sql`).
 - **Solapa «Actividad de usuarios»** (`/banco-gente/actividad`): ingresos y exportables por día y por usuario, y el detalle de eventos con filtros por usuario, acción y fechas.
 
-## Personas desde las fichas
-- En las fichas de **localidad y departamento** (solo perfil completo y admin) el menú «Exportar PDF» ofrece, además de la ficha, el **listado de personas** de la zona (PDF del servidor) y la **vista completa: ficha + personas** (la ficha completa más el listado, en un solo PDF). Máximo 5.000 personas por PDF; si la zona tiene más, el menú lo avisa y enlaza a la vista de personas ya filtrada por la zona (`/banco-gente/personas?zdep=COLON&zloc=LA CALERA`).
-- Las zonas se comparan sin tildes ni puntuación y con los alias conocidos (por ejemplo, la localidad Córdoba de la Capital figura como «CORDOBA CAPITAL» en la base de personas).
-- **Barrios de Córdoba:** el listado de personas no está disponible, porque la base de personas no trae el domicilio ni el barrio.
-
-### Variables de Vercel de los usuarios (resumen)
-| Variable | Qué contiene | Perfil |
-|---|---|---|
-| `AUTH_SECRET` | Secreto con el que se firma la sesión | — |
-| `DASHBOARD_USERS`, `DASHBOARD_USERS_EXTRA` | `usuario:hash` (con sufijo opcional `\|completo`, `\|agregado` o `\|admin`; sin sufijo es agregado) | según sufijo |
-| `DASHBOARD_COMPLETOS` | `usuario:hash,otro:hash` | completo |
-| `DASHBOARD_ADMIN` | `usuario:hash` | admin |
-| `DATABASE_URL_LECTURA` | Conexión de Neon con el usuario `lectura_ro` (solo lectura; inserta y lee `accesos`) | — |
-
-Los hashes se generan con `node scripts/hash-password.mjs --pbkdf2 "clave"`. Las variables se aplican en el siguiente deploy: después de cambiarlas hay que redeployar.
+## Excel de pendientes desde las fichas
+- En las fichas de **barrio, localidad y departamento** (solo perfil completo y admin) el menú «Exportar» ofrece los dos informes en PDF (pendientes de entrega y ficha completa) y la **base de pendientes de la zona en Excel**: todos los créditos pendientes de la zona, con todas las columnas del Excel de origen más el barrio depurado, el circuito y la línea oficial. Funciona también en los barrios de Córdoba (incluido «sin barrio informado»).
+- **De dónde sale:** el Excel de pendientes de Drive. El workflow *Actualizar datos* corre `pipelines/banco_gente/cargar_pendientes.py` y lo carga en la tabla `pendientes` de Neon (datos NOMINALES: nunca van al repo ni a `data/`; solo cantidades en los logs). Las zonas se filtran con los mismos nombres del tablero, así que coinciden con las fichas. `cargar_pendientes.py --input base.xlsx --solo-encabezado` muestra las columnas sin cargar nada.
+- **Quién y cómo:** `/api/pendientes/exportar` y `/api/pendientes/contar` verifican el rol en el servidor (`exigirRol("completo")`), el Excel se arma en el servidor (`lib/excelPendientes.ts`) y cada descarga queda registrada en `accesos` (visible en la solapa de actividad del admin). Hasta que corra la primera carga, el menú avisa que el listado todavía no está disponible.
+- La vista de personas acepta una zona con `?zdep=COLON&zloc=LA CALERA`.

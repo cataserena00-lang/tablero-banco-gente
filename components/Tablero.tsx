@@ -10,7 +10,7 @@ import HojasPanorama from "./HojasPanorama";
 import { BarraPartes, BarrasH, colorSerie } from "./graficos";
 import { LogoBanco } from "./Marca";
 import { fmtF, lineaCanonica, miles, nombreDep, nombreLinea, peso } from "@/lib/formato";
-import { BARRIO_VACIO, antiguedad, esperaPromedio, fichaBarrio, fichaDepartamento, fichaLocalidad, hoyArgentina, notaBarrio, subBarrio, zonasInterior } from "@/lib/acto";
+import { BARRIO_VACIO, DEP_CAPITAL, LOC_CAPITAL, antiguedad, esperaPromedio, fichaBarrio, fichaDepartamento, fichaLocalidad, hoyArgentina, notaBarrio, subBarrio, zonasInterior } from "@/lib/acto";
 import MapaCircuitosCarga from "./mapa/MapaCircuitosCarga";
 import type { CircuitosGeo, InfoCircuito } from "./mapa/MapaCircuitos";
 
@@ -703,12 +703,12 @@ export default function Tablero({ cubo, cuboCap, geo, circ, estados, verPersonas
     locFicha !== null && fichaLoc ? (
       <FichaZona ficha={fichaLoc} titulo={nombreLocFicha!} sub={`Localidad · Departamento ${nombreDep(dep)}`}
         notas={[avisoFiltro]} actualizado={actualizado} titleRef={tituloRef} completa={completaLoc} fechaCompleta={estados?.actualizado}
-        personas={verPersonas ? { dep, loc: cubo.loc[locFicha] } : null} />
+        excel={verPersonas ? { dep, loc: cubo.loc[locFicha] } : null} />
     ) : (
       <>
         <FichaZona ficha={fichaDep} titulo={nombreDep(dep)} sub={`Departamento · ${plural(zonasLoc.length, "localidad", "localidades")}`}
           notas={[avisoFiltro]} actualizado={actualizado} titleRef={tituloRef} completa={completaDep} fechaCompleta={estados?.actualizado}
-          personas={verPersonas ? { dep } : null} />
+          excel={verPersonas ? { dep } : null} />
 
         {/* Localidades del departamento */}
         <section className="card" style={{marginTop:20}}>
@@ -882,7 +882,7 @@ export default function Tablero({ cubo, cuboCap, geo, circ, estados, verPersonas
   const vistaBarrios = barrioFicha !== null && fichaBar ? (
     <FichaZona ficha={fichaBar} titulo={nombreBarrioFicha!} sub={subBarrio(cuboCap, barrioFicha)}
       notas={[notaBarrio(cuboCap.bar[barrioFicha]), avisoFiltro]} actualizado={actualizado} titleRef={tituloRef}
-      personas={verPersonas ? { noDisponible: "El listado de personas por barrio no está disponible: la base de personas no trae el barrio. Podés exportar el de la localidad Córdoba." } : null} />
+      excel={verPersonas ? { dep: DEP_CAPITAL, loc: LOC_CAPITAL, barrio: cuboCap.bar[barrioFicha] } : null} />
   ) : listaBarrios;
 
   /* ── RENDER ── */

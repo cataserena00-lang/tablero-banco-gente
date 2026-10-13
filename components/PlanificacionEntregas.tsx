@@ -8,6 +8,7 @@ import { fmtF, miles, nombreDep, peso } from "@/lib/formato";
 import {
   BARRIO_VACIO, fichaBarrio, fichaLocalidad, fichaSinAsignar, notaBarrio, subBarrio,
   zonasCapital, zonasInterior, type Ficha,
+  DEP_CAPITAL, LOC_CAPITAL,
 } from "@/lib/acto";
 
 type Ambito = "capital" | "interior";
@@ -149,7 +150,8 @@ export default function PlanificacionEntregas({ cubo, cuboCap, estados, verPerso
         ) : (
           <FichaZona ficha={ficha} titulo={encabezado.titulo} sub={encabezado.sub} notas={[encabezado.nota]}
             actualizado={actualizado} titleRef={tituloRef} id="acto-titulo" completa={completa} fechaCompleta={estados?.actualizado}
-            personas={!verPersonas ? null : sel?.t === "loc" ? { dep: cubo.dep[sel.dep], loc: cubo.loc[sel.loc] } : { noDisponible: "El listado de personas por barrio no está disponible: la base de personas no trae el barrio. Podés exportar el de la localidad Córdoba." }} />
+            excel={!verPersonas ? null : sel?.t === "loc" ? { dep: cubo.dep[sel.dep], loc: cubo.loc[sel.loc] }
+              : sel?.t === "barrio" ? { dep: DEP_CAPITAL, loc: LOC_CAPITAL, barrio: cuboCap.bar[sel.idx] } : null} />
         )}
       </div></main>
     </>

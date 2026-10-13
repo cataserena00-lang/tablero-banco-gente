@@ -478,14 +478,4 @@ button.viz-fila:focus-visible,.viz-partes-barra button:focus-visible{outline:2px
 .ficha-export-menu button:disabled{opacity:.5;cursor:not-allowed}
 .ficha-export-menu .nota{margin:0;padding:8px 14px;border-top:1px solid var(--borde);font-size:12.5px}
 .ficha-export-menu .nota a{color:var(--celeste-txt)}
-.tabla-personas-impresa{width:100%;border-collapse:collapse;font-size:9.5px;margin-top:8px}
-.tabla-personas-impresa th{text-align:left;background:var(--surface);padding:4px 6px;border-bottom:1px solid var(--borde);-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.tabla-personas-impresa td{padding:3px 6px;border-bottom:1px solid var(--borde)}
-@media print{
-  .hoja.hoja-personas{min-height:0;display:block}
-  .hoja.hoja-personas>.card{margin:0}
-  .tabla-personas-impresa thead{display:table-header-group}
-  .tabla-personas-impresa tr{break-inside:avoid}
-}
 .etiqueta-fija{display:block;font-size:12.5px;color:var(--tx2);margin-bottom:4px}
-.tabla-personas-impresa td:nth-child(2),.tabla-personas-impresa td:nth-child(3){white-space:nowrap}

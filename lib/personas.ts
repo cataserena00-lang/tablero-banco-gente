@@ -201,11 +201,3 @@ export async function registrarAcceso(usuario: string, rol: string, accion: Acci
     console.error("No se pudo registrar el acceso", (e as Error)?.name);
   }
 }
-
-/** Cantidad de personas de una zona (sin registrar acceso: lo usa el menú de exportación para saber si entra en un PDF). */
-export async function contarPersonas(f: Filtros) {
-  const sql = conexion();
-  if (!sql) throw new Error("sin_base");
-  const { sql: where, params } = condiciones(f);
-  return (await consulta<{ n: number }>(sql, `SELECT count(*)::int AS n FROM personas_resumen ${where}`, params))[0]?.n ?? 0;
-}
