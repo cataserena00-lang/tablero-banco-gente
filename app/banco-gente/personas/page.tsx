@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 // Vista NOMINAL: solo perfil "completo". El rol se verifica en el servidor; si no corresponde, ni siquiera se envía la vista.
 export default async function Pagina({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
-  const s = await exigirRol("completo");
+  const s = await exigirRol("completo", "bg");
   // Zona que llega desde una ficha (?zdep=COLON&zloc=LA CALERA)
   const q = await searchParams;
   const uno = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v)?.slice(0, 100) ?? "";

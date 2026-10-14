@@ -1,0 +1,53 @@
+name: Actualizar Córdoba me capacita
+
+# Lee REPORTE CURSOS y REPORTE ASECOR de la carpeta de Drive, genera los agregados (sin datos personales) en
+# data/cba_me_capacita/ y los commitea (eso dispara el deploy en Vercel). Mismos días y horas que Banco de la Gente.
+on:
+  schedule:
+    # Lunes 16:00 y miércoles 14:00, hora de Argentina (UTC-3)
+    - cron: "0 19 * * 1"
+    - cron: "0 17 * * 3"
+  workflow_dispatch:
+    inputs:
+      forzar:
+        description: "Recargar la base nominal aunque los archivos no hayan cambiado"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  cmc:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install pandas openpyxl google-api-python-client google-auth "psycopg[binary]>=3.2"
+      - name: Procesar Córdoba me capacita
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          CBA_DRIVE_CARPETA_ID: ${{ vars.CBA_DRIVE_CARPETA_ID || '1181tR00Do2Qb1pR1bYP0ouo2rerhPlS2' }}
+        run: python pipelines/cba_me_capacita/procesar_cmc.py
+      # Participantes, capacitadores y costos (NOMINAL) en Neon, para los listados y exportables del tablero.
+      # No se commitea ni se imprime en el log (solo cantidades). Sin el secreto NEON_DATABASE_URL_CARGA no se carga nada.
+      - name: Cargar datos nominales a Neon
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          CBA_DRIVE_CARPETA_ID: ${{ vars.CBA_DRIVE_CARPETA_ID || '1181tR00Do2Qb1pR1bYP0ouo2rerhPlS2' }}
+          NEON_DATABASE_URL_CARGA: ${{ secrets.NEON_DATABASE_URL_CARGA }}
+          FORZAR: ${{ inputs.forzar && '1' || '' }}
+        run: |
+          if [ -z "$NEON_DATABASE_URL_CARGA" ]; then
+            echo "Falta el secreto NEON_DATABASE_URL_CARGA: no se cargan los datos nominales."
+          else
+            python pipelines/cba_me_capacita/cargar_nominal_cmc.py
+          fi
+      - name: Commit de datos (dispara el deploy en Vercel)
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/cba_me_capacita
+          git diff --staged --quiet || (git commit -m "Actualización automática de datos de Córdoba me capacita" && git pull --rebase origin "${GITHUB_REF_NAME}" && git push origin "HEAD:${GITHUB_REF_NAME}")

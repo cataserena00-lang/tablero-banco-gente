@@ -486,3 +486,35 @@ button.viz-fila:focus-visible,.viz-partes-barra button:focus-visible{outline:2px
 .menu-bienvenida span{display:block;font-size:11.5px;color:var(--tx2)}
 .menu-bienvenida b{display:block;font-size:13.5px;color:var(--tx);font-weight:600}
 .menu-bienvenida small{display:block;font-size:11.5px;color:var(--tx2)}
+
+/* ── Inicio del Ministerio y marca general ─────────────────────────────────────────────── */
+.logo-min{display:block;height:64px;width:auto;max-width:100%}
+.login-marca .logo-min{height:auto;width:100%;max-width:340px}
+.inicio-min{padding-top:20px;padding-bottom:56px;width:100%}
+.inicio-cab{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding-bottom:16px;border-bottom:1px solid var(--borde)}
+.inicio-saludo{margin:28px 0 20px}
+.inicio-saludo p{margin:0;color:var(--tx2);font-size:14px}
+.inicio-saludo h1{margin:4px 0 2px;font-size:26px;font-weight:900;color:var(--celeste-txt);letter-spacing:-.01em}
+.prog-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:18px}
+.prog-card{display:flex;flex-direction:column;gap:6px;text-decoration:none;color:var(--tx);border-top:4px solid var(--primario);transition:box-shadow .15s,transform .15s}
+a.prog-card:hover{box-shadow:0 6px 18px rgba(0,0,0,.09);transform:translateY(-2px)}
+.prog-card h2{margin:6px 0 0;font-size:17px}
+.prog-card p{margin:0;color:var(--tx2);font-size:14px}
+.prog-card small{color:var(--tx2);margin-top:auto;padding-top:8px}
+.prog-logo{height:76px;display:flex;align-items:center}
+.prog-logo img{height:72px;width:auto;max-width:100%}
+.prog-cmc{border-top-color:#9A172A}
+.prog-pe{border-top-color:var(--dorado)}
+.prog-pronto{opacity:.6;cursor:default}
+.prog-sin-logo{font-weight:900;font-size:20px;color:var(--gris-marca)}
+.logo-cmc{display:block;height:64px;width:auto}
+
+/* ── Córdoba me capacita: colores propios del programa (las mismas piezas del tablero, con otra paleta) ─────────────── */
+.tema-cmc{--primario:#9A172A;--primario-hover:#7E1222;--celeste:#0B4680;--celeste-osc:#0B4680;--celeste-txt:#0B4680;--celeste-claro:#E6EEF6;--dorado:#CCA659;--dorado-txt:#8A6A25}
+.tema-cmc .titulo h1{color:#0B4680}
+.tema-cmc .franja{background:linear-gradient(90deg,#9A172A 0 34%,#0B4680 34% 67%,#CCA659 67% 100%)}
+.cmc-tabla-cursos td.td-curso{min-width:200px}
+.cmc-buscar input{font:inherit;font-size:14px;border:1px solid var(--borde);border-radius:8px;padding:7px 10px;min-width:220px}
+.cmc-nota{font-size:12.5px;color:var(--tx2);margin:6px 0 0}
+.cmc-acciones{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
+.cmc-nominal .kpis{margin-top:14px}

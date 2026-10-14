@@ -1,0 +1,18 @@
+{
+ "actualizado": "2026-10-14",
+ "desde": 2024,
+ "cursos": 4614,
+ "inscripciones": 96017,
+ "personas": 69283,
+ "capacitadores": 1329,
+ "control": {
+  "cursos_en_archivo": 4990,
+  "cursos_desde_2024": 4990,
+  "cursos_descartados_desaprobados_o_cancelados": 376,
+  "inscripciones_en_archivo": 97646,
+  "inscripciones_de_cursos_usados": 96017,
+  "inscripciones_sin_estado": 0,
+  "cursos_sin_inscripciones": 909,
+  "cursos_sin_fecha_de_inicio": 0
+ }
+}
