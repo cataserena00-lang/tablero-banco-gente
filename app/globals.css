@@ -526,3 +526,30 @@ a.prog-card:hover{box-shadow:0 6px 18px rgba(0,0,0,.09);transform:translateY(-2p
 .cmc-sugeridos button{display:grid;gap:2px;width:100%;text-align:left;font:inherit;font-size:13.5px;background:#fff;border:0;border-bottom:1px solid var(--borde);padding:8px 12px;cursor:pointer}
 .cmc-sugeridos button:hover{background:var(--celeste-claro)}
 .cmc-sugeridos small{color:var(--tx2);font-size:12px}
+
+/* Hojas de Córdoba me capacita con contenido que fluye (ver components/cmc/HojasFlujo.tsx) */
+.medicion-hojas{position:fixed;left:-10000px;top:0;width:210mm;visibility:hidden;pointer-events:none}
+.hojas-impresion .viz-columnas svg,.medicion-hojas .viz-columnas svg{max-height:190px}
+.hoja.hoja-flujo>.card{margin:0 0 auto}
+.hoja.hoja-flujo .card>*:first-child{margin-top:0}
+@media print{.medicion-hojas{display:none}}
+/* La medición se hace con pantalla: se repiten acá las reglas que solo valen al imprimir, para que las alturas medidas sean las de la hoja */
+.medicion-hojas .viz-barras{gap:5px}
+.medicion-hojas .hoja .viz-barras .viz-fila{padding:0;margin:0}
+.medicion-hojas .viz-todo,.medicion-hojas .viz-tabla,.medicion-hojas .viz-tip{display:none}
+.medicion-hojas .viz-detalle details{border:0}
+.medicion-hojas .hoja .viz-detalle{display:block;column-count:2;column-gap:22px}
+.medicion-hojas .hoja .viz-detalle-fijo h4{margin:6px 0 2px}
+.medicion-hojas .hoja-pie{margin-top:0}
+.hoja-flujo .viz-barras{gap:3px}
+.hoja-flujo .hoja-dos-col .viz-barras{gap:2px}
+/* Las hojas no dependen del ancho de la ventana (al imprimir, el ancho es el de la hoja y se activan las reglas de pantallas angostas) */
+.hoja-flujo .kpis.kpis-4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.hoja-flujo .kpis.kpis-4 .kpi:last-child{grid-column:auto}
+.filtros-tabla{margin:6px 0 12px}
+.filtros-tabla .filtro-sel select{max-width:min(320px,90vw)}
+.fila-desplegable:hover{background:var(--celeste-claro)}
+.fila-detalle>td{background:var(--surface);padding:10px 14px!important}
+.cmc-cursos-cap{width:100%;font-size:13px;border-collapse:collapse}
+.cmc-cursos-cap th,.cmc-cursos-cap td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--borde);vertical-align:top}
+.cmc-cursos-cap th.th-num,.cmc-cursos-cap td.td-num{text-align:right}

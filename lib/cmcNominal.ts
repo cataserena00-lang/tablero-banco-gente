@@ -131,3 +131,26 @@ export async function listarCapacitadores(a: AlcanceCmc, pagina: number) {
   const filas = await consulta<Record<string, Celda>>(c, `${SELECT_CAP} ${w} GROUP BY k.cuil, k.apellido, k.nombre ORDER BY k.apellido, k.nombre LIMIT ${POR_PAGINA_CMC} OFFSET ${(Math.max(1, pagina) - 1) * POR_PAGINA_CMC}`, params);
   return { total, filas, pagina: Math.max(1, pagina), porPagina: POR_PAGINA_CMC };
 }
+
+export interface CursoDeCapacitador {
+  id_curso: number; curso: string; institucion: string; localidad: string; departamento: string;
+  fecha_inicio: string | null; fecha_fin: string | null; horas: number | null; planificacion: string | null; inscriptos: number;
+}
+/** Cursos que dio un capacitador (por CUIL), con sus fechas; respeta el curso o la zona del listado desde el que se pide. */
+export async function cursosDeCapacitador(cuil: string, a: AlcanceCmc) {
+  const c = sql(), params: unknown[] = [cuil], w: string[] = ["k.cuil = $1"];
+  if (a.curso !== undefined) { params.push(a.curso); w.push(`q.id_curso = $${params.length}`); }
+  if (a.dep) { params.push(a.dep); w.push(`q.zona_dep = $${params.length}`); }
+  if (a.loc) { params.push(a.loc); w.push(`q.zona_loc = $${params.length}`); }
+  if (a.zonas?.length) {
+    w.push("(" + a.zonas.map(z => {
+      params.push(z.dep); let t = `q.zona_dep = $${params.length}`;
+      if (z.loc) { params.push(z.loc); t += ` AND q.zona_loc = $${params.length}`; }
+      return `(${t})`;
+    }).join(" OR ") + ")");
+  }
+  return consulta<CursoDeCapacitador>(c,
+    `SELECT DISTINCT q.id_curso, q.curso, q.institucion, q.zona_loc AS localidad, q.zona_dep AS departamento, q.fecha_inicio, q.fecha_fin, q.hs_presenciales AS horas,
+            q.estado_planificacion AS planificacion, q.inscriptos
+     FROM cmc_capacitadores k JOIN cmc_cursos q USING (id_curso) WHERE ${w.join(" AND ")} ORDER BY q.fecha_inicio DESC NULLS LAST, q.curso LIMIT 500`, params);
+}

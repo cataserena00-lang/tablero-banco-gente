@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { miles, nombreDep } from "@/lib/formato";
 import { descargarExcelCmc, parametros } from "@/lib/clienteCmc";
 
@@ -9,6 +9,8 @@ import { descargarExcelCmc, parametros } from "@/lib/clienteCmc";
 type Fila = Record<string, string | number | null>;
 interface Respuesta { total: number; filas: Fila[]; pagina: number; porPagina: number }
 export interface CursoOpcion { id: number; curso: string; inst: string; loc: string; dep: string }
+interface CursoCap { id_curso: number; curso: string; institucion: string; localidad: string; departamento: string; fecha_inicio: string | null; fecha_fin: string | null; horas: number | null; planificacion: string | null; inscriptos: number }
+const fechaCorta = (v: string | null) => (v ? v.slice(8, 10) + "/" + v.slice(5, 7) + "/" + v.slice(0, 4) : "—");
 const ESTADOS: [string, string][] = [["INSCRIPTO", "Inscriptos"], ["CURSANDO", "Cursando"], ["APROBADO", "Aprobados"], ["EGRESADO", "Egresados"], ["NO APROBADO", "No aprobados"], ["BAJA", "Bajas"]];
 const dato = (v: string | number | null | undefined) => (v === null || v === undefined || v === "" ? "—" : String(v));
 const plano = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
@@ -23,6 +25,9 @@ export default function VistaNominalCmc({ tipo, deps, zonas, cursos, inicial }: 
   const [buscaCurso, setBuscaCurso] = useState("");
   const [datos, setDatos] = useState<Respuesta | null>(null), [cargando, setCargando] = useState(false), [error, setError] = useState<string | null>(null);
   const [bajando, setBajando] = useState(false);
+  // Capacitadores: al tocar uno se despliegan los cursos que dio y las fechas (se piden una sola vez por capacitador y zona)
+  const [abiertos, setAbiertos] = useState<string[]>([]);
+  const [cursosCap, setCursosCap] = useState<Record<string, { estado: "cargando" | "error" | "ok"; cursos: CursoCap[] }>>({});
 
   const locs = useMemo(() => (dep ? zonas.filter(z => deps[z[0]] === dep).map(z => z[1]).sort((a, b) => a.localeCompare(b, "es")) : []), [dep, zonas, deps]);
   const cursoSel = curso !== null ? cursos.find(c => c.id === curso) : null;
@@ -44,6 +49,17 @@ export default function VistaNominalCmc({ tipo, deps, zonas, cursos, inicial }: 
     return () => ctl.abort();
   }, [tipo, esPart, curso, dep, loc, q, estado, pagina]);
 
+  const claveCap = (cuil: string) => `${cuil}|${curso}|${dep}|${loc}`;
+  const alternarCap = (cuil: string) => {
+    const k = claveCap(cuil);
+    setAbiertos(a => (a.includes(k) ? a.filter(x => x !== k) : [...a, k]));
+    if (cursosCap[k]) return;
+    setCursosCap(c => ({ ...c, [k]: { estado: "cargando", cursos: [] } }));
+    const p = parametros({ curso, dep: dep || null, loc: loc || null }); p.set("cuil", cuil);
+    fetch(`/api/cmc/capacitadores/cursos?${p}`).then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then((j: { cursos: CursoCap[] }) => setCursosCap(c => ({ ...c, [k]: { estado: "ok", cursos: j.cursos } })))
+      .catch(() => setCursosCap(c => ({ ...c, [k]: { estado: "error", cursos: [] } })));
+  };
   const paginas = datos ? Math.max(1, Math.ceil(datos.total / datos.porPagina)) : 1;
   const hayFiltros = !!(dep || loc || curso !== null || estado || busq);
   const limpiar = () => { setDep(""); setLoc(""); setCurso(null); setEstado(""); setBusq(""); setQ(""); setBuscaCurso(""); setPagina(1); };
@@ -101,16 +117,43 @@ export default function VistaNominalCmc({ tipo, deps, zonas, cursos, inicial }: 
             {esPart ? (
               <thead><tr><th className="th-loc">Apellido y nombre</th><th>CUIL</th><th>DNI</th><th>Sexo</th><th className="th-num">Edad</th><th>Teléfono</th><th>Mail</th><th>Estado</th><th>Curso</th></tr></thead>
             ) : (
-              <thead><tr><th className="th-loc">Apellido y nombre</th><th>CUIL</th><th className="th-num">Cursos</th><th>Localidades</th><th>Departamentos</th></tr></thead>
+              <thead><tr><th className="th-loc">Apellido y nombre <small>(tocá uno para ver sus cursos)</small></th><th>CUIL</th><th className="th-num">Cursos</th><th>Localidades</th><th>Departamentos</th></tr></thead>
             )}
             <tbody>
               {datos?.filas.map((f, i) => esPart ? (
                 <tr key={i}><td className="td-loc">{dato(f.apellido)}, {dato(f.nombre)}</td><td>{dato(f.cuil)}</td><td>{dato(f.dni)}</td><td>{dato(f.sexo)}</td><td className="td-num">{dato(f.edad)}</td>
                   <td>{dato(f.telefono)}</td><td>{dato(f.mail)}</td><td>{dato(f.estado)}</td><td>{dato(f.curso)}<br /><small>{dato(f.institucion)} · {nombreDep(String(f.localidad ?? ""))}</small></td></tr>
-              ) : (
-                <tr key={i}><td className="td-loc">{dato(f.apellido)}, {dato(f.nombre)}</td><td>{dato(f.cuil)}</td><td className="td-num">{dato(f.cursos)}</td>
-                  <td>{String(f.localidades ?? "").split(", ").map(nombreDep).join(", ") || "—"}</td><td>{String(f.departamentos ?? "").split(", ").map(nombreDep).join(", ") || "—"}</td></tr>
-              ))}
+              ) : (() => {
+                const cuil = String(f.cuil ?? ""), k = claveCap(cuil), abierto = abiertos.includes(k), det = cursosCap[k];
+                return (
+                  <Fragment key={i}>
+                    <tr className="fila-desplegable" style={{ cursor: "pointer" }} tabIndex={0} aria-expanded={abierto} onClick={() => alternarCap(cuil)}
+                      onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); alternarCap(cuil); } }}>
+                      <td className="td-loc"><span aria-hidden="true">{abierto ? "▾" : "▸"}</span> {dato(f.apellido)}, {dato(f.nombre)}</td><td>{dato(f.cuil)}</td><td className="td-num">{dato(f.cursos)}</td>
+                      <td>{String(f.localidades ?? "").split(", ").map(nombreDep).join(", ") || "—"}</td><td>{String(f.departamentos ?? "").split(", ").map(nombreDep).join(", ") || "—"}</td>
+                    </tr>
+                    {abierto && (
+                      <tr className="fila-detalle"><td colSpan={5}>
+                        {!det || det.estado === "cargando" ? <p className="cmc-nota">Cargando los cursos…</p>
+                          : det.estado === "error" ? <p className="err">No se pudieron cargar los cursos.</p>
+                          : (
+                            <table className="cmc-cursos-cap">
+                              <thead><tr><th>Curso</th><th>Institución</th><th>Localidad</th><th>Inicio</th><th>Fin</th><th className="th-num">Horas</th><th className="th-num">Inscriptos</th><th>Planificación</th></tr></thead>
+                              <tbody>
+                                {det.cursos.map(c => (
+                                  <tr key={c.id_curso}><td>{dato(c.curso)}</td><td>{dato(c.institucion)}</td><td>{nombreDep(c.localidad)}<br /><small>{nombreDep(c.departamento)}</small></td>
+                                    <td>{fechaCorta(c.fecha_inicio)}</td><td>{fechaCorta(c.fecha_fin)}</td><td className="td-num">{dato(c.horas)}</td><td className="td-num">{dato(c.inscriptos)}</td><td>{dato(c.planificacion)}</td></tr>
+                                ))}
+                                {!det.cursos.length && <tr><td colSpan={8}>No hay cursos con estos filtros.</td></tr>}
+                              </tbody>
+                            </table>
+                          )}
+                      </td></tr>
+                    )}
+                  </Fragment>
+                );
+              })()
+              )}
               {datos && !datos.filas.length && <tr><td colSpan={9}>No hay resultados con estos filtros.</td></tr>}
             </tbody>
           </table>
