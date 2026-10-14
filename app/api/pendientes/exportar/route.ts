@@ -12,7 +12,7 @@ const slug = (t: string) => t.normalize("NFD").replace(/\p{M}/gu, "").toLowerCas
 
 // Excel con los créditos pendientes de una zona (datos NOMINALES). Solo perfil "completo" o admin; el rol se verifica acá, en el servidor.
 export async function GET(req: Request) {
-  const s = await exigirRol("completo");
+  const s = await exigirRol("completo", "bg");
   if (!s) return NextResponse.json({ error: "prohibido" }, { status: 403, headers: SIN_CACHE });
   if (!baseConfigurada()) return NextResponse.json({ error: "sin_base" }, { status: 503, headers: SIN_CACHE });
   const zona = zonaDe(new URL(req.url).searchParams);

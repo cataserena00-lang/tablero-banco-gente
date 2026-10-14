@@ -9,7 +9,7 @@ const SIN_CACHE = { "Cache-Control": "no-store" };
 
 // Cuántos créditos pendientes tiene una zona (solo la cantidad). Solo perfil "completo" o admin.
 export async function GET(req: Request) {
-  if (!(await exigirRol("completo"))) return NextResponse.json({ error: "prohibido" }, { status: 403, headers: SIN_CACHE });
+  if (!(await exigirRol("completo", "bg"))) return NextResponse.json({ error: "prohibido" }, { status: 403, headers: SIN_CACHE });
   if (!baseConfigurada()) return NextResponse.json({ error: "sin_base" }, { status: 503, headers: SIN_CACHE });
   const zona = zonaDe(new URL(req.url).searchParams);
   if (!zona) return NextResponse.json({ error: "invalido" }, { status: 400, headers: SIN_CACHE });

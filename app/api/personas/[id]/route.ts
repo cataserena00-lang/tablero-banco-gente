@@ -8,7 +8,7 @@ const SIN_CACHE = { "Cache-Control": "no-store" };
 // Una persona (datos de su última solicitud) y todas sus solicitudes, de la más nueva a la más vieja. `id` es el de la persona en el listado.
 // Solo perfil "completo"; cada consulta queda registrada en `accesos`.
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const s = await exigirRol("completo");
+  const s = await exigirRol("completo", "bg");
   if (!s) return NextResponse.json({ error: "prohibido" }, { status: 403, headers: SIN_CACHE });
   if (!baseConfigurada()) return NextResponse.json({ error: "sin_base" }, { status: 503, headers: SIN_CACHE });
   const id = Number((await params).id);

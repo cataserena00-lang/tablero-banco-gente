@@ -10,7 +10,7 @@ const SIN_CACHE = { "Cache-Control": "no-store" };
 // PDF con la ficha de una persona y todas sus solicitudes. Solo perfil "completo" (se verifica acá, en el servidor);
 // queda registrado en `accesos` como exportación.
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const s = await exigirRol("completo");
+  const s = await exigirRol("completo", "bg");
   if (!s) return NextResponse.json({ error: "prohibido" }, { status: 403, headers: SIN_CACHE });
   if (!baseConfigurada()) return NextResponse.json({ error: "sin_base" }, { status: 503, headers: SIN_CACHE });
   const id = Number((await params).id);
