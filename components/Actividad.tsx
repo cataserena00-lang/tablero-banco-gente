@@ -30,8 +30,14 @@ function describir(e: Evento): string {
   if (e.accion === "exportable") {
     const zonas = Array.isArray(d.zonas) ? (d.zonas as unknown[]).map(texto).filter(Boolean) : [];
     const cont = d.contenido === "completa+personas" ? "ficha completa con personas" : d.contenido === "completa" ? "ficha completa" : "solo pendientes";
+    if (d.contenido === "cmc") return `Córdoba me capacita · resumen en PDF${zonas.length ? " · " + zonas.slice(0, 4).join(", ") : " · general"}`;
     if (d.tipo === "panorama") return "Resumen general (PDF)";
     return `${d.tipo === "fichas" ? "Fichas" : "Ficha"}: ${zonas.slice(0, 4).join(", ")}${zonas.length > 4 ? ` y ${zonas.length - 4} más` : ""} · ${cont}${d.cantidad && d.contenido === "completa+personas" ? ` · ${miles(Number(d.cantidad))} personas` : ""}`;
+  }
+  if (d.programa === "cmc") {
+    const zona = [d.dep, d.loc].map(texto).filter(Boolean).join(" · ") || (d.curso ? `curso ${texto(d.curso)}` : "todo Córdoba");
+    if (e.accion === "exportacion") return `Córdoba me capacita · Excel de ${texto(d.tipo).startsWith("capacitadores") ? "capacitadores" : "participantes"} · ${zona}`;
+    return `Córdoba me capacita · ${texto(d.tipo) === "capacitadores" ? "búsqueda de capacitadores" : "búsqueda de participantes"} · ${zona}`;
   }
   if (e.accion === "ficha") return `Abrió la ficha de la persona n.º ${texto(d.id)}`;
   if (e.accion === "exportacion" && d.tipo === "pendientes_excel") {

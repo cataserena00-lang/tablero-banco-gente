@@ -36,6 +36,9 @@ const ITEMS_BG: Item[] = [
 ];
 const ITEMS_CMC: Item[] = [
   { href: "/cba-me-capacita", clave: "panorama", texto: "Panorama", corto: "Panorama", exacto: true },
+  { href: "/cba-me-capacita/exportar", clave: "exportar", texto: "Exportar", corto: "Exportar" },
+  { href: "/cba-me-capacita/participantes", clave: "personas", texto: "Participantes", corto: "Participantes", soloCompleto: true },
+  { href: "/cba-me-capacita/capacitadores", clave: "cursos", texto: "Capacitadores", corto: "Capacitad.", soloCompleto: true },
 ];
 const MARCAS: Record<ProgramaNav, { logo: typeof logoBanco; alt: string; items: Item[] }> = {
   bg: { logo: logoBanco, alt: "Banco de la Gente. Aquí su palabra vale oro", items: ITEMS_BG },

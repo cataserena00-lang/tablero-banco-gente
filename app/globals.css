@@ -518,3 +518,11 @@ a.prog-card:hover{box-shadow:0 6px 18px rgba(0,0,0,.09);transform:translateY(-2p
 .cmc-nota{font-size:12.5px;color:var(--tx2);margin:6px 0 0}
 .cmc-acciones{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}
 .cmc-nominal .kpis{margin-top:14px}
+.ficha-export-menu .menu-enlace{display:block;font-size:13.5px;color:var(--celeste-txt);background:#fff;border-bottom:1px solid var(--borde);padding:10px 14px;text-decoration:none}
+.ficha-export-menu .menu-enlace:hover{background:var(--celeste-claro)}
+.cmc-curso-pick{position:relative}
+.cmc-curso-pick input,.filtros-personas .filtro-sel input[type=search]{font:inherit;font-size:14px;border:1px solid var(--borde);border-radius:8px;padding:7px 10px;min-width:220px}
+.cmc-sugeridos{position:absolute;z-index:6;left:0;top:100%;margin:2px 0 0;padding:0;list-style:none;background:#fff;border:1px solid var(--borde);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.14);width:min(420px,90vw);max-height:300px;overflow:auto}
+.cmc-sugeridos button{display:grid;gap:2px;width:100%;text-align:left;font:inherit;font-size:13.5px;background:#fff;border:0;border-bottom:1px solid var(--borde);padding:8px 12px;cursor:pointer}
+.cmc-sugeridos button:hover{background:var(--celeste-claro)}
+.cmc-sugeridos small{color:var(--tx2);font-size:12px}

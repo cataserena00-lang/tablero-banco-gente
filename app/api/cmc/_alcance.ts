@@ -1,5 +1,7 @@
 import type { AlcanceCmc } from "@/lib/cmcNominal";
 
+const ESTADOS = new Set(["INSCRIPTO", "CURSANDO", "APROBADO", "EGRESADO", "NO APROBADO", "BAJA"]);
+
 /** Alcance pedido en la URL: ?curso=123 | ?zdep=COLON&zloc=UNQUILLO, y ?q= para buscar. Devuelve null si algo no es válido. */
 export function alcanceDe(u: URLSearchParams): AlcanceCmc | null {
   const a: AlcanceCmc = {};
@@ -11,6 +13,11 @@ export function alcanceDe(u: URLSearchParams): AlcanceCmc | null {
   const dep = (u.get("zdep") ?? "").trim().slice(0, 100), loc = (u.get("zloc") ?? "").trim().slice(0, 100);
   if (dep) a.dep = dep;
   if (loc) a.loc = loc;
+  const estado = (u.get("estado") ?? "").trim();
+  if (estado) {
+    if (!ESTADOS.has(estado)) return null;
+    a.estado = estado;
+  }
   const q = (u.get("q") ?? "").trim().slice(0, 100);
   if (q) a.q = q;
   return a;
