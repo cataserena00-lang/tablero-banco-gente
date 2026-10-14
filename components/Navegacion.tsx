@@ -32,7 +32,6 @@ const ITEMS_BG: Item[] = [
   { href: "/banco-gente/planificacion", clave: "plan", texto: "Planificación de entregas", corto: "Entregas" },
   { href: "/banco-gente/exportar", clave: "exportar", texto: "Exportar fichas", corto: "Exportar" },
   { href: "/banco-gente/personas", clave: "personas", texto: "Vista de personas", corto: "Personas", soloCompleto: true },
-  { href: "/banco-gente/actividad", clave: "actividad", texto: "Actividad de usuarios", corto: "Actividad", soloAdmin: true },
 ];
 const ITEMS_CMC: Item[] = [
   { href: "/cba-me-capacita", clave: "panorama", texto: "Panorama", corto: "Panorama", exacto: true },

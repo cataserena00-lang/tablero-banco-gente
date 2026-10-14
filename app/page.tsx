@@ -4,7 +4,7 @@ import { cargarOpcional } from "@/lib/datos";
 import { sesionActual } from "@/lib/sesion";
 import { nombreDe } from "@/lib/auth";
 import { PROGRAMAS, programasDe, type Programa } from "@/lib/programas";
-import { LogoCmc, LogoBanco, LogoMinisterio } from "@/components/Marca";
+import { LogoCmc, LogoBanco, LogoMinisterio, LogoPrimerPaso } from "@/components/Marca";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Ministerio de Desarrollo Social y Promoción del Empleo" };
@@ -12,7 +12,7 @@ export const metadata = { title: "Ministerio de Desarrollo Social y Promoción d
 const LOGOS: Record<Programa, React.ReactNode> = {
   bg: <LogoBanco />,
   cmc: <LogoCmc />,
-  pe: <span className="prog-sin-logo">Planes de Empleo</span>,
+  pe: <LogoPrimerPaso />,
 };
 const CARPETAS: Partial<Record<Programa, string>> = { bg: "banco_gente", cmc: "cba_me_capacita" };
 
@@ -52,6 +52,13 @@ export default async function Inicio() {
             ? <Link key={p.id} href={p.ruta} className={`card prog-card prog-${p.id}`}>{cuerpo}</Link>
             : <div key={p.id} className={`card prog-card prog-${p.id} prog-pronto`} aria-disabled="true">{cuerpo}</div>;
         })}
+        {s.rol === "admin" && (
+          <Link href="/actividad" className="card prog-card prog-admin">
+            <div className="prog-logo"><span className="prog-sin-logo">Administración</span></div>
+            <h2>Actividad de usuarios</h2>
+            <p>Ingresos, búsquedas y exportables de cada usuario en todos los programas. Solo lo ves vos.</p>
+          </Link>
+        )}
       </div>
     </main>
   );

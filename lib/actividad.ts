@@ -1,7 +1,7 @@
 import { conexion, consulta } from "@/lib/personas";
 
 /* Actividad de los usuarios (tabla `accesos`): ingresos al tablero, consultas de personas y exportables generados.
-   Solo la lee el perfil admin (rutas /api/actividad y página /banco-gente/actividad, siempre después de exigirRol("admin")).
+   Solo la lee el perfil admin (rutas /api/actividad y página /actividad, siempre después de exigirRol("admin")).
    La conexión "lectura" necesita SELECT sobre `accesos` (ver pipelines/banco_gente/personas_schema.sql). */
 
 export const POR_PAGINA_ACTIVIDAD = 50;

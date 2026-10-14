@@ -1,5 +1,6 @@
 import logoBanco from "@/assets/marca/banco-de-la-gente.png";
 import logoCmc from "@/assets/marca/cba-me-capacita.png";
+import logoPpp from "@/assets/marca/programa-primer-paso.png";
 import logoMin from "@/assets/marca/ministerio-desarrollo-social.png";
 import logoGobierno from "@/assets/marca/cordoba-gobierno-hacer-para-crecer.png";
 
@@ -15,6 +16,10 @@ export function LogoBanco() {
 
 export function LogoCmc() {
   return <img className="logo-cmc" src={logoCmc.src} width={logoCmc.width} height={logoCmc.height} alt="Córdoba me capacita" />;
+}
+
+export function LogoPrimerPaso() {
+  return <img className="logo-cmc" src={logoPpp.src} width={logoPpp.width} height={logoPpp.height} alt="Programa Primer Paso" />;
 }
 
 /* Marca general del Ministerio: login e inicio. */
