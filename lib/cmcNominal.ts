@@ -10,7 +10,7 @@ export const MAX_FILAS_EXCEL_CMC = 60_000;   // un Excel con más filas no lo ar
 export type Celda = string | number | null;
 
 /** Qué se pide: un curso, o una zona (departamento y, si se quiere, localidad). Con `q`, busca por apellido, nombre, CUIL o documento. */
-export interface AlcanceCmc { curso?: number; dep?: string; loc?: string; q?: string; estado?: string }
+export interface AlcanceCmc { curso?: number; dep?: string; loc?: string; q?: string; estado?: string; zonas?: { dep: string; loc?: string }[] }
 
 const sinTildes = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "");
 const escapar = (s: string) => s.replace(/[\\%_]/g, c => "\\" + c);
@@ -20,6 +20,13 @@ function donde(a: AlcanceCmc, alias = "p") {
   if (a.curso !== undefined) { params.push(a.curso); w.push(`${alias}.id_curso = $${params.length}`); }
   if (a.dep) { params.push(a.dep); w.push(`${alias}.zona_dep = $${params.length}`); }
   if (a.loc) { params.push(a.loc); w.push(`${alias}.zona_loc = $${params.length}`); }
+  if (a.zonas?.length) {   // varias zonas a la vez: cualquiera de ellas
+    w.push("(" + a.zonas.map(z => {
+      params.push(z.dep); let t = `${alias}.zona_dep = $${params.length}`;
+      if (z.loc) { params.push(z.loc); t += ` AND ${alias}.zona_loc = $${params.length}`; }
+      return `(${t})`;
+    }).join(" OR ") + ")");
+  }
   if (a.estado) { params.push(a.estado); w.push(`${alias}.estado = $${params.length}`); }
   for (const t of sinTildes(a.q ?? "").toUpperCase().split(/\s+/).filter(Boolean).slice(0, 5)) {
     const digitos = t.replace(/\D/g, "");
@@ -101,6 +108,13 @@ function dondeCap(a: AlcanceCmc) {
   if (a.curso !== undefined) { params.push(a.curso); w.push(`q.id_curso = $${params.length}`); }
   if (a.dep) { params.push(a.dep); w.push(`q.zona_dep = $${params.length}`); }
   if (a.loc) { params.push(a.loc); w.push(`q.zona_loc = $${params.length}`); }
+  if (a.zonas?.length) {   // varias zonas a la vez: cualquiera de ellas
+    w.push("(" + a.zonas.map(z => {
+      params.push(z.dep); let t = `q.zona_dep = $${params.length}`;
+      if (z.loc) { params.push(z.loc); t += ` AND q.zona_loc = $${params.length}`; }
+      return `(${t})`;
+    }).join(" OR ") + ")");
+  }
   for (const t of sinTildes(a.q ?? "").toUpperCase().split(/\s+/).filter(Boolean).slice(0, 5)) {
     const digitos = t.replace(/\D/g, "");
     if (digitos.length >= 3 && digitos.length === t.replace(/[.\-]/g, "").length) { params.push(`%${digitos}%`); w.push(`k.cuil LIKE $${params.length}`); }

@@ -17,13 +17,13 @@ export async function GET(req: Request) {
   if (!baseConfigurada()) return NextResponse.json({ error: "sin_base" }, { status: 503, headers: SIN_CACHE });
   const u = new URL(req.url), a = alcanceDe(u.searchParams), tipo = u.searchParams.get("tipo");
   if (!a || (tipo !== "participantes" && tipo !== "capacitadores")) return NextResponse.json({ error: "invalido" }, { status: 400, headers: SIN_CACHE });
-  if (tipo === "participantes" && a.curso === undefined && !a.dep) return NextResponse.json({ error: "demasiadas", total: 0 }, { status: 413, headers: SIN_CACHE });   // todo Córdoba es demasiado para un Excel
+  if (tipo === "participantes" && a.curso === undefined && !a.dep && !a.zonas?.length) return NextResponse.json({ error: "demasiadas", total: 0 }, { status: 413, headers: SIN_CACHE });   // todo Córdoba es demasiado para un Excel
   try {
     const r = tipo === "participantes" ? await participantesParaExcel(a) : await capacitadoresParaExcel(a);
     if ("excede" in r && r.excede) return NextResponse.json({ error: "demasiadas", total: r.total }, { status: 413, headers: SIN_CACHE });
     if (!r.total) return NextResponse.json({ error: "sin_datos" }, { status: 404, headers: SIN_CACHE });
-    const alcance = (a.curso !== undefined ? `Curso ${a.curso}` : [a.dep, a.loc].filter(Boolean).join(" · ") || "Todo Córdoba") + (a.estado ? ` · ${a.estado}` : "") + (a.q ? " (con búsqueda)" : "");
-    await registrarAcceso(s.usuario, s.rol, "exportacion", { programa: "cmc", tipo: `${tipo}_excel`, curso: a.curso, dep: a.dep, loc: a.loc, conBusqueda: !!a.q, estado: a.estado }, r.total);
+    const alcance = (a.curso !== undefined ? `Curso ${a.curso}` : a.zonas?.length ? `${a.zonas.length} zonas elegidas` : [a.dep, a.loc].filter(Boolean).join(" · ") || "Todo Córdoba") + (a.estado ? ` · ${a.estado}` : "") + (a.q ? " (con búsqueda)" : "");
+    await registrarAcceso(s.usuario, s.rol, "exportacion", { programa: "cmc", tipo: `${tipo}_excel`, curso: a.curso, dep: a.dep, loc: a.loc, zonas: a.zonas?.map(z => z.loc ? `${z.dep} · ${z.loc}` : z.dep), conBusqueda: !!a.q, estado: a.estado }, r.total);
     const fecha = new Date().toLocaleString("es-AR", { timeZone: "America/Argentina/Cordoba", dateStyle: "short", timeStyle: "short" });
     const buf = await armarExcelCmc({
       hoja: tipo === "participantes" ? "Participantes" : "Capacitadores", alcance,

@@ -10,17 +10,19 @@ import { C, COLOR_ESTADO, GRUPOS_PERFIL, TITULO_ESTADO, TITULO_SEXO, mesTexto, n
      2. Perfil de los participantes y evolución por mes de inicio.
      3. Detalle: departamentos (general), localidades (departamento) o cursos (localidad). */
 
-export type Nivel = "general" | "dep" | "loc";
+export type Nivel = "general" | "dep" | "loc" | "zonas";   // "zonas": varias zonas elegidas a la vez (resumen conjunto)
 const MAX_CURSOS = 30;
 
-export default function HojasResumenCmc({ d, r, cx, nivel, titulo, ambito, filtros, depSel }: {
+export default function HojasResumenCmc({ d, r, cx, nivel, titulo, ambito, filtros, depSel, zonasTabla = [], nota }: {
   d: DatosCmc; r: Resumen; cx: Contexto; nivel: Nivel; titulo: string; ambito: string; filtros: string[]; depSel: number;
+  zonasTabla?: { nombre: string; cursos: number; insc: number }[];   // solo para nivel «zonas»
+  nota?: string;                                                      // aclaración al pie de la tabla de detalle
 }) {
   const act = fmtF(d.actualizado);
   const hayFiltros = filtros.length > 0;
   const sectores = r.porSector.map((g, i) => ({ clave: d.sectores[i], etiqueta: d.sectores[i], valor: g.cursos, color: colorSerie(i), detalle: `${miles(g.insc)} insc.` }))
     .filter(x => x.valor > 0).sort((a, b) => b.valor - a.valor).slice(0, 10);
-  const subs = nivel === "general"
+  const subs = nivel === "zonas" ? zonasTabla.map(z => ({ k: z.nombre, ...z })) : nivel === "general"
     ? d.dep.map((n, i) => ({ k: n, nombre: nombreDep(n), ...r.porDep[i] })).filter(x => x.cursos > 0).sort((a, b) => b.insc - a.insc)
     : nivel === "dep"
       ? d.zonas.map((z, i) => ({ k: String(i), nombre: nombreDep(z[1]), dep: z[0], ...r.porZona[i] })).filter(x => x.dep === depSel && x.cursos > 0).sort((a, b) => b.insc - a.insc)
@@ -35,7 +37,7 @@ export default function HojasResumenCmc({ d, r, cx, nivel, titulo, ambito, filtr
         <CabeceraHojaCmc actualizado={act} detalle={ambito} />
         <section className="card acto-ficha" aria-label="Resumen">
           <header><div>
-            <p className="zona-etiqueta">{nivel === "general" ? "Resumen general" : nivel === "dep" ? "Departamento" : "Localidad"}</p>
+            <p className="zona-etiqueta">{nivel === "general" ? "Resumen general" : nivel === "zonas" ? "Resumen conjunto" : nivel === "dep" ? "Departamento" : "Localidad"}</p>
             <h2>{titulo}</h2>
             <p className="sub">Cursos desde {d.desde.slice(0, 4)}{hayFiltros ? ` · Filtros: ${filtros.join(" · ")}` : " · Sin filtros"}</p>
           </div></header>
@@ -81,8 +83,8 @@ export default function HojasResumenCmc({ d, r, cx, nivel, titulo, ambito, filtr
         <CabeceraHojaCmc actualizado={act} detalle={ambito} />
         <section className="card acto-ficha" aria-label="Detalle">
           <header><div><p className="zona-etiqueta">{titulo}</p>
-            <h2>{nivel === "general" ? "Departamentos" : nivel === "dep" ? "Localidades" : "Cursos"}</h2>
-            <p className="sub">{nivel === "loc" ? `${miles(r.ag.cursos)} cursos${r.ag.cursos > MAX_CURSOS ? ` · los ${MAX_CURSOS} con más inscripciones` : ""}` : `${miles(subs.length)} ${nivel === "general" ? "departamentos" : "localidades"} por inscripciones`}</p></div></header>
+            <h2>{nivel === "general" ? "Departamentos" : nivel === "zonas" ? "Zonas elegidas" : nivel === "dep" ? "Localidades" : "Cursos"}</h2>
+            <p className="sub">{nivel === "loc" ? `${miles(r.ag.cursos)} cursos${r.ag.cursos > MAX_CURSOS ? ` · los ${MAX_CURSOS} con más inscripciones` : ""}` : `${miles(subs.length)} ${nivel === "general" ? "departamentos" : nivel === "zonas" ? "zonas" : "localidades"} por inscripciones`}</p></div></header>
           <div className="tabla-detalle">
             {nivel === "loc" ? (
               <table>
@@ -96,7 +98,7 @@ export default function HojasResumenCmc({ d, r, cx, nivel, titulo, ambito, filtr
               </table>
             ) : (
               <table>
-                <thead><tr><th className="th-loc">{nivel === "general" ? "Departamento" : "Localidad"}</th><th className="th-num">Cursos</th><th className="th-num">Inscripciones</th><th className="th-num">% del total</th></tr></thead>
+                <thead><tr><th className="th-loc">{nivel === "general" ? "Departamento" : nivel === "zonas" ? "Zona" : "Localidad"}</th><th className="th-num">Cursos</th><th className="th-num">Inscripciones</th><th className="th-num">% del total</th></tr></thead>
                 <tbody>
                   {subs.map(x => <tr key={x.k}><td className="td-loc">{x.nombre}</td><td className="td-num">{miles(x.cursos)}</td><td className="td-num">{miles(x.insc)}</td><td className="td-num">{pct(x.insc, totalInsc)}</td></tr>)}
                 </tbody>
@@ -104,6 +106,7 @@ export default function HojasResumenCmc({ d, r, cx, nivel, titulo, ambito, filtr
               </table>
             )}
           </div>
+          {nota && <p className="nota" style={{ marginTop: 8 }}>{nota}</p>}
         </section>
         <PieHoja />
       </div>
