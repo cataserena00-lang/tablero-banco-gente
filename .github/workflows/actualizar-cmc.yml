@@ -13,9 +13,6 @@ on:
         description: "Recargar la base nominal aunque los archivos no hayan cambiado"
         type: boolean
         default: false
-  push:
-    branches: [claude/cba-me-capacita]   # temporal: probar la rama antes de pasarla a main
-    paths: ["pipelines/cba_me_capacita/**", ".github/workflows/actualizar-cmc.yml"]
 
 permissions:
   contents: write
