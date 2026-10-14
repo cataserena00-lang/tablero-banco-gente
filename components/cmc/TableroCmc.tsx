@@ -196,17 +196,17 @@ export default function TableroCmc({ datos: d, geo, verPersonas = false }: { dat
             <header><div><h2>Localidades de {nombreDep(depSel!)}</h2><p className="sub">{localidades.length} localidades · ordenadas por inscripciones · elegí una para ver su resumen</p></div></header>
             <div className="tabla-detalle">
               <table>
-                <thead><tr><th className="th-loc">Localidad</th><th className="th-num">Cursos</th><th className="th-num">Inscripciones</th><th className="th-num">Egresados</th><th className="th-num">Bajas</th></tr></thead>
+                <thead><tr><th className="th-loc">Localidad</th><th className="th-num">Cursos</th><th className="th-num">Inscripciones</th><th className="th-num">Egresados</th><th className="th-num">% de finalización</th><th className="th-num">Bajas</th></tr></thead>
                 <tbody>
                   {localidades.map(l => (
                     <tr key={l.z}>
                       <td className="td-loc"><button type="button" className="enlace-zona" onClick={() => set({ zona: l.z })}>{nombreDep(l.nombre)}</button></td>
-                      <td className="td-num">{miles(l.cursos)}</td><td className="td-num">{miles(l.insc)}</td><td className="td-num">{miles(l.egr)}</td><td className="td-num">{miles(l.baja)}</td>
+                      <td className="td-num">{miles(l.cursos)}</td><td className="td-num">{miles(l.insc)}</td><td className="td-num">{miles(l.egr)}</td><td className="td-num">{pct(l.egr, l.insc)}</td><td className="td-num">{miles(l.baja)}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot><tr><td className="td-loc"><b>Total</b></td><td className="td-num"><b>{miles(r.ag.cursos)}</b></td><td className="td-num"><b>{miles(r.insc)}</b></td>
-                  <td className="td-num"><b>{miles(nEstado(r, "EGRESADO"))}</b></td><td className="td-num"><b>{miles(nEstado(r, "BAJA"))}</b></td></tr></tfoot>
+                  <td className="td-num"><b>{miles(nEstado(r, "EGRESADO"))}</b></td><td className="td-num"><b>{pct(nEstado(r, "EGRESADO"), r.insc)}</b></td><td className="td-num"><b>{miles(nEstado(r, "BAJA"))}</b></td></tr></tfoot>
               </table>
             </div>
           </section>

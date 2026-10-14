@@ -553,3 +553,7 @@ a.prog-card:hover{box-shadow:0 6px 18px rgba(0,0,0,.09);transform:translateY(-2p
 .cmc-cursos-cap{width:100%;font-size:13px;border-collapse:collapse}
 .cmc-cursos-cap th,.cmc-cursos-cap td{padding:6px 8px;text-align:left;border-bottom:1px solid var(--borde);vertical-align:top}
 .cmc-cursos-cap th.th-num,.cmc-cursos-cap td.td-num{text-align:right}
+.estado-curso{display:inline-block;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600;background:#E5E7EB;color:#374151}
+.estado-curso.estado-egreso,.estado-curso.estado-aprobado{background:#DDF3E4;color:#14532D}
+.estado-curso.estado-cursando{background:#DCEBFA;color:#1D4F7C}
+.estado-curso.estado-baja,.estado-curso.estado-no-aprobado{background:#FBE0E0;color:#8A1C1C}

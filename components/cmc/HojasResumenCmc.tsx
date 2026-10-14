@@ -15,7 +15,7 @@ const MAX_CURSOS = 40;
 
 export default function HojasResumenCmc({ d, r, cx, nivel, titulo, ambito, filtros, depSel, zonasTabla = [], nota }: {
   d: DatosCmc; r: Resumen; cx: Contexto; nivel: Nivel; titulo: string; ambito: string; filtros: string[]; depSel: number;
-  zonasTabla?: { nombre: string; cursos: number; insc: number }[];   // solo para nivel «zonas»
+  zonasTabla?: { nombre: string; cursos: number; insc: number; egr: number }[];   // solo para nivel «zonas»
   nota?: string;                                                      // aclaración al pie de la tabla de detalle
 }) {
   const hayFiltros = filtros.length > 0;
@@ -27,7 +27,7 @@ export default function HojasResumenCmc({ d, r, cx, nivel, titulo, ambito, filtr
     : nivel === "dep"
       ? d.zonas.map((z, i) => ({ k: String(i), nombre: nombreDep(z[1]), dep: z[0], ...r.porZona[i] })).filter(x => x.dep === depSel && x.cursos > 0).sort((a, b) => b.insc - a.insc)
       : [];
-  const totalInsc = subs.reduce((a, x) => a + x.insc, 0);
+  const totalInsc = subs.reduce((a, x) => a + x.insc, 0), totalEgr = subs.reduce((a, x) => a + x.egr, 0);
   const cursos = nivel === "loc" ? [...r.ag.indices].sort((a, b) => d.perfil[b][0] - d.perfil[a][0]) : [];
   const perfil = (k: string, t: string, gi: number) => (
     <div key={k}>
@@ -69,17 +69,18 @@ export default function HojasResumenCmc({ d, r, cx, nivel, titulo, ambito, filtr
     nivel === "loc" ? { id: "detalle", tabla: {
       titulo: <div style={{ marginTop: 14 }}>{cab(detalleTitulo)}<p className="sub">{subDetalle}</p></div>,
       continuacion: <p className="sub" style={{ marginTop: 6 }}>{detalleTitulo} (continuación)</p>,
-      cabecera: <tr><th className="th-loc">Curso</th><th>Institución</th><th>Inicio</th><th className="th-num">Inscriptos</th><th className="th-num">Egresados</th><th className="th-num">Bajas</th></tr>,
+      cabecera: <tr><th className="th-loc">Curso</th><th>Institución</th><th>Inicio</th><th className="th-num">Inscriptos</th><th className="th-num">Egresados</th><th className="th-num">% de finalización</th><th className="th-num">Bajas</th></tr>,
       filas: cursos.slice(0, MAX_CURSOS).map(i => { const c = d.cursos[i], v = d.perfil[i]; return (
         <tr key={c[C.id]}><td className="td-loc">{d.cursos_nombres[c[C.curso]]}</td><td>{d.inst[c[C.inst]]}</td><td>{c[C.mes] >= 0 ? mesTexto(d.meses[c[C.mes]]) : "—"}</td>
           <td className="td-num">{miles(v[0])}</td><td className="td-num">{miles(v[off.estado.ini + off.estado.cats.indexOf("EGRESADO")])}</td>
+          <td className="td-num">{pct(v[off.estado.ini + off.estado.cats.indexOf("EGRESADO")], v[0])}</td>
           <td className="td-num">{miles(v[off.estado.ini + off.estado.cats.indexOf("BAJA")])}</td></tr>); }),
     } } : { id: "detalle", tabla: {
       titulo: <div style={{ marginTop: 14 }}>{cab(detalleTitulo)}<p className="sub">{subDetalle}</p></div>,
       continuacion: <p className="sub" style={{ marginTop: 6 }}>{detalleTitulo} (continuación)</p>,
-      cabecera: <tr><th className="th-loc">{nivel === "general" ? "Departamento" : nivel === "zonas" ? "Zona" : "Localidad"}</th><th className="th-num">Cursos</th><th className="th-num">Inscripciones</th><th className="th-num">% del total</th></tr>,
-      filas: subs.map(x => <tr key={x.k}><td className="td-loc">{x.nombre}</td><td className="td-num">{miles(x.cursos)}</td><td className="td-num">{miles(x.insc)}</td><td className="td-num">{pct(x.insc, totalInsc)}</td></tr>),
-      pie: <tfoot><tr><td className="td-loc"><b>Total</b></td><td className="td-num"><b>{miles(subs.reduce((a, x) => a + x.cursos, 0))}</b></td><td className="td-num"><b>{miles(totalInsc)}</b></td><td className="td-num"><b>100 %</b></td></tr></tfoot>,
+      cabecera: <tr><th className="th-loc">{nivel === "general" ? "Departamento" : nivel === "zonas" ? "Zona" : "Localidad"}</th><th className="th-num">Cursos</th><th className="th-num">Inscripciones</th><th className="th-num">Egresados</th><th className="th-num">% de finalización</th></tr>,
+      filas: subs.map(x => <tr key={x.k}><td className="td-loc">{x.nombre}</td><td className="td-num">{miles(x.cursos)}</td><td className="td-num">{miles(x.insc)}</td><td className="td-num">{miles(x.egr)}</td><td className="td-num">{pct(x.egr, x.insc)}</td></tr>),
+      pie: <tfoot><tr><td className="td-loc"><b>Total</b></td><td className="td-num"><b>{miles(subs.reduce((a, x) => a + x.cursos, 0))}</b></td><td className="td-num"><b>{miles(totalInsc)}</b></td><td className="td-num"><b>{miles(totalEgr)}</b></td><td className="td-num"><b>{pct(totalEgr, totalInsc)}</b></td></tr></tfoot>,
     } },
     ...(nota ? [{ id: "nota", nodo: <p className="nota" style={{ marginTop: 8 }}>{nota}</p> } as Bloque] : []),
   ];
