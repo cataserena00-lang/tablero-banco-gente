@@ -139,11 +139,12 @@ export default function ExportarCmc({ datos: d, verPersonas }: { datos: DatosCmc
             ))}
             {!sinZonas && (
               <>
-                <div className="kpis kpis-4" style={{ marginTop: 12 }}>
+                <div className="kpis" style={{ marginTop: 12 }}>
                   <div className="kpi"><span>Cursos</span><b>{miles(rConj.ag.cursos)}</b></div>
                   <div className="kpi"><span>Inscripciones</span><b>{miles(rConj.insc)}</b><small>{rConj.unicos ? `${miles(rConj.unicos.personas)} personas distintas` : ""}</small></div>
                   <div className="kpi"><span>Egresados</span><b>{miles(nEstado(rConj, "EGRESADO"))}</b><small>{pct(nEstado(rConj, "EGRESADO"), rConj.insc)}</small></div>
                   <div className="kpi"><span>Bajas</span><b>{miles(nEstado(rConj, "BAJA"))}</b><small>{pct(nEstado(rConj, "BAJA"), rConj.insc)}</small></div>
+                  <div className="kpi"><span>Capacitadores</span><b>{rConj.capacitadores === null ? "—" : miles(rConj.capacitadores)}</b><small>distintos</small></div>
                 </div>
                 {hayRepetidas && <p className="nota">Las localidades que están dentro de un departamento elegido se cuentan una sola vez en el total y en los Excel.</p>}
               </>
