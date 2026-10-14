@@ -1,7 +1,7 @@
 "use client";
 import { BarraPartes, BarrasH, ColumnasApiladas, colorSerie } from "../graficos";
 import { fmtF, miles, nombreDep } from "@/lib/formato";
-import { C, COLOR_ESTADO, GRUPOS_PERFIL, TITULO_ESTADO, TITULO_SEXO, mesTexto, nEstado, pct, type Contexto, type DatosCmc, type Resumen } from "@/lib/cmc";
+import { C, COLOR_ESTADO, aniosTexto, GRUPOS_PERFIL, TITULO_ESTADO, TITULO_SEXO, mesTexto, nEstado, pct, type Contexto, type DatosCmc, type Resumen } from "@/lib/cmc";
 import HojasFlujo, { type Bloque } from "./HojasFlujo";
 
 /* Hojas impresas del resumen de Córdoba me capacita (general, de un departamento, de una localidad o de varias zonas): páginas A4 con cabecera y pie
@@ -47,11 +47,11 @@ export default function HojasResumenCmc({ d, r, cx, nivel, titulo, ambito, filtr
       <header><div>
         <p className="zona-etiqueta">{etiquetaNivel}</p>
         <h2>{titulo}</h2>
-        <p className="sub">{hayFiltros ? `Filtros: ${filtros.join(" · ")}` : "Sin filtros"}</p>
+        <p className="sub">Datos de {aniosTexto(d)}{hayFiltros ? ` · Filtros: ${filtros.join(" · ")}` : " · Sin filtros"}</p>
       </div></header>) },
     { id: "kpis", nodo: (
       <div className="kpis kpis-5">
-        <div className="kpi"><span>Cursos</span><b>{miles(r.ag.cursos)}</b><small>dictados</small></div>
+        <div className="kpi"><span>Cursos</span><b>{miles(r.ag.cursos)}</b><small>dictados en {aniosTexto(d)}</small></div>
         <div className="kpi"><span>Inscripciones</span><b>{miles(r.insc)}</b><small>{r.unicos ? `${miles(r.unicos.personas)} personas distintas` : "según los filtros elegidos"}</small></div>
         <div className="kpi"><span>Egresados</span><b>{miles(nEstado(r, "EGRESADO"))}</b><small>{pct(nEstado(r, "EGRESADO"), r.insc)} de las inscripciones</small></div>
         <div className="kpi"><span>Bajas</span><b>{miles(nEstado(r, "BAJA"))}</b><small>{pct(nEstado(r, "BAJA"), r.insc)} de las inscripciones</small></div>

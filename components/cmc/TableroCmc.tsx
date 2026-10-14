@@ -6,7 +6,7 @@ import { BarraPartes, BarrasH, ColumnasApiladas, colorSerie } from "../graficos"
 import { LogoCmc } from "../Marca";
 import { fmtF, miles, nombreDep } from "@/lib/formato";
 import {
-  C, COLOR_ESTADO, GRUPOS_PERFIL, SIN_FILTRO, TITULO_ESTADO, TITULO_SEXO, calcular, contexto, mesTexto, nEstado, normaliza, pct, type DatosCmc, type Filtro,
+  C, COLOR_ESTADO, GRUPOS_PERFIL, SIN_FILTRO, TITULO_ESTADO, TITULO_SEXO, aniosTexto, calcular, contexto, mesTexto, nEstado, normaliza, pct, type DatosCmc, type Filtro,
 } from "@/lib/cmc";
 import type { GeoData } from "../Tablero";
 import HojasResumenCmc, { type Nivel } from "./HojasResumenCmc";
@@ -105,7 +105,7 @@ export default function TableroCmc({ datos: d, geo, verPersonas = false }: { dat
       <div className="franja" />
       <header className="top"><div className="wrap">
         <LogoCmc />
-        <div className="titulo"><h1>Córdoba me capacita</h1><p>Cursos, inscripciones y participantes</p></div>
+        <div className="titulo"><h1>Córdoba me capacita</h1><p>Cursos, inscripciones y participantes · {aniosTexto(d)}</p></div>
         <div className="actualiz">Datos actualizados el<b>{fmtF(d.actualizado)}</b></div>
         <form method="post" action="/api/logout" className="salir-form"><button className="salir" type="submit">Salir</button></form>
       </div></header>
@@ -143,7 +143,7 @@ export default function TableroCmc({ datos: d, geo, verPersonas = false }: { dat
         </div>
 
         <section className="kpis" aria-label="Indicadores" style={{ marginTop: 14 }}>
-          <div className="kpi"><span>Cursos</span><b>{miles(r.ag.cursos)}</b><small>dictados</small></div>
+          <div className="kpi"><span>Cursos</span><b>{miles(r.ag.cursos)}</b><small>dictados en {aniosTexto(d)}</small></div>
           <div className="kpi"><span>Inscripciones</span><b>{miles(r.insc)}</b>
             <small>{r.unicos ? `${miles(r.unicos.personas)} personas distintas` : "personas distintas: se calcula sin filtros de sector, tipo, modalidad ni período"}</small></div>
           <div className="kpi"><span>Egresados</span><b>{miles(nEstado(r, "EGRESADO"))}</b><small>{pct(nEstado(r, "EGRESADO"), r.insc)} de las inscripciones</small></div>

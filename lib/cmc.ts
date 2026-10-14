@@ -29,6 +29,12 @@ export function offsets(d: DatosCmc) {
   return o;
 }
 
+/** Años que cubren los datos, para la referencia de los títulos: «2025 y 2026» (sale de los meses de inicio de los cursos, así se actualiza solo). */
+export function aniosTexto(d: DatosCmc): string {
+  const a = [...new Set(d.meses.map(m => m.slice(0, 4)))].sort();
+  return a.length <= 1 ? (a[0] ?? "") : a.length === 2 ? `${a[0]} y ${a[1]}` : `${a.slice(0, -1).join(", ")} y ${a[a.length - 1]}`;
+}
+
 export const normaliza = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 
 /** ¿El curso `i` cumple los filtros? (el texto se compara ya normalizado, en `textoNorm`) */
