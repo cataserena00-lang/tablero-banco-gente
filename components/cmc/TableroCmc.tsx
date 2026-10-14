@@ -105,7 +105,7 @@ export default function TableroCmc({ datos: d, geo, verPersonas = false }: { dat
       <div className="franja" />
       <header className="top"><div className="wrap">
         <LogoCmc />
-        <div className="titulo"><h1>Córdoba me capacita</h1><p>Cursos, inscripciones y participantes desde {d.desde.slice(0, 4)}</p></div>
+        <div className="titulo"><h1>Córdoba me capacita</h1><p>Cursos, inscripciones y participantes</p></div>
         <div className="actualiz">Datos actualizados el<b>{fmtF(d.actualizado)}</b></div>
         <form method="post" action="/api/logout" className="salir-form"><button className="salir" type="submit">Salir</button></form>
       </div></header>
