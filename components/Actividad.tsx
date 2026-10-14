@@ -35,7 +35,8 @@ function describir(e: Evento): string {
     return `${d.tipo === "fichas" ? "Fichas" : "Ficha"}: ${zonas.slice(0, 4).join(", ")}${zonas.length > 4 ? ` y ${zonas.length - 4} más` : ""} · ${cont}${d.cantidad && d.contenido === "completa+personas" ? ` · ${miles(Number(d.cantidad))} personas` : ""}`;
   }
   if (d.programa === "cmc") {
-    const zona = [d.dep, d.loc].map(texto).filter(Boolean).join(" · ") || (d.curso ? `curso ${texto(d.curso)}` : "todo Córdoba");
+    const zs = Array.isArray(d.zonas) ? (d.zonas as unknown[]).map(texto).filter(Boolean) : [];
+    const zona = zs.length ? zs.slice(0, 4).join(", ") + (zs.length > 4 ? ` y ${zs.length - 4} más` : "") : [d.dep, d.loc].map(texto).filter(Boolean).join(" · ") || (d.curso ? `curso ${texto(d.curso)}` : "todo Córdoba");
     if (e.accion === "exportacion") return `Córdoba me capacita · Excel de ${texto(d.tipo).startsWith("capacitadores") ? "capacitadores" : "participantes"} · ${zona}`;
     return `Córdoba me capacita · ${texto(d.tipo) === "capacitadores" ? "búsqueda de capacitadores" : "búsqueda de participantes"} · ${zona}`;
   }

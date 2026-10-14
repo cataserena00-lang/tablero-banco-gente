@@ -13,9 +13,10 @@ export interface DatosCmc {
 export interface Filtro {
   etapa: number; sector: number; tipo: number; modalidad: number; desde: number; hasta: number;   // -1 = sin filtro (desde/hasta: índice de mes)
   dep: number; zona: number;
+  zonaIds: number[];                                                                               // varias zonas a la vez (índices de `zonas`); vacío = sin filtro
   curso: string;                                                                                   // texto a buscar en el nombre o la institución
 }
-export const SIN_FILTRO: Filtro = { etapa: -1, sector: -1, tipo: -1, modalidad: -1, desde: -1, hasta: -1, dep: -1, zona: -1, curso: "" };
+export const SIN_FILTRO: Filtro = { etapa: -1, sector: -1, tipo: -1, modalidad: -1, desde: -1, hasta: -1, dep: -1, zona: -1, zonaIds: [], curso: "" };
 
 export const C = { id: 0, curso: 1, inst: 2, zona: 3, sector: 4, tipo: 5, modalidad: 6, etapa: 7, mes: 8, hs: 9 } as const;
 
@@ -38,6 +39,7 @@ export function pasa(d: DatosCmc, i: number, f: Filtro, textoNorm: string, nombr
   if (f.modalidad >= 0 && c[C.modalidad] !== f.modalidad) return false;
   if (f.dep >= 0 && z[0] !== f.dep) return false;
   if (f.zona >= 0 && c[C.zona] !== f.zona) return false;
+  if (f.zonaIds.length && !f.zonaIds.includes(c[C.zona])) return false;
   if (f.desde >= 0 && (c[C.mes] < 0 || c[C.mes] < f.desde)) return false;
   if (f.hasta >= 0 && (c[C.mes] < 0 || c[C.mes] > f.hasta)) return false;
   if (textoNorm && !nombresNorm[c[C.curso]].includes(textoNorm) && !instNorm[c[C.inst]].includes(textoNorm)) return false;
@@ -68,7 +70,7 @@ export function agrupar(d: DatosCmc, indices: number[], clave: (c: number[]) => 
 
 /** Personas y capacitadores DISTINTOS de una zona y etapa (precalculados; no se pueden sumar entre cursos). */
 export function unicosDe(d: DatosCmc, f: Filtro): { personas: number; capacitadores: number } | null {
-  if (f.sector >= 0 || f.tipo >= 0 || f.modalidad >= 0 || f.desde >= 0 || f.hasta >= 0 || f.curso.trim()) return null;
+  if (f.sector >= 0 || f.tipo >= 0 || f.modalidad >= 0 || f.desde >= 0 || f.hasta >= 0 || f.curso.trim() || f.zonaIds.length) return null;
   const zona = f.zona >= 0 ? f.zona : f.dep >= 0 ? -2 - f.dep : -1;
   const u = d.unicos.find(x => x[0] === zona && x[1] === f.etapa);
   return u ? { personas: u[2], capacitadores: u[3] } : null;
@@ -95,7 +97,7 @@ export interface Resumen {
 
 export function calcular(d: DatosCmc, f: Filtro, cx: Contexto): Resumen {
   const ag = agregar(d, f, cx.nombresNorm, cx.instNorm);
-  const agMapa = agregar(d, { ...f, dep: -1, zona: -1 }, cx.nombresNorm, cx.instNorm);
+  const agMapa = agregar(d, { ...f, dep: -1, zona: -1, zonaIds: [] }, cx.nombresNorm, cx.instNorm);
   const agSector = agregar(d, { ...f, sector: -1 }, cx.nombresNorm, cx.instNorm);
   const grupo = (n: string) => cx.off[n].cats.map((c, i) => ({ c, v: ag.perfil[cx.off[n].ini + i] }));
   const o = cx.off.estado, mapa = new Map<number, number[]>();

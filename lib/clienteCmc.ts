@@ -1,6 +1,6 @@
 /* Ayudas del navegador para Córdoba me capacita: descarga de los Excel nominales (los arma el servidor en /api/cmc/exportar,
    que verifica rol y programa en cada solicitud). */
-export interface AlcanceCliente { curso?: number | null; dep?: string | null; loc?: string | null; q?: string; estado?: string }
+export interface AlcanceCliente { curso?: number | null; dep?: string | null; loc?: string | null; q?: string; estado?: string; zonas?: { dep: string; loc?: string }[] }
 
 export function parametros(a: AlcanceCliente): URLSearchParams {
   const p = new URLSearchParams();
@@ -9,6 +9,7 @@ export function parametros(a: AlcanceCliente): URLSearchParams {
   if (a.loc) p.set("zloc", a.loc);
   if (a.q?.trim()) p.set("q", a.q.trim());
   if (a.estado) p.set("estado", a.estado);
+  for (const z of a.zonas ?? []) p.append("z", z.loc ? `${z.dep}~${z.loc}` : z.dep);
   return p;
 }
 
