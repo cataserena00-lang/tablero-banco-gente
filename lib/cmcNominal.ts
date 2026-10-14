@@ -37,14 +37,33 @@ function donde(a: AlcanceCmc, alias = "p") {
 }
 const sql = () => { const c = conexion(); if (!c) throw new Error("sin_base"); return c; };
 
-const COLS_LISTA = "p.apellido, p.nombre, p.cuil, p.dni, p.sexo, p.edad, p.telefono, p.mail, p.estado, c.curso, c.institucion, p.zona_loc AS localidad, p.zona_dep AS departamento";
+const COLS_LISTA = "p.apellido, p.nombre, p.cuil, p.dni, p.sexo, p.edad, p.telefono, p.mail, p.estado, c.curso, c.institucion, p.zona_loc AS localidad, p.zona_dep AS departamento";   // Excel: una fila por inscripción
 
+/** Clave de persona: CUIL, si no DNI, si no apellido, nombre y fecha de nacimiento. Una persona puede tener muchas inscripciones (una por curso). */
+const PERSONA = "COALESCE(NULLIF(p.cuil, ''), NULLIF(p.dni, ''), p.apellido || '|' || p.nombre || '|' || COALESCE(p.fecha_nacimiento::text, ''))";
+
+/** Una fila por PERSONA (no por inscripción), con sus datos y la cantidad de cursos; entra si tiene al menos una inscripción que cumpla los filtros.
+    `cursos` y `egresados` cuentan solo las inscripciones que cumplen los filtros del listado. */
 export async function listarParticipantes(a: AlcanceCmc, pagina: number) {
   const c = sql(), { sql: w, params } = donde(a);
-  const total = (await consulta<{ n: number }>(c, `SELECT count(*)::int AS n FROM cmc_participantes p ${w}`, params))[0]?.n ?? 0;
+  const total = (await consulta<{ n: number }>(c, `SELECT count(DISTINCT ${PERSONA})::int AS n FROM cmc_participantes p ${w}`, params))[0]?.n ?? 0;
   const filas = await consulta<Record<string, Celda>>(c,
-    `SELECT ${COLS_LISTA} FROM cmc_participantes p JOIN cmc_cursos c USING (id_curso) ${w} ORDER BY p.apellido, p.nombre, p.id LIMIT ${POR_PAGINA_CMC} OFFSET ${(Math.max(1, pagina) - 1) * POR_PAGINA_CMC}`, params);
+    `SELECT ${PERSONA} AS persona, max(p.apellido) AS apellido, max(p.nombre) AS nombre, max(p.cuil) AS cuil, max(p.dni) AS dni, max(p.sexo) AS sexo, max(p.edad) AS edad,
+            max(p.telefono) AS telefono, max(p.mail) AS mail, count(*)::int AS cursos, count(*) FILTER (WHERE p.estado = 'EGRESADO')::int AS egresados
+     FROM cmc_participantes p ${w} GROUP BY ${PERSONA} ORDER BY max(p.apellido), max(p.nombre), ${PERSONA} LIMIT ${POR_PAGINA_CMC} OFFSET ${(Math.max(1, pagina) - 1) * POR_PAGINA_CMC}`, params);
   return { total, filas, pagina: Math.max(1, pagina), porPagina: POR_PAGINA_CMC };
+}
+
+export interface CursoDePersona {
+  id_curso: number; curso: string; institucion: string; localidad: string; departamento: string;
+  fecha_inicio: string | null; fecha_fin: string | null; horas: number | null; estado: string | null;
+}
+/** Todos los cursos en los que participó una persona (por la clave de persona del listado) y el estado de cada inscripción. */
+export async function cursosDePersona(persona: string) {
+  const c = sql();
+  return consulta<CursoDePersona>(c,
+    `SELECT c.id_curso, c.curso, c.institucion, p.zona_loc AS localidad, p.zona_dep AS departamento, c.fecha_inicio, c.fecha_fin, c.hs_presenciales AS horas, p.estado
+     FROM cmc_participantes p JOIN cmc_cursos c USING (id_curso) WHERE ${PERSONA} = $1 ORDER BY c.fecha_inicio DESC NULLS LAST, c.curso LIMIT 300`, [persona]);
 }
 
 /** Columnas del Excel de participantes, en este orden (lista cerrada). */
@@ -130,4 +149,27 @@ export async function listarCapacitadores(a: AlcanceCmc, pagina: number) {
   const total = (await consulta<{ n: number }>(c, `SELECT count(*)::int AS n FROM (SELECT 1 FROM cmc_capacitadores k JOIN cmc_cursos q USING (id_curso) ${w} GROUP BY k.cuil, k.apellido, k.nombre) x`, params))[0]?.n ?? 0;
   const filas = await consulta<Record<string, Celda>>(c, `${SELECT_CAP} ${w} GROUP BY k.cuil, k.apellido, k.nombre ORDER BY k.apellido, k.nombre LIMIT ${POR_PAGINA_CMC} OFFSET ${(Math.max(1, pagina) - 1) * POR_PAGINA_CMC}`, params);
   return { total, filas, pagina: Math.max(1, pagina), porPagina: POR_PAGINA_CMC };
+}
+
+export interface CursoDeCapacitador {
+  id_curso: number; curso: string; institucion: string; localidad: string; departamento: string;
+  fecha_inicio: string | null; fecha_fin: string | null; horas: number | null; planificacion: string | null; inscriptos: number;
+}
+/** Cursos que dio un capacitador (por CUIL), con sus fechas; respeta el curso o la zona del listado desde el que se pide. */
+export async function cursosDeCapacitador(cuil: string, a: AlcanceCmc) {
+  const c = sql(), params: unknown[] = [cuil], w: string[] = ["k.cuil = $1"];
+  if (a.curso !== undefined) { params.push(a.curso); w.push(`q.id_curso = $${params.length}`); }
+  if (a.dep) { params.push(a.dep); w.push(`q.zona_dep = $${params.length}`); }
+  if (a.loc) { params.push(a.loc); w.push(`q.zona_loc = $${params.length}`); }
+  if (a.zonas?.length) {
+    w.push("(" + a.zonas.map(z => {
+      params.push(z.dep); let t = `q.zona_dep = $${params.length}`;
+      if (z.loc) { params.push(z.loc); t += ` AND q.zona_loc = $${params.length}`; }
+      return `(${t})`;
+    }).join(" OR ") + ")");
+  }
+  return consulta<CursoDeCapacitador>(c,
+    `SELECT DISTINCT q.id_curso, q.curso, q.institucion, q.zona_loc AS localidad, q.zona_dep AS departamento, q.fecha_inicio, q.fecha_fin, q.hs_presenciales AS horas,
+            q.estado_planificacion AS planificacion, q.inscriptos
+     FROM cmc_capacitadores k JOIN cmc_cursos q USING (id_curso) WHERE ${w.join(" AND ")} ORDER BY q.fecha_inicio DESC NULLS LAST, q.curso LIMIT 500`, params);
 }

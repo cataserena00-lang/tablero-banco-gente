@@ -188,7 +188,7 @@ export default function ExportarCmc({ datos: d, verPersonas }: { datos: DatosCmc
             <>
               {elegidas.length > 1 && (
                 <HojasResumenCmc d={d} r={conjunto} cx={cx} nivel="zonas" titulo={`Resumen conjunto · ${elegidas.length} zonas`} ambito={`${elegidas.length} zonas elegidas`} filtros={[]} depSel={-1}
-                  zonasTabla={porZona.filter(({ z }) => efectivas.includes(z)).map(({ z, r }) => ({ nombre: nombreZona(z), cursos: r.ag.cursos, insc: r.insc }))}
+                  zonasTabla={porZona.filter(({ z }) => efectivas.includes(z)).map(({ z, r }) => ({ nombre: nombreZona(z), cursos: r.ag.cursos, insc: r.insc, egr: nEstado(r, "EGRESADO") }))}
                   nota={hayRepetidas ? `Las localidades que están dentro de un departamento elegido (${elegidas.filter(z => !efectivas.includes(z)).map(nombreZona).join(", ")}) se cuentan una sola vez, dentro del departamento. Cada una tiene además su propio resumen.` : undefined} />
               )}
               {porZona.map(({ z, r }) => (

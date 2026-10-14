@@ -6,7 +6,7 @@ import { BarraPartes, BarrasH, ColumnasApiladas, colorSerie } from "../graficos"
 import { LogoCmc } from "../Marca";
 import { fmtF, miles, nombreDep } from "@/lib/formato";
 import {
-  C, COLOR_ESTADO, GRUPOS_PERFIL, SIN_FILTRO, TITULO_ESTADO, TITULO_SEXO, calcular, contexto, mesTexto, nEstado, pct, type DatosCmc, type Filtro,
+  C, COLOR_ESTADO, GRUPOS_PERFIL, SIN_FILTRO, TITULO_ESTADO, TITULO_SEXO, calcular, contexto, mesTexto, nEstado, normaliza, pct, type DatosCmc, type Filtro,
 } from "@/lib/cmc";
 import type { GeoData } from "../Tablero";
 import HojasResumenCmc, { type Nivel } from "./HojasResumenCmc";
@@ -54,7 +54,27 @@ export default function TableroCmc({ datos: d, geo, verPersonas = false }: { dat
   const valDep = (g: { cursos: number; insc: number }) => (metMapa === "insc" ? g.insc : g.cursos);
   const maxDep = Math.max(1, ...r.porDep.map(valDep));
   const rankDeps = d.dep.map((n, i) => ({ n, i, ...r.porDep[i] })).filter(x => valDep(x) > 0).sort((a, b) => valDep(b) - valDep(a));
-  const filas = useMemo(() => [...r.ag.indices].sort((a, b) => d.perfil[b][0] - d.perfil[a][0]), [r, d]);
+  // Filtros propios de la tabla de cursos (no cambian los indicadores ni los gráficos): institución, curso y sector, con desplegables
+  // que solo ofrecen lo que hay en la vista y se acotan entre sí, y un buscador de texto.
+  const [tf, setTf] = useState({ inst: -1, curso: -1, sector: -1, texto: "" });
+  const tfActivos = tf.inst >= 0 || tf.curso >= 0 || tf.sector >= 0 || tf.texto.trim() !== "";
+  const textoNorm = normaliza(tf.texto.trim());
+  const cumple = (i: number, saltar?: "inst" | "curso" | "sector") => {
+    const c = d.cursos[i];
+    return (saltar === "inst" || tf.inst < 0 || c[C.inst] === tf.inst) && (saltar === "curso" || tf.curso < 0 || c[C.curso] === tf.curso)
+      && (saltar === "sector" || tf.sector < 0 || c[C.sector] === tf.sector)
+      && (!textoNorm || cx.nombresNorm[c[C.curso]].includes(textoNorm) || cx.instNorm[c[C.inst]].includes(textoNorm));
+  };
+  const opciones = useMemo(() => {
+    const ordenar = (ids: Set<number>, lista: string[]) => [...ids].map(i => ({ i, t: lista[i] })).sort((a, b) => a.t.localeCompare(b.t, "es"));
+    const pick = (saltar: "inst" | "curso" | "sector", campo: number, lista: string[]) =>
+      ordenar(new Set(r.ag.indices.filter(i => cumple(i, saltar)).map(i => d.cursos[i][campo])), lista);
+    return { inst: pick("inst", C.inst, d.inst), curso: pick("curso", C.curso, d.cursos_nombres), sector: pick("sector", C.sector, d.sectores) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [r, tf, d, cx]);
+  const filas = useMemo(() => r.ag.indices.filter(i => cumple(i)).sort((a, b) => d.perfil[b][0] - d.perfil[a][0]),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [r, tf, d, cx]);
 
   const titulo = nivel === "general" ? "Resumen general" : nivel === "dep" ? `Departamento ${nombreDep(depSel!)}` : `Localidad ${nombreDep(zonaSel![1])}`;
   const ambito = nivel === "general" ? "Todo Córdoba" : nivel === "dep" ? `Departamento ${nombreDep(depSel!)}` : `${nombreDep(zonaSel![1])}, ${nombreDep(depSel!)}`;
@@ -77,7 +97,7 @@ export default function TableroCmc({ datos: d, geo, verPersonas = false }: { dat
       </label>
     </div>
   );
-  const hayFiltros = filtrosTexto.length > 0 || f.curso.trim() !== "";
+  const hayFiltros = filtrosTexto.length > 0;
   const Sep = () => <span className="bc-sep">›</span>;
 
   return (
@@ -176,17 +196,17 @@ export default function TableroCmc({ datos: d, geo, verPersonas = false }: { dat
             <header><div><h2>Localidades de {nombreDep(depSel!)}</h2><p className="sub">{localidades.length} localidades · ordenadas por inscripciones · elegí una para ver su resumen</p></div></header>
             <div className="tabla-detalle">
               <table>
-                <thead><tr><th className="th-loc">Localidad</th><th className="th-num">Cursos</th><th className="th-num">Inscripciones</th><th className="th-num">Egresados</th><th className="th-num">Bajas</th></tr></thead>
+                <thead><tr><th className="th-loc">Localidad</th><th className="th-num">Cursos</th><th className="th-num">Inscripciones</th><th className="th-num">Egresados</th><th className="th-num">% de finalización</th><th className="th-num">Bajas</th></tr></thead>
                 <tbody>
                   {localidades.map(l => (
                     <tr key={l.z}>
                       <td className="td-loc"><button type="button" className="enlace-zona" onClick={() => set({ zona: l.z })}>{nombreDep(l.nombre)}</button></td>
-                      <td className="td-num">{miles(l.cursos)}</td><td className="td-num">{miles(l.insc)}</td><td className="td-num">{miles(l.egr)}</td><td className="td-num">{miles(l.baja)}</td>
+                      <td className="td-num">{miles(l.cursos)}</td><td className="td-num">{miles(l.insc)}</td><td className="td-num">{miles(l.egr)}</td><td className="td-num">{pct(l.egr, l.insc)}</td><td className="td-num">{miles(l.baja)}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot><tr><td className="td-loc"><b>Total</b></td><td className="td-num"><b>{miles(r.ag.cursos)}</b></td><td className="td-num"><b>{miles(r.insc)}</b></td>
-                  <td className="td-num"><b>{miles(nEstado(r, "EGRESADO"))}</b></td><td className="td-num"><b>{miles(nEstado(r, "BAJA"))}</b></td></tr></tfoot>
+                  <td className="td-num"><b>{miles(nEstado(r, "EGRESADO"))}</b></td><td className="td-num"><b>{pct(nEstado(r, "EGRESADO"), r.insc)}</b></td><td className="td-num"><b>{miles(nEstado(r, "BAJA"))}</b></td></tr></tfoot>
               </table>
             </div>
           </section>
@@ -223,15 +243,30 @@ export default function TableroCmc({ datos: d, geo, verPersonas = false }: { dat
           ))}
         </div>
 
-        <section className="card" style={{ marginTop: 20 }}>
+        <section className="card" style={{ marginTop: 20 }} aria-label="Cursos">
           <header>
-            <div><h2>Cursos</h2><p className="sub">{miles(r.ag.cursos)} cursos en {nivel === "general" ? "todo Córdoba" : ambito}{r.ag.cursos > MAX_FILAS ? ` · se muestran los ${MAX_FILAS} con más inscripciones` : ""}</p></div>
-            <div className="cmc-buscar"><input type="search" placeholder="Buscar curso o institución" value={f.curso} onChange={e => setF(x => ({ ...x, curso: e.target.value }))} aria-label="Buscar curso o institución" /></div>
+            <div><h2>Cursos</h2><p className="sub">{miles(filas.length)} {filas.length === 1 ? "curso" : "cursos"} en {nivel === "general" ? "todo Córdoba" : ambito}{tfActivos ? ` (de ${miles(r.ag.cursos)})` : ""}{filas.length > MAX_FILAS ? ` · se muestran los ${MAX_FILAS} con más inscripciones` : ""}</p></div>
           </header>
+          <div className="filtros filtros-tabla" aria-label="Filtros de la tabla de cursos">
+            {([["Institución", "inst", opciones.inst, "Todas las instituciones"], ["Curso", "curso", opciones.curso, "Todos los cursos"], ["Sector productivo", "sector", opciones.sector, "Todos los sectores"]] as const).map(([titulo, k, lista, todos]) => (
+              <div className="filtro-sel" key={k}>
+                <label>{titulo}
+                  <select value={tf[k]} onChange={e => setTf(x => ({ ...x, [k]: +e.target.value }))}>
+                    <option value={-1}>{todos}</option>
+                    {lista.map(o => <option key={o.i} value={o.i}>{o.t}</option>)}
+                  </select>
+                </label>
+              </div>
+            ))}
+            <div className="filtro-sel"><label>Buscar
+              <input type="search" placeholder="Curso o institución" value={tf.texto} onChange={e => setTf(x => ({ ...x, texto: e.target.value }))} aria-label="Buscar curso o institución" /></label></div>
+            <button className="limpiar" type="button" style={{ visibility: tfActivos ? "visible" : "hidden" }} onClick={() => setTf({ inst: -1, curso: -1, sector: -1, texto: "" })}>Limpiar filtros de la tabla</button>
+          </div>
           <div className="tabla-detalle">
             <table className="cmc-tabla-cursos">
               <thead><tr><th className="th-loc">Curso</th><th>Institución</th><th>Localidad</th><th>Inicio</th><th className="th-num">Inscriptos</th><th className="th-num">Egresados</th><th className="th-num">Bajas</th>{verPersonas && <th>Participantes</th>}</tr></thead>
               <tbody>
+                {!filas.length && <tr><td colSpan={verPersonas ? 8 : 7}>No hay cursos con esos filtros.</td></tr>}
                 {filas.slice(0, MAX_FILAS).map(i => { const c = d.cursos[i], z = d.zonas[c[C.zona]], v = d.perfil[i]; return (
                   <tr key={c[C.id]}>
                     <td className="td-loc td-curso">{d.cursos_nombres[c[C.curso]]}</td>

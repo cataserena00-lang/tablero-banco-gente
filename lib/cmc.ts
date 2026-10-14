@@ -47,7 +47,7 @@ export function pasa(d: DatosCmc, i: number, f: Filtro, textoNorm: string, nombr
 }
 
 export interface Agregado { cursos: number; perfil: number[]; indices: number[] }
-export interface Grupo { cursos: number; insc: number }
+export interface Grupo { cursos: number; insc: number; egr: number }   // egr: egresados
 
 /** Suma el perfil de los cursos que pasan el filtro. Devuelve también cuáles son (para tablas y gráficos). */
 export function agregar(d: DatosCmc, f: Filtro, nombresNorm: string[], instNorm: string[]): Agregado {
@@ -62,9 +62,9 @@ export function agregar(d: DatosCmc, f: Filtro, nombresNorm: string[], instNorm:
   return { cursos: indices.length, perfil, indices };
 }
 
-export function agrupar(d: DatosCmc, indices: number[], clave: (c: number[]) => number, n: number): Grupo[] {
-  const g: Grupo[] = Array.from({ length: n }, () => ({ cursos: 0, insc: 0 }));
-  for (const i of indices) { const x = g[clave(d.cursos[i])]; x.cursos++; x.insc += d.perfil[i][0]; }
+export function agrupar(d: DatosCmc, indices: number[], clave: (c: number[]) => number, n: number, iEgr: number): Grupo[] {
+  const g: Grupo[] = Array.from({ length: n }, () => ({ cursos: 0, insc: 0, egr: 0 }));
+  for (const i of indices) { const x = g[clave(d.cursos[i])]; x.cursos++; x.insc += d.perfil[i][0]; x.egr += d.perfil[i][iEgr]; }
   return g;
 }
 
@@ -100,6 +100,7 @@ export function calcular(d: DatosCmc, f: Filtro, cx: Contexto): Resumen {
   const agMapa = agregar(d, { ...f, dep: -1, zona: -1, zonaIds: [] }, cx.nombresNorm, cx.instNorm);
   const agSector = agregar(d, { ...f, sector: -1 }, cx.nombresNorm, cx.instNorm);
   const grupo = (n: string) => cx.off[n].cats.map((c, i) => ({ c, v: ag.perfil[cx.off[n].ini + i] }));
+  const iEgr = cx.off.estado.ini + cx.off.estado.cats.indexOf("EGRESADO");
   const o = cx.off.estado, mapa = new Map<number, number[]>();
   for (const i of ag.indices) {
     const m = d.cursos[i][C.mes]; if (m < 0) continue;
@@ -110,9 +111,9 @@ export function calcular(d: DatosCmc, f: Filtro, cx: Contexto): Resumen {
   return {
     ag, insc: ag.perfil[0], estados: grupo("estado"),
     grupos: Object.fromEntries(["sexo", "edad", "estudios", "trabajo", "discapacidad"].map(n => [n, grupo(n)])),
-    porDep: agrupar(d, agMapa.indices, c => d.zonas[c[C.zona]][0], d.dep.length),
-    porZona: agrupar(d, ag.indices, c => c[C.zona], d.zonas.length),
-    porSector: agrupar(d, agSector.indices, c => c[C.sector], d.sectores.length),
+    porDep: agrupar(d, agMapa.indices, c => d.zonas[c[C.zona]][0], d.dep.length, iEgr),
+    porZona: agrupar(d, ag.indices, c => c[C.zona], d.zonas.length, iEgr),
+    porSector: agrupar(d, agSector.indices, c => c[C.sector], d.sectores.length, iEgr),
     meses: [...mapa.entries()].sort((a, b) => a[0] - b[0]).map(([m, v]) => ({ mes: d.meses[m], v })),
     unicos: unicosDe(d, f),
   };
