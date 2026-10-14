@@ -8,9 +8,6 @@ on:
     - cron: "0 19 * * 1"
     - cron: "0 17 * * 3"
   workflow_dispatch:
-  push:
-    branches: [claude/cba-me-capacita]   # temporal, para probar la rama antes de pasarla a main
-    paths: ["pipelines/cba_me_capacita/**", ".github/workflows/actualizar-cmc.yml"]
 
 permissions:
   contents: write
@@ -28,7 +25,7 @@ jobs:
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           CBA_DRIVE_CARPETA_ID: ${{ vars.CBA_DRIVE_CARPETA_ID || '1181tR00Do2Qb1pR1bYP0ouo2rerhPlS2' }}
-        run: python pipelines/cba_me_capacita/procesar.py
+        run: python pipelines/cba_me_capacita/procesar_cmc.py
       - name: Commit de datos (dispara el deploy en Vercel)
         run: |
           git config user.name "github-actions"

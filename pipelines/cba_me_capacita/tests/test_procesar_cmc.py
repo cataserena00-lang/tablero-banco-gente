@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-import procesar as p  # noqa: E402
+import procesar_cmc as p  # noqa: E402
 
 
 def test_cuiles_varios_y_con_guiones():
