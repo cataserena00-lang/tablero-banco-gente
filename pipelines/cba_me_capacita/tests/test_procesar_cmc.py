@@ -57,6 +57,9 @@ def test_procesar_filtra_2024_y_descarta_desaprobados(tmp_path):
     assert meta["inscripciones"] == 4   # 3 del curso 1 y 1 del curso 4
     assert meta["personas"] == 3        # la persona 1 se inscribió dos veces en el mismo curso
     assert meta["capacitadores"] == 3   # 20111111111, 27222222222, 27444444444
+    caps = datos["capacitadores"]
+    assert len(caps) == 2 and len(caps[0]) == 1 and len(caps[1]) == 2          # curso 1: un capacitador; curso 4: dos
+    assert len({n for c in caps for n in c}) == meta["capacitadores"] == 3     # números distintos = capacitadores distintos
     v = datos["perfil"][0]
     assert v[0] == 3 and len(v) == p.LARGO_PERFIL
     # sin datos personales en la salida

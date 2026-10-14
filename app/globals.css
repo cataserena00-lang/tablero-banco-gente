@@ -546,6 +546,11 @@ a.prog-card:hover{box-shadow:0 6px 18px rgba(0,0,0,.09);transform:translateY(-2p
 /* Las hojas no dependen del ancho de la ventana (al imprimir, el ancho es el de la hoja y se activan las reglas de pantallas angostas) */
 .hoja-flujo .kpis.kpis-4{grid-template-columns:repeat(4,minmax(0,1fr))}
 .hoja-flujo .kpis.kpis-4 .kpi:last-child{grid-column:auto}
+.hoja-flujo .kpis.kpis-5{grid-template-columns:repeat(5,minmax(0,1fr))}
+.hoja-flujo .kpis.kpis-5 .kpi:last-child{grid-column:auto}
+.hoja-flujo .kpis.kpis-5 .kpi{padding:8px 8px}
+.hoja-flujo .kpis.kpis-5 .kpi b{font-size:19px}
+.hoja-flujo .kpis.kpis-5 .kpi small{font-size:10.5px}
 .filtros-tabla{margin:6px 0 12px}
 .filtros-tabla .filtro-sel select{max-width:min(320px,90vw)}
 .fila-desplegable:hover{background:var(--celeste-claro)}

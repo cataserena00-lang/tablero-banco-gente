@@ -50,11 +50,12 @@ export default function HojasResumenCmc({ d, r, cx, nivel, titulo, ambito, filtr
         <p className="sub">{hayFiltros ? `Filtros: ${filtros.join(" · ")}` : "Sin filtros"}</p>
       </div></header>) },
     { id: "kpis", nodo: (
-      <div className="kpis kpis-4">
+      <div className="kpis kpis-5">
         <div className="kpi"><span>Cursos</span><b>{miles(r.ag.cursos)}</b><small>dictados</small></div>
         <div className="kpi"><span>Inscripciones</span><b>{miles(r.insc)}</b><small>{r.unicos ? `${miles(r.unicos.personas)} personas distintas` : "según los filtros elegidos"}</small></div>
         <div className="kpi"><span>Egresados</span><b>{miles(nEstado(r, "EGRESADO"))}</b><small>{pct(nEstado(r, "EGRESADO"), r.insc)} de las inscripciones</small></div>
-        <div className="kpi"><span>Bajas</span><b>{miles(nEstado(r, "BAJA"))}</b><small>{pct(nEstado(r, "BAJA"), r.insc)}{r.unicos ? ` · ${miles(r.unicos.capacitadores)} capacitadores` : ""}</small></div>
+        <div className="kpi"><span>Bajas</span><b>{miles(nEstado(r, "BAJA"))}</b><small>{pct(nEstado(r, "BAJA"), r.insc)} de las inscripciones</small></div>
+        <div className="kpi"><span>Capacitadores</span><b>{r.capacitadores === null ? "—" : miles(r.capacitadores)}</b><small>distintos</small></div>
       </div>) },
     { id: "estados", nodo: (
       <><h3 className="acto-sub">Inscripciones por estado</h3>

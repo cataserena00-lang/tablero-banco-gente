@@ -142,12 +142,13 @@ export default function TableroCmc({ datos: d, geo, verPersonas = false }: { dat
           <MenuExportarCmc alcance={{ dep: depSel, loc: zonaSel ? zonaSel[1] : null }} verPersonas={verPersonas} onPdf={imprimir} preparando={imprimiendo} />
         </div>
 
-        <section className="kpis kpis-4" aria-label="Indicadores" style={{ marginTop: 14 }}>
+        <section className="kpis" aria-label="Indicadores" style={{ marginTop: 14 }}>
           <div className="kpi"><span>Cursos</span><b>{miles(r.ag.cursos)}</b><small>dictados</small></div>
           <div className="kpi"><span>Inscripciones</span><b>{miles(r.insc)}</b>
             <small>{r.unicos ? `${miles(r.unicos.personas)} personas distintas` : "personas distintas: se calcula sin filtros de sector, tipo, modalidad ni período"}</small></div>
           <div className="kpi"><span>Egresados</span><b>{miles(nEstado(r, "EGRESADO"))}</b><small>{pct(nEstado(r, "EGRESADO"), r.insc)} de las inscripciones</small></div>
-          <div className="kpi"><span>Bajas</span><b>{miles(nEstado(r, "BAJA"))}</b><small>{pct(nEstado(r, "BAJA"), r.insc)} de las inscripciones{r.unicos ? ` · ${miles(r.unicos.capacitadores)} capacitadores` : ""}</small></div>
+          <div className="kpi"><span>Bajas</span><b>{miles(nEstado(r, "BAJA"))}</b><small>{pct(nEstado(r, "BAJA"), r.insc)} de las inscripciones</small></div>
+          <div className="kpi"><span>Capacitadores</span><b>{r.capacitadores === null ? "—" : miles(r.capacitadores)}</b><small>{r.capacitadores === null ? "se actualiza con la próxima carga de datos" : "distintos, en los cursos a la vista"}</small></div>
         </section>
 
         {nivel === "general" && (

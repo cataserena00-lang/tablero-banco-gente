@@ -9,6 +9,7 @@ export interface DatosCmc {
   cursos: number[][];                                  // [id, curso, inst, zona, sector, tipo, modalidad, etapa, mes|-1, horas]
   perfil: number[][];                                  // un vector por curso
   unicos: number[][];                                  // [zona (≥0) | -1 total | -2-dep, etapa|-1, personas, capacitadores]
+  capacitadores?: number[][];                          // por curso: números de sus capacitadores (anónimos); permiten contar distintos con cualquier filtro
 }
 export interface Filtro {
   etapa: number; sector: number; tipo: number; modalidad: number; desde: number; hasta: number;   // -1 = sin filtro (desde/hasta: índice de mes)
@@ -93,6 +94,7 @@ export interface Resumen {
   porSector: Grupo[];                                       // sin aplicar el filtro de sector (para poder elegir otro)
   meses: { mes: string; v: number[] }[];                    // inscripciones por mes de inicio, apiladas por estado
   unicos: { personas: number; capacitadores: number } | null;
+  capacitadores: number | null;                             // capacitadores distintos de los cursos a la vista (con cualquier filtro)
 }
 
 export function calcular(d: DatosCmc, f: Filtro, cx: Contexto): Resumen {
@@ -116,6 +118,7 @@ export function calcular(d: DatosCmc, f: Filtro, cx: Contexto): Resumen {
     porSector: agrupar(d, agSector.indices, c => c[C.sector], d.sectores.length, iEgr),
     meses: [...mapa.entries()].sort((a, b) => a[0] - b[0]).map(([m, v]) => ({ mes: d.meses[m], v })),
     unicos: unicosDe(d, f),
+    capacitadores: d.capacitadores ? new Set(ag.indices.flatMap(i => d.capacitadores![i])).size : unicosDe(d, f)?.capacitadores ?? null,
   };
 }
 

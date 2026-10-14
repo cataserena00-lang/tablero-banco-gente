@@ -19,6 +19,8 @@ FORMATO de cursos.json (todo son índices a las listas del mismo archivo):
   cursos     [[id, curso, inst, zona, sector, tipo, modalidad, etapa, mes, hs_presenciales], ...]
   perfil     un vector de enteros por curso, en el mismo orden (ver CAMPOS_PERFIL): inscriptos, estado, sexo, edad, estudios, trabajo, discapacidad
   unicos     [[zona|-1, etapa|-1, personas, capacitadores], ...] personas y capacitadores DISTINTOS (por CUIL) en esa zona/etapa
+  capacitadores  un arreglo por curso (en el mismo orden) con los números de sus capacitadores: números sueltos, sin CUIL ni nombres, que sirven
+                 para contar capacitadores distintos de cualquier selección de cursos (el tablero hace la unión)
 """
 import argparse
 import json
@@ -263,6 +265,9 @@ def procesar(cursos_xlsx: Path, asecor_xlsx: Path, actualizado: str) -> tuple[di
                 p, c = p[p["etapa"] == etapa], c[c["etapa"] == etapa]
             unicos[(-2 - di[dep], etapa)] = [int(p["persona"].nunique()), int(c["cuil"].nunique())]
 
+    # Capacitadores de cada curso como números (el orden sale de los CUIL ordenados): no identifican a nadie y permiten contar distintos con cualquier filtro
+    numero = {cu: i for i, cu in enumerate(sorted({cu for row in cur.itertuples() for cu in cuiles(row.cuil_cap)}))}
+    capacitadores_por_curso = [sorted(numero[cu] for cu in cuiles(row.cuil_cap)) for row in cur.itertuples()]
     filas = []
     for r in cur.itertuples():
         filas.append([r.id, ix["curso"][r.curso], ix["inst"][r.inst], r.zona, ix["sector"][r.sector], ix["tipo"][r.tipo],
@@ -273,7 +278,7 @@ def procesar(cursos_xlsx: Path, asecor_xlsx: Path, actualizado: str) -> tuple[di
         "cursos_nombres": listas["curso"], "inst": listas["inst"], "sectores": listas["sector"], "tipos": listas["tipo"],
         "modalidades": listas["modalidad"], "etapas": listas["etapa"], "meses": meses,
         "campos_perfil": [[n, c] for n, c in CAMPOS_PERFIL],
-        "cursos": filas, "perfil": perfil,
+        "cursos": filas, "perfil": perfil, "capacitadores": capacitadores_por_curso,
         "unicos": [[z, e, v[0], v[1]] for (z, e), v in sorted(unicos.items())],
     }
     meta = {
