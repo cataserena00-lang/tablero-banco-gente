@@ -170,15 +170,22 @@ def anio_efectivo(inicio: pd.Series, etapa: pd.Series) -> pd.Series:
     return inicio.dt.year.fillna(etapa.map(anio_etapa)).astype("Int64")
 
 
-def procesar(cursos_xlsx: Path, asecor_xlsx: Path, actualizado: str) -> tuple[dict, dict]:
-    dfc, dfa = leer(cursos_xlsx), leer(asecor_xlsx)
+def cursos_validos(dfc: pd.DataFrame) -> tuple[pd.DataFrame, int, int, int]:
+    """Cursos que entran al tablero: desde 2024 y sin planificaciones desaprobadas o canceladas.
+    Devuelve (cursos, total en el archivo, desde 2024, descartados por estado). La usa también la carga nominal (cargar_nominal_cmc.py),
+    para que los números del tablero y los listados coincidan."""
     cur = preparar_cursos(dfc)
     cur["anio"] = anio_efectivo(cur["inicio"], cur["etapa"])
     n_total = len(cur)
     cur = cur[cur["anio"].fillna(0) >= DESDE]
     n_desde = len(cur)
     n_excl = int(cur["planif"].isin(EXCLUIR_PLANIF).sum())
-    cur = cur[~cur["planif"].isin(EXCLUIR_PLANIF)].copy()
+    return cur[~cur["planif"].isin(EXCLUIR_PLANIF)].copy(), n_total, n_desde, n_excl
+
+
+def procesar(cursos_xlsx: Path, asecor_xlsx: Path, actualizado: str) -> tuple[dict, dict]:
+    dfc, dfa = leer(cursos_xlsx), leer(asecor_xlsx)
+    cur, n_total, n_desde, n_excl = cursos_validos(dfc)
 
     # Inscripciones de ASECOR
     a = pd.DataFrame({

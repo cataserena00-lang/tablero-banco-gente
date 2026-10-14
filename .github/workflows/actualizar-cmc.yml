@@ -8,6 +8,14 @@ on:
     - cron: "0 19 * * 1"
     - cron: "0 17 * * 3"
   workflow_dispatch:
+    inputs:
+      forzar:
+        description: "Recargar la base nominal aunque los archivos no hayan cambiado"
+        type: boolean
+        default: false
+  push:
+    branches: [claude/cba-me-capacita]   # temporal: probar la rama antes de pasarla a main
+    paths: ["pipelines/cba_me_capacita/**", ".github/workflows/actualizar-cmc.yml"]
 
 permissions:
   contents: write
@@ -20,12 +28,26 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
-      - run: pip install pandas openpyxl google-api-python-client google-auth
+      - run: pip install pandas openpyxl google-api-python-client google-auth "psycopg[binary]>=3.2"
       - name: Procesar Córdoba me capacita
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           CBA_DRIVE_CARPETA_ID: ${{ vars.CBA_DRIVE_CARPETA_ID || '1181tR00Do2Qb1pR1bYP0ouo2rerhPlS2' }}
         run: python pipelines/cba_me_capacita/procesar_cmc.py
+      # Participantes, capacitadores y costos (NOMINAL) en Neon, para los listados y exportables del tablero.
+      # No se commitea ni se imprime en el log (solo cantidades). Sin el secreto NEON_DATABASE_URL_CARGA no se carga nada.
+      - name: Cargar datos nominales a Neon
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          CBA_DRIVE_CARPETA_ID: ${{ vars.CBA_DRIVE_CARPETA_ID || '1181tR00Do2Qb1pR1bYP0ouo2rerhPlS2' }}
+          NEON_DATABASE_URL_CARGA: ${{ secrets.NEON_DATABASE_URL_CARGA }}
+          FORZAR: ${{ inputs.forzar && '1' || '' }}
+        run: |
+          if [ -z "$NEON_DATABASE_URL_CARGA" ]; then
+            echo "Falta el secreto NEON_DATABASE_URL_CARGA: no se cargan los datos nominales."
+          else
+            python pipelines/cba_me_capacita/cargar_nominal_cmc.py
+          fi
       - name: Commit de datos (dispara el deploy en Vercel)
         run: |
           git config user.name "github-actions"
