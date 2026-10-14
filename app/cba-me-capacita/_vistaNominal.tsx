@@ -20,7 +20,7 @@ export default async function PaginaNominal({ tipo, searchParams }: { tipo: "par
       <div className="franja" />
       <header className="top"><div className="wrap">
         <LogoCmc />
-        <div className="titulo"><h1>Córdoba me capacita</h1><p>{etiqueta} · cursos desde 2024</p></div>
+        <div className="titulo"><h1>Córdoba me capacita</h1><p>{etiqueta}</p></div>
         <form method="post" action="/api/logout" className="salir-form"><button className="salir" type="submit">Salir</button></form>
       </div></header>
       <main className="dash"><div className="wrap">
