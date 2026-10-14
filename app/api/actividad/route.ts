@@ -36,7 +36,7 @@ export async function GET(req: Request) {
 }
 
 const TIPOS = new Set(["ficha", "fichas", "panorama"]);
-const CONTENIDOS = new Set(["pendientes", "completa", "completa+personas"]);
+const CONTENIDOS = new Set(["pendientes", "completa", "completa+personas", "cmc"]);   // "cmc": resumen de Córdoba me capacita
 const recortar = (v: unknown, max: number) => String(v ?? "").slice(0, max);
 
 // Cualquier usuario con sesión avisa que generó un exportable que se arma en su navegador (fichas, panorama):

@@ -76,3 +76,49 @@ export function unicosDe(d: DatosCmc, f: Filtro): { personas: number; capacitado
 
 export const pct = (a: number, b: number) => (b ? (100 * a / b).toLocaleString("es-AR", { maximumFractionDigits: 1 }) + " %" : "—");
 export const mesTexto = (k: string) => { const M = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]; return `${M[+k.slice(5, 7) - 1]} ${k.slice(0, 4)}`; };
+
+/* ── Resumen de una vista (general, departamento o localidad), compartido por la pantalla, las hojas del PDF y la página de exportar ── */
+export interface Contexto { off: ReturnType<typeof offsets>; nombresNorm: string[]; instNorm: string[] }
+export const contexto = (d: DatosCmc): Contexto => ({ off: offsets(d), nombresNorm: d.cursos_nombres.map(normaliza), instNorm: d.inst.map(normaliza) });
+
+export interface Resumen {
+  ag: Agregado;
+  insc: number;
+  estados: { c: string; v: number }[];
+  grupos: Record<string, { c: string; v: number }[]>;       // sexo, edad, estudios, trabajo, discapacidad
+  porDep: Grupo[];                                          // sin aplicar el filtro de zona (para el mapa y el ranking)
+  porZona: Grupo[];                                         // localidades, con el filtro de zona
+  porSector: Grupo[];                                       // sin aplicar el filtro de sector (para poder elegir otro)
+  meses: { mes: string; v: number[] }[];                    // inscripciones por mes de inicio, apiladas por estado
+  unicos: { personas: number; capacitadores: number } | null;
+}
+
+export function calcular(d: DatosCmc, f: Filtro, cx: Contexto): Resumen {
+  const ag = agregar(d, f, cx.nombresNorm, cx.instNorm);
+  const agMapa = agregar(d, { ...f, dep: -1, zona: -1 }, cx.nombresNorm, cx.instNorm);
+  const agSector = agregar(d, { ...f, sector: -1 }, cx.nombresNorm, cx.instNorm);
+  const grupo = (n: string) => cx.off[n].cats.map((c, i) => ({ c, v: ag.perfil[cx.off[n].ini + i] }));
+  const o = cx.off.estado, mapa = new Map<number, number[]>();
+  for (const i of ag.indices) {
+    const m = d.cursos[i][C.mes]; if (m < 0) continue;
+    const v = mapa.get(m) ?? new Array(o.cats.length).fill(0);
+    for (let k = 0; k < o.cats.length; k++) v[k] += d.perfil[i][o.ini + k];
+    mapa.set(m, v);
+  }
+  return {
+    ag, insc: ag.perfil[0], estados: grupo("estado"),
+    grupos: Object.fromEntries(["sexo", "edad", "estudios", "trabajo", "discapacidad"].map(n => [n, grupo(n)])),
+    porDep: agrupar(d, agMapa.indices, c => d.zonas[c[C.zona]][0], d.dep.length),
+    porZona: agrupar(d, ag.indices, c => c[C.zona], d.zonas.length),
+    porSector: agrupar(d, agSector.indices, c => c[C.sector], d.sectores.length),
+    meses: [...mapa.entries()].sort((a, b) => a[0] - b[0]).map(([m, v]) => ({ mes: d.meses[m], v })),
+    unicos: unicosDe(d, f),
+  };
+}
+
+/** Textos de los estados y las categorías que se muestran (los mismos en pantalla, hojas y Excel). */
+export const TITULO_ESTADO: Record<string, string> = { INSCRIPTO: "Inscriptos", CURSANDO: "Cursando", APROBADO: "Aprobados", EGRESADO: "Egresados", "NO APROBADO": "No aprobados", BAJA: "Bajas" };
+export const COLOR_ESTADO: Record<string, string> = { INSCRIPTO: "#9aa3b2", CURSANDO: "#2a78d6", APROBADO: "#1baf7a", EGRESADO: "#008300", "NO APROBADO": "#eda100", BAJA: "#e34948" };
+export const TITULO_SEXO: Record<string, string> = { F: "Mujeres", M: "Varones", X: "Otro" };
+export const GRUPOS_PERFIL: [string, string][] = [["sexo", "Sexo"], ["edad", "Edad"], ["estudios", "Nivel de estudios"], ["trabajo", "Situación laboral"]];
+export const nEstado = (r: Resumen, e: string) => r.estados.find(x => x.c === e)?.v ?? 0;

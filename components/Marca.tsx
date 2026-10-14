@@ -51,6 +51,19 @@ export function CabeceraHoja({ actualizado }: { actualizado: string }) {
   );
 }
 
+/* Cabecera de cada hoja impresa de Córdoba me capacita (misma estructura que la de Banco de la Gente, con su marca y colores). */
+export function CabeceraHojaCmc({ actualizado, detalle }: { actualizado: string; detalle: string }) {
+  return (
+    <div className="hoja-cab">
+      <div className="franja" />
+      <div className="hoja-cab-fila">
+        <LogoCmc />
+        <div><b>Córdoba me capacita</b><span>{detalle} · datos actualizados el {actualizado}</span></div>
+      </div>
+    </div>
+  );
+}
+
 export function PieHoja() {
   return (
     <div className="hoja-pie">

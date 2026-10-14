@@ -6,11 +6,11 @@ import { conexion, consulta } from "@/lib/personas";
    (zona_dep, zona_loc). Los valores van siempre como parámetros ($1, $2...), nunca pegados al texto de la consulta. */
 
 export const POR_PAGINA_CMC = 50;
-export const MAX_FILAS_EXCEL_CMC = 100_000;
+export const MAX_FILAS_EXCEL_CMC = 60_000;   // un Excel con más filas no lo arma bien el servidor: se pide elegir una zona o un curso
 export type Celda = string | number | null;
 
 /** Qué se pide: un curso, o una zona (departamento y, si se quiere, localidad). Con `q`, busca por apellido, nombre, CUIL o documento. */
-export interface AlcanceCmc { curso?: number; dep?: string; loc?: string; q?: string }
+export interface AlcanceCmc { curso?: number; dep?: string; loc?: string; q?: string; estado?: string }
 
 const sinTildes = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "");
 const escapar = (s: string) => s.replace(/[\\%_]/g, c => "\\" + c);
@@ -20,6 +20,7 @@ function donde(a: AlcanceCmc, alias = "p") {
   if (a.curso !== undefined) { params.push(a.curso); w.push(`${alias}.id_curso = $${params.length}`); }
   if (a.dep) { params.push(a.dep); w.push(`${alias}.zona_dep = $${params.length}`); }
   if (a.loc) { params.push(a.loc); w.push(`${alias}.zona_loc = $${params.length}`); }
+  if (a.estado) { params.push(a.estado); w.push(`${alias}.estado = $${params.length}`); }
   for (const t of sinTildes(a.q ?? "").toUpperCase().split(/\s+/).filter(Boolean).slice(0, 5)) {
     const digitos = t.replace(/\D/g, "");
     if (digitos.length >= 3 && digitos.length === t.replace(/[.\-]/g, "").length) { params.push(`%${digitos}%`); w.push(`(${alias}.cuil LIKE $${params.length} OR ${alias}.dni LIKE $${params.length})`); }
@@ -89,14 +90,30 @@ export const COLUMNAS_CAPACITADORES_XLSX: { clave: string; titulo: string; ancho
   { clave: "cursos", titulo: "Cursos", ancho: 9 }, { clave: "localidades", titulo: "Localidades", ancho: 40 }, { clave: "departamentos", titulo: "Departamentos", ancho: 30 },
 ];
 export async function capacitadoresParaExcel(a: AlcanceCmc) {
-  const c = sql(), params: unknown[] = [], w: string[] = [];
+  const c = sql(), { sql: w, params } = dondeCap(a);
+  const filas = await consulta<Record<string, Celda>>(c, `${SELECT_CAP} ${w} GROUP BY k.cuil, k.apellido, k.nombre ORDER BY k.apellido, k.nombre LIMIT ${MAX_FILAS_EXCEL_CMC}`, params);
+  return { total: filas.length, filas };
+}
+
+/** Capacitadores de un curso o una zona, uno por persona (por CUIL), con la cantidad de cursos y las localidades donde dictan. `q` busca por apellido, nombre o CUIL. */
+function dondeCap(a: AlcanceCmc) {
+  const w: string[] = [], params: unknown[] = [];
   if (a.curso !== undefined) { params.push(a.curso); w.push(`q.id_curso = $${params.length}`); }
   if (a.dep) { params.push(a.dep); w.push(`q.zona_dep = $${params.length}`); }
   if (a.loc) { params.push(a.loc); w.push(`q.zona_loc = $${params.length}`); }
-  const where = w.length ? "WHERE " + w.join(" AND ") : "";
-  const filas = await consulta<Record<string, Celda>>(c,
-    `SELECT k.cuil, k.apellido, k.nombre, count(DISTINCT q.id_curso)::int AS cursos, string_agg(DISTINCT q.zona_loc, ', ' ORDER BY q.zona_loc) AS localidades,
-            string_agg(DISTINCT q.zona_dep, ', ' ORDER BY q.zona_dep) AS departamentos
-     FROM cmc_capacitadores k JOIN cmc_cursos q USING (id_curso) ${where} GROUP BY k.cuil, k.apellido, k.nombre ORDER BY k.apellido, k.nombre LIMIT ${MAX_FILAS_EXCEL_CMC}`, params);
-  return { total: filas.length, filas };
+  for (const t of sinTildes(a.q ?? "").toUpperCase().split(/\s+/).filter(Boolean).slice(0, 5)) {
+    const digitos = t.replace(/\D/g, "");
+    if (digitos.length >= 3 && digitos.length === t.replace(/[.\-]/g, "").length) { params.push(`%${digitos}%`); w.push(`k.cuil LIKE $${params.length}`); }
+    else { params.push(`%${escapar(t)}%`); w.push(`translate(upper(coalesce(k.apellido, '') || ' ' || coalesce(k.nombre, '')), 'ÁÉÍÓÚÜ', 'AEIOUU') LIKE $${params.length}`); }
+  }
+  return { sql: w.length ? "WHERE " + w.join(" AND ") : "", params };
+}
+const SELECT_CAP = `SELECT k.cuil, k.apellido, k.nombre, count(DISTINCT q.id_curso)::int AS cursos, string_agg(DISTINCT q.zona_loc, ', ' ORDER BY q.zona_loc) AS localidades,
+  string_agg(DISTINCT q.zona_dep, ', ' ORDER BY q.zona_dep) AS departamentos FROM cmc_capacitadores k JOIN cmc_cursos q USING (id_curso)`;
+
+export async function listarCapacitadores(a: AlcanceCmc, pagina: number) {
+  const c = sql(), { sql: w, params } = dondeCap(a);
+  const total = (await consulta<{ n: number }>(c, `SELECT count(*)::int AS n FROM (SELECT 1 FROM cmc_capacitadores k JOIN cmc_cursos q USING (id_curso) ${w} GROUP BY k.cuil, k.apellido, k.nombre) x`, params))[0]?.n ?? 0;
+  const filas = await consulta<Record<string, Celda>>(c, `${SELECT_CAP} ${w} GROUP BY k.cuil, k.apellido, k.nombre ORDER BY k.apellido, k.nombre LIMIT ${POR_PAGINA_CMC} OFFSET ${(Math.max(1, pagina) - 1) * POR_PAGINA_CMC}`, params);
+  return { total, filas, pagina: Math.max(1, pagina), porPagina: POR_PAGINA_CMC };
 }

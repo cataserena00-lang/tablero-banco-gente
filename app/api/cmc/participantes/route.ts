@@ -13,10 +13,10 @@ export async function GET(req: Request) {
   if (!s) return NextResponse.json({ error: "prohibido" }, { status: 403, headers: SIN_CACHE });
   if (!baseConfigurada()) return NextResponse.json({ error: "sin_base" }, { status: 503, headers: SIN_CACHE });
   const u = new URL(req.url), a = alcanceDe(u.searchParams);
-  if (!a || (a.curso === undefined && !a.dep)) return NextResponse.json({ error: "invalido" }, { status: 400, headers: SIN_CACHE });
+  if (!a) return NextResponse.json({ error: "invalido" }, { status: 400, headers: SIN_CACHE });
   try {
     const r = await listarParticipantes(a, PAGINA(u.searchParams));
-    if (a.q) await registrarAcceso(s.usuario, s.rol, "busqueda", { programa: "cmc", ...a, q: undefined, conTexto: true }, r.total);
+    if (a.q) await registrarAcceso(s.usuario, s.rol, "busqueda", { programa: "cmc", tipo: "participantes", dep: a.dep, loc: a.loc, curso: a.curso, estado: a.estado, conTexto: true }, r.total);
     return NextResponse.json(r, { headers: SIN_CACHE });
   } catch (e) {
     if (tablaFaltante(e)) return NextResponse.json({ error: "sin_base" }, { status: 503, headers: SIN_CACHE });
