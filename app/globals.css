@@ -557,3 +557,5 @@ a.prog-card:hover{box-shadow:0 6px 18px rgba(0,0,0,.09);transform:translateY(-2p
 .estado-curso.estado-egreso,.estado-curso.estado-aprobado{background:#DDF3E4;color:#14532D}
 .estado-curso.estado-cursando{background:#DCEBFA;color:#1D4F7C}
 .estado-curso.estado-baja,.estado-curso.estado-no-aprobado{background:#FBE0E0;color:#8A1C1C}
+.prog-admin{border-top-color:var(--tx2)}
+.prog-card .logo-cmc{height:auto;max-height:72px;width:auto}
