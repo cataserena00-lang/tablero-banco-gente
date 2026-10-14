@@ -1,10 +1,11 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BarraPartes, BarrasH, ColumnasApiladas, colorSerie } from "../graficos";
 import { LogoCmc } from "../Marca";
 import { fmtF, miles, nombreDep } from "@/lib/formato";
 import { SIN_FILTRO, agregar, agrupar, mesTexto, normaliza, offsets, pct, unicosDe, C, type DatosCmc, type Filtro } from "@/lib/cmc";
 import type { GeoData } from "../Tablero";
+import PanelNominalCmc from "./PanelNominalCmc";
 
 /* Tablero de Córdoba me capacita: cursos, inscripciones (ASECOR) y perfil de participantes, siempre agregados.
    Todo se calcula acá con los cursos que pasan los filtros; el perfil de cada curso viene sumado desde el pipeline. */
@@ -24,6 +25,8 @@ const MAX_FILAS = 100;
 export default function TableroCmc({ datos: d, geo, verPersonas = false }: { datos: DatosCmc; geo: GeoData | null; verPersonas?: boolean }) {
   const [f, setF] = useState<Filtro>(SIN_FILTRO);
   const [metMapa, setMetMapa] = useState<"insc" | "cursos">("insc");
+  const [cursoSel, setCursoSel] = useState<number | null>(null);   // id del curso elegido en la tabla (solo perfil completo)
+  const panelRef = useRef<HTMLDivElement>(null);
   const set = (p: Partial<Filtro>) => setF(x => ({ ...x, ...p }));
   const off = useMemo(() => offsets(d), [d]);
   const nombresNorm = useMemo(() => d.cursos_nombres.map(normaliza), [d]);
@@ -76,6 +79,10 @@ export default function TableroCmc({ datos: d, geo, verPersonas = false }: { dat
       </label>
     </div>
   );
+  const alcanceNominal = verPersonas && (cursoSel !== null || depSel)
+    ? { curso: cursoSel, dep: depSel, loc: zonaSel ? zonaSel[1] : null, nombre: zonaSel ? `${nombreDep(zonaSel[1])}, ${nombreDep(depSel!)}` : depSel ? `Departamento ${nombreDep(depSel)}` : "" }
+    : null;
+  useEffect(() => { if (cursoSel !== null) panelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }); }, [cursoSel]);
   const hayFiltros = JSON.stringify(f) !== JSON.stringify(SIN_FILTRO);
 
   return (
@@ -201,9 +208,13 @@ export default function TableroCmc({ datos: d, geo, verPersonas = false }: { dat
           ))}
         </div>
 
+        <div ref={panelRef} style={{ scrollMarginTop: 12 }}>
+          {alcanceNominal && <PanelNominalCmc alcance={alcanceNominal} onCerrarCurso={() => setCursoSel(null)} />}
+        </div>
+
         <section className="card" style={{ marginTop: 20 }}>
           <header>
-            <div><h2>Cursos</h2><p className="sub">{miles(ag.cursos)} cursos{ag.cursos > MAX_FILAS ? ` · se muestran los ${MAX_FILAS} con más inscripciones` : ""}</p></div>
+            <div><h2>Cursos</h2><p className="sub">{miles(ag.cursos)} cursos{ag.cursos > MAX_FILAS ? ` · se muestran los ${MAX_FILAS} con más inscripciones` : ""}{verPersonas ? " · elegí un curso para ver quiénes participan" : ""}</p></div>
             <div className="cmc-buscar"><input type="search" placeholder="Buscar curso o institución" value={f.curso} onChange={e => set({ curso: e.target.value })} aria-label="Buscar curso o institución" /></div>
           </header>
           <div className="tabla-detalle">
@@ -211,7 +222,9 @@ export default function TableroCmc({ datos: d, geo, verPersonas = false }: { dat
               <thead><tr><th className="th-loc">Curso</th><th>Institución</th><th>Localidad</th><th>Inicio</th><th className="th-num">Inscriptos</th><th className="th-num">Egresados</th><th className="th-num">Bajas</th></tr></thead>
               <tbody>
                 {filas.slice(0, MAX_FILAS).map(i => { const c = d.cursos[i], z = d.zonas[c[C.zona]], v = d.perfil[i]; return (
-                  <tr key={c[C.id]}>
+                  <tr key={c[C.id]} aria-selected={cursoSel === c[C.id]} style={{ cursor: verPersonas ? "pointer" : undefined, background: cursoSel === c[C.id] ? "var(--celeste-claro)" : undefined }}
+                    onClick={verPersonas ? () => setCursoSel(cursoSel === c[C.id] ? null : c[C.id]) : undefined}
+                    onKeyDown={verPersonas ? e => { if (e.key === "Enter") setCursoSel(cursoSel === c[C.id] ? null : c[C.id]); } : undefined} tabIndex={verPersonas ? 0 : undefined}>
                     <td className="td-loc td-curso">{d.cursos_nombres[c[C.curso]]}</td>
                     <td>{d.inst[c[C.inst]]}</td>
                     <td>{nombreDep(z[1])}<br /><small>{nombreDep(d.dep[z[0]])}</small></td>
@@ -223,7 +236,6 @@ export default function TableroCmc({ datos: d, geo, verPersonas = false }: { dat
               </tbody>
             </table>
           </div>
-          {verPersonas && <p className="cmc-nota">La lista de participantes de cada curso se suma en la próxima versión.</p>}
         </section>
       </div></main>
     </>
