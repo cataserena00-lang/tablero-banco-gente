@@ -143,7 +143,7 @@ export default function TableroCmc({ datos: d, geo, verPersonas = false }: { dat
         </div>
 
         <section className="kpis kpis-4" aria-label="Indicadores" style={{ marginTop: 14 }}>
-          <div className="kpi"><span>Cursos</span><b>{miles(r.ag.cursos)}</b><small>dictados desde {d.desde.slice(0, 4)}</small></div>
+          <div className="kpi"><span>Cursos</span><b>{miles(r.ag.cursos)}</b><small>dictados</small></div>
           <div className="kpi"><span>Inscripciones</span><b>{miles(r.insc)}</b>
             <small>{r.unicos ? `${miles(r.unicos.personas)} personas distintas` : "personas distintas: se calcula sin filtros de sector, tipo, modalidad ni período"}</small></div>
           <div className="kpi"><span>Egresados</span><b>{miles(nEstado(r, "EGRESADO"))}</b><small>{pct(nEstado(r, "EGRESADO"), r.insc)} de las inscripciones</small></div>
