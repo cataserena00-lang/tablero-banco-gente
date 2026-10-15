@@ -50,6 +50,32 @@ def main() -> None:
     pares = {(a.strip().upper(), n.strip().upper()) for av, nv in zip(ap, no) if pd.notna(av) and pd.notna(nv) for a, n in zip(str(av).split("\n"), str(nv).split("\n"))}
     print("pares apellido+nombre distintos (todo el archivo):", len(pares))
     print("cursos sin capacitador:", int(raw.isna().sum()))
+    # Variantes con las que se podría haber llegado a otra cifra (solo cantidades)
+    textos = [str(v).strip() for v in raw if pd.notna(v)]
+    unicos_texto = set(textos)
+    una = {t for t in unicos_texto if len(todos(t)) == 1}
+    varias = {t for t in unicos_texto if len(todos(t)) > 1}
+    print("textos distintos con UN solo CUIL:", len(una), "| textos distintos con varios CUIL:", len(varias), "| suma:", len(una) + len(varias))
+    print("CUIL distintos mirando solo los textos con un CUIL:", len({todos(t)[0] for t in una}))
+    sin_desap = planif != "DESAPROBADO"
+    print("CUIL distintos sin los DESAPROBADOS (quedan los CANCELADOS):", len({x for v in raw[sin_desap] for x in todos(v)}))
+    sin_ambos = ~planif.isin(["DESAPROBADO", "CANCELADO"])
+    print("CUIL distintos sin DESAPROBADOS ni CANCELADOS:", len({x for v in raw[sin_ambos] for x in todos(v)}))
+    for etapa in sorted(df["Etapa"].astype(str).unique()):
+        m = df["Etapa"].astype(str) == etapa
+        print(f"   {etapa}: {int(m.sum())} cursos, {len({x for v in raw[m] for x in todos(v)})} CUIL distintos (todos los estados), {len({x for v in raw[m & sin_ambos] for x in todos(v)})} sin desaprobados ni cancelados")
+    if "Total Alumnos" in df:
+        con_alumnos = pd.to_numeric(df["Total Alumnos"], errors="coerce").fillna(0) > 0
+        print("CUIL distintos en cursos con alumnos (Total Alumnos > 0):", len({x for v in raw[con_alumnos] for x in todos(v)}), "| cursos con alumnos:", int(con_alumnos.sum()))
+    for col in ("Nombre Capacitador", "Apellido Capacitador"):
+        print(col, "- distintos:", df[col].nunique())
+    print("pares con nombre y apellido iguales pero CUIL distinto:", len(pares) - len({(a, n) for a, n in pares}))
+    cu = {}
+    for av, nv, v in zip(ap, no, raw):
+        if pd.notna(av) and pd.notna(nv) and pd.notna(v):
+            for a, n, c in zip(str(av).split("\n"), str(nv).split("\n"), todos(v) if len(todos(v)) == len(str(av).split("\n")) else []):
+                cu.setdefault((a.strip().upper(), n.strip().upper()), set()).add(c)
+    print("personas (apellido+nombre) con más de un CUIL:", sum(1 for x in cu.values() if len(x) > 1), "| CUIL con más de un nombre:", sum(1 for c in {c for x in cu.values() for c in x} if sum(1 for x in cu.values() if c in x) > 1))
 
 
 if __name__ == "__main__":
