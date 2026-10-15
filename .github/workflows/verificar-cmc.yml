@@ -1,0 +1,24 @@
+name: Verificar capacitadores CMC
+
+# Temporal: cuenta capacitadores de distintas formas para explicar una diferencia (solo cantidades).
+on:
+  push:
+    branches: [claude/cmc-verificar-capacitadores]
+    paths: [".github/workflows/verificar-cmc.yml", "pipelines/cba_me_capacita/verificar_capacitadores.py"]
+
+permissions:
+  contents: read
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install pandas openpyxl google-api-python-client google-auth
+      - env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          CBA_DRIVE_CARPETA_ID: 1181tR00Do2Qb1pR1bYP0ouo2rerhPlS2
+        run: python pipelines/cba_me_capacita/verificar_capacitadores.py
