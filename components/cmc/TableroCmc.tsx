@@ -244,7 +244,8 @@ export default function TableroCmc({ datos: d, geo, verPersonas = false }: { dat
           </section>
         )}
 
-        <div className="grid grid-2" style={{ marginTop: 20 }}>
+        <h2 className="acto-sub" style={{ marginTop: 28 }}>Características de los participantes de los cursos</h2>
+        <div className="grid grid-2" style={{ marginTop: 10 }}>
           {GRUPOS_PERFIL.map(([k, t], gi) => (
             <section className="card" key={k}>
               <header><div><h2>{t}</h2><p className="sub">{miles(r.insc)} inscripciones</p></div></header>
