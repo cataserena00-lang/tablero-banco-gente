@@ -3,7 +3,7 @@ import VistaNominalCmc, { type CursoOpcion } from "@/components/cmc/VistaNominal
 import { cargarOpcional } from "@/lib/datos";
 import { exigirRol } from "@/lib/sesion";
 import { baseConfigurada } from "@/lib/personas";
-import { C, type DatosCmc } from "@/lib/cmc";
+import { C, aniosTexto, type DatosCmc } from "@/lib/cmc";
 
 // Vista NOMINAL de Córdoba me capacita: solo perfil completo o admin. El rol se verifica en el servidor; si no corresponde, ni siquiera se envía la vista
 // (y /api/cmc/* vuelve a verificarlo en cada solicitud).
@@ -20,7 +20,7 @@ export default async function PaginaNominal({ tipo, searchParams }: { tipo: "par
       <div className="franja" />
       <header className="top"><div className="wrap">
         <LogoCmc />
-        <div className="titulo"><h1>Córdoba me capacita</h1><p>{etiqueta}</p></div>
+        <div className="titulo"><h1>Córdoba me capacita</h1><p>{etiqueta}{d ? ` · ${aniosTexto(d)}` : ""}</p></div>
         <form method="post" action="/api/logout" className="salir-form"><button className="salir" type="submit">Salir</button></form>
       </div></header>
       <main className="dash"><div className="wrap">

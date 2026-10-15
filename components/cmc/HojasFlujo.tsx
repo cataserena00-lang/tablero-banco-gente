@@ -16,11 +16,12 @@ const MIN_FILAS = 4;        // una tabla no empieza ni termina con menos filas q
 const MARGEN = 0.985;        // un poco de aire para diferencias entre pantalla e impresión
 
 /** Reparte los bloques (con sus alturas medidas) en páginas. Función pura: se prueba sola. */
-export function repartir(alturas: Map<string, { total: number; filas?: number[]; fijo?: number; pie?: number }>, bloques: Bloque[], capacidad: number): { paginas: Trozo[][]; llenado: number } {
+export function repartir(alturas: Map<string, { total: number; filas?: number[]; fijo?: number; pie?: number }>, bloques: Bloque[], capacidad: number): { paginas: Trozo[][]; llenado: number; minimo: number } {
   const cap = capacidad * MARGEN;
   const paginas: Trozo[][] = [[]];
+  const sobras: number[] = [];   // lo que sobra de cada página ya cerrada
   let resto = cap;
-  const nueva = () => { paginas.push([]); resto = cap; };
+  const nueva = () => { sobras.push(resto); paginas.push([]); resto = cap; };
   const vacia = () => paginas[paginas.length - 1].length === 0;
   for (const b of bloques) {
     const m = alturas.get(b.id)!;
@@ -49,20 +50,22 @@ export function repartir(alturas: Map<string, { total: number; filas?: number[];
       if (i < n) nueva();
     }
   }
-  return { paginas: paginas.filter(p => p.length), llenado: (cap - resto) / cap };
+  const llenados = [...sobras, resto].map(x => (cap - x) / cap);
+  return { paginas: paginas.filter(p => p.length), llenado: (cap - resto) / cap, minimo: Math.min(...llenados) };
 }
 
-/** Prueba el bloque `movible` (la tabla de detalle) en cada posición y se queda con la que da menos hojas y, a igual cantidad, la última hoja más llena:
-    así no queda una hoja final con unas pocas filas o un solo gráfico. Ante empate, prefiere el orden natural (la tabla al final). */
-export function mejorReparto(alturas: Map<string, { total: number; filas?: number[]; fijo?: number; pie?: number }>, bloques: Bloque[], capacidad: number, movible?: string) {
-  const k = movible ? bloques.findIndex(b => b.id === movible) : -1;
-  if (k < 0) return repartir(alturas, bloques, capacidad).paginas;
-  const resto = bloques.filter((_, i) => i !== k), tabla = bloques[k];
-  let mejor: { paginas: Trozo[][]; llenado: number } | null = null;
-  for (let pos = resto.length; pos >= 2; pos--) {   // desde el final hasta justo después del título y los indicadores
-    const orden = [...resto.slice(0, pos), tabla, ...resto.slice(pos)];
-    const r = repartir(alturas, orden, capacidad);
-    if (!mejor || r.paginas.length < mejor.paginas.length || (r.paginas.length === mejor.paginas.length && r.llenado > mejor.llenado + 0.02)) mejor = r;
+/** Prueba todos los órdenes posibles de los bloques `movibles` (los demás quedan fijos, en su lugar) y se queda con el que da menos hojas y, a igual cantidad,
+    la hoja menos llena lo más llena posible: así no queda ninguna hoja con unas pocas filas o un solo gráfico. Ante empate, prefiere el orden natural (el primero que se prueba). */
+export function mejorReparto(alturas: Map<string, { total: number; filas?: number[]; fijo?: number; pie?: number }>, bloques: Bloque[], capacidad: number, movibles: string[] = []) {
+  const idx = bloques.map((b, i) => (movibles.includes(b.id) ? i : -1)).filter(i => i >= 0);
+  if (idx.length < 2) return repartir(alturas, bloques, capacidad).paginas;
+  const permutaciones = <T,>(a: T[]): T[][] => (a.length <= 1 ? [a] : a.flatMap((x, i) => permutaciones([...a.slice(0, i), ...a.slice(i + 1)]).map(r => [x, ...r])));
+  let mejor: { paginas: Trozo[][]; llenado: number; minimo: number } | null = null;
+  for (const orden of permutaciones(idx)) {
+    const b = [...bloques];
+    idx.forEach((pos, k) => { b[pos] = bloques[orden[k]]; });
+    const r = repartir(alturas, b, capacidad);
+    if (!mejor || r.paginas.length < mejor.paginas.length || (r.paginas.length === mejor.paginas.length && r.minimo > mejor.minimo + 0.02)) mejor = r;   // menos hojas y, a igual cantidad, que ninguna quede muy vacía
   }
   return mejor!.paginas;
 }
@@ -81,7 +84,7 @@ function Tabla({ b, desde, hasta, conTitulo, conPie }: { b: Extract<Bloque, { ta
   );
 }
 
-export default function HojasFlujo({ bloques, actualizado, detalle, movible }: { bloques: Bloque[]; actualizado: string; detalle: string; movible?: string }) {
+export default function HojasFlujo({ bloques, actualizado, detalle, movibles }: { bloques: Bloque[]; actualizado: string; detalle: string; movibles?: string[] }) {
   const [paginas, setPaginas] = useState<Trozo[][] | null>(null);
   const medRef = useRef<HTMLDivElement>(null);
 
@@ -109,7 +112,7 @@ export default function HojasFlujo({ bloques, actualizado, detalle, movible }: {
     const quimera = (parseFloat(cst.paddingTop) || 0) + (parseFloat(cst.paddingBottom) || 0) + (parseFloat(cst.borderTopWidth) || 0) + (parseFloat(cst.borderBottomWidth) || 0);
     const mm = (v: number) => (v * 96) / 25.4;
     const capacidad = mm(296) - cab - pie - (parseFloat(hst.paddingBottom) || 0) - quimera;
-    setPaginas(mejorReparto(alturas, bloques, capacidad, movible));
+    setPaginas(mejorReparto(alturas, bloques, capacidad, movibles));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

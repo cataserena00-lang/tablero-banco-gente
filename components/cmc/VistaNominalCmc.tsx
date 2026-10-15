@@ -2,6 +2,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { miles, nombreDep } from "@/lib/formato";
 import { descargarExcelCmc, parametros } from "@/lib/clienteCmc";
+import { conAlFinal } from "@/lib/cmc";
 
 /* Vista nominal de Córdoba me capacita (participantes o capacitadores), aparte del tablero, como la «Vista de personas» de Banco de la Gente.
    Solo la ve el perfil completo y admin: el servidor verifica rol y programa en cada solicitud a /api/cmc/*. */
@@ -34,7 +35,8 @@ export default function VistaNominalCmc({ tipo, deps, zonas, cursos, inicial }: 
   const [abiertosP, setAbiertosP] = useState<string[]>([]);
   const [cursosPer, setCursosPer] = useState<Record<string, { estado: "cargando" | "error" | "ok"; cursos: CursoPer[] }>>({});
 
-  const locs = useMemo(() => (dep ? zonas.filter(z => deps[z[0]] === dep).map(z => z[1]).sort((a, b) => a.localeCompare(b, "es")) : []), [dep, zonas, deps]);
+  const locs = useMemo(() => (dep ? zonas.filter(z => deps[z[0]] === dep).map(z => z[1]).sort(conAlFinal<string>(x => x, (a, b) => a.localeCompare(b, "es"))) : []), [dep, zonas, deps]);
+  const depsOrden = useMemo(() => [...deps].sort(conAlFinal<string>(x => x, (a, b) => nombreDep(a).localeCompare(nombreDep(b), "es"))), [deps]);
   const cursoSel = curso !== null ? cursos.find(c => c.id === curso) : null;
   const sugeridos = useMemo(() => {
     const t = plano(buscaCurso.trim());
@@ -87,7 +89,7 @@ export default function VistaNominalCmc({ tipo, deps, zonas, cursos, inicial }: 
       <section className="filtros filtros-personas" aria-label="Filtros">
         <div className="filtro-sel"><label>Departamento
           <select value={dep} onChange={e => { setDep(e.target.value); setLoc(""); setPagina(1); }}>
-            <option value="">Todos</option>{deps.map(x => <option key={x} value={x}>{nombreDep(x)}</option>)}
+            <option value="">Todos</option>{depsOrden.map(x => <option key={x} value={x}>{nombreDep(x)}</option>)}
           </select></label></div>
         <div className="filtro-sel"><label>Localidad
           <select value={loc} disabled={!dep} onChange={e => { setLoc(e.target.value); setPagina(1); }}>
