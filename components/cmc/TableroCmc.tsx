@@ -29,11 +29,17 @@ const MAX_FILAS = 100;
 
 export default function TableroCmc({ datos: d, geo, verPersonas = false }: { datos: DatosCmc; geo: GeoData | null; verPersonas?: boolean }) {
   const [f, setF] = useState<Filtro>(SIN_FILTRO);
+  const [verTodosSectores, setVerTodosSectores] = useState(false);
   const [metMapa, setMetMapa] = useState<"insc" | "cursos">("insc");
   const tituloRef = useRef<HTMLHeadingElement>(null);
   const set = (p: Partial<Filtro>) => { setF(x => ({ ...x, ...p })); setTimeout(() => tituloRef.current?.focus(), 0); };
   const cx = useMemo(() => contexto(d), [d]);
   const r = useMemo(() => calcular(d, f, cx), [d, f, cx]);
+  const sectoresTodos = r.porSector.map((g, i) => ({ clave: d.sectores[i], etiqueta: d.sectores[i], valor: g.cursos, color: colorSerie(i), detalle: `${miles(g.insc)} inscripciones` }))
+    .filter(x => x.valor > 0).sort((a, b) => b.valor - a.valor);
+  // Por defecto el top 10 por cantidad de cursos (el sector elegido se mantiene a la vista); «OTROS» y «Sin dato» siempre al final
+  const itemsSectores = (verTodosSectores ? sectoresTodos : sectoresTodos.filter((x, i) => i < 10 || (f.sector >= 0 && x.clave === d.sectores[f.sector])))
+    .sort(conAlFinal(x => x.etiqueta, (a, b) => b.valor - a.valor));
   const nivel: Nivel = f.zona >= 0 ? "loc" : f.dep >= 0 ? "dep" : "general";
   const depSel = f.dep >= 0 ? d.dep[f.dep] : null;
   const zonaSel = f.zona >= 0 ? d.zonas[f.zona] : null;
@@ -219,10 +225,14 @@ export default function TableroCmc({ datos: d, geo, verPersonas = false }: { dat
             <BarraPartes unidad="inscripciones" etiquetas items={r.estados.map(e => ({ clave: e.c, etiqueta: TITULO_ESTADO[e.c] ?? e.c, valor: e.v, color: COLOR_ESTADO[e.c] ?? "#9aa3b2" }))} />
           </section>
           <section className="card">
-            <header><div><h2>Cursos por sector productivo</h2><p className="sub">Clic en un sector para filtrar todo el tablero</p></div></header>
+            <header><div><h2>{verTodosSectores ? "Cursos por sector productivo" : "Top 10 de sectores productivos con más cursos"}</h2><p className="sub">Clic en un sector para filtrar todo el tablero</p></div></header>
             <BarrasH unidad="cursos" seleccion={f.sector >= 0 ? d.sectores[f.sector] : null} onSelect={k => set({ sector: k ? d.sectores.indexOf(k) : -1 })}
-              items={r.porSector.map((g, i) => ({ clave: d.sectores[i], etiqueta: d.sectores[i], valor: g.cursos, color: colorSerie(i), detalle: `${miles(g.insc)} inscripciones` }))
-                .filter(x => x.valor > 0).sort(conAlFinal(x => x.etiqueta, (a, b) => b.valor - a.valor))} />
+              items={itemsSectores} />
+            {sectoresTodos.length > 10 && (
+              <button className="limpiar" type="button" onClick={() => setVerTodosSectores(v => !v)}>
+                {verTodosSectores ? "Ver solo el top 10" : `Ver los ${sectoresTodos.length} sectores`}
+              </button>
+            )}
           </section>
         </div>
 
