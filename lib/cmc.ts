@@ -35,6 +35,11 @@ export function aniosTexto(d: DatosCmc): string {
   return a.length <= 1 ? (a[0] ?? "") : a.length === 2 ? `${a[0]} y ${a[1]}` : `${a.slice(0, -1).join(", ")} y ${a[a.length - 1]}`;
 }
 
+/** «OTROS» y «SIN DATO» van siempre al final de las listas y los rankings; el resto se ordena con `cmp`. */
+const AL_FINAL = new Set(["OTROS", "SIN DATO"]);
+export const alFinal = (nombre: string) => AL_FINAL.has(nombre.trim().toUpperCase());
+export const conAlFinal = <T,>(nombre: (x: T) => string, cmp: (a: T, b: T) => number) => (a: T, b: T) => Number(alFinal(nombre(a))) - Number(alFinal(nombre(b))) || cmp(a, b);
+
 export const normaliza = (s: string) => s.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase();
 
 /** ¿El curso `i` cumple los filtros? (el texto se compara ya normalizado, en `textoNorm`) */

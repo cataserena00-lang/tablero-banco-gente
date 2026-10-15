@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { LogoCmc } from "../Marca";
 import { fmtF, miles, nombreDep } from "@/lib/formato";
-import { SIN_FILTRO, calcular, contexto, nEstado, pct, type DatosCmc } from "@/lib/cmc";
+import { SIN_FILTRO, calcular, conAlFinal, contexto, nEstado, pct, type DatosCmc } from "@/lib/cmc";
 import { descargarExcelCmc, parametros } from "@/lib/clienteCmc";
 import HojasResumenCmc from "./HojasResumenCmc";
 import { useImprimir } from "./useImprimir";
@@ -30,7 +30,7 @@ export default function ExportarCmc({ datos: d, verPersonas }: { datos: DatosCmc
   const zonas = useMemo(() => {
     const deps: Zona[] = d.dep.map((n, i) => ({ clave: `d${i}`, tipo: "dep" as const, dep: i, nombre: n, ...general.porDep[i] })).filter(z => z.cursos > 0);
     const locs: Zona[] = d.zonas.map((z, i) => ({ clave: `l${i}`, tipo: "loc" as const, dep: z[0], zona: i, nombre: z[1], ...general.porZona[i] })).filter(z => z.cursos > 0);
-    const orden = (a: Zona, b: Zona) => nombreDep(a.nombre).localeCompare(nombreDep(b.nombre), "es");
+    const orden = conAlFinal<Zona>(z => z.nombre, (a, b) => nombreDep(a.nombre).localeCompare(nombreDep(b.nombre), "es"));
     return { deps: deps.sort(orden), locs: locs.sort(orden) };
   }, [d, general]);
   const depsOrden = zonas.deps;
