@@ -106,7 +106,8 @@ export const normalizarUsuario = (u: string) => {
 // Token de sesión: "<usuario>.<rol>.<expira>.<firma>" (firmado con AUTH_SECRET: el rol no se puede alterar).
 // Los tokens anteriores, "<usuario>.<expira>.<firma>", siguen siendo válidos y valen como rol "agregado".
 export async function crearSesion(usuario: string, rol: Rol = ROL_POR_DEFECTO) {
-  const cuerpo = `${encodeURIComponent(usuario)}.${rol}.${Date.now() + DURACION_MS}`;
+  // El punto separa los campos del token: si el usuario lo tiene (ej. «gerardo.bruno») se escapa como %2E
+  const cuerpo = `${encodeURIComponent(usuario).replace(/\./g, "%2E")}.${rol}.${Date.now() + DURACION_MS}`;
   return `${cuerpo}.${await hmac(cuerpo, secreto())}`;
 }
 export async function leerSesion(token?: string): Promise<{ usuario: string; rol: Rol } | null> {
