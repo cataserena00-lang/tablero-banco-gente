@@ -40,8 +40,8 @@ export const anioDeEtapa = (etapa: string) => /\d{4}/.exec(etapa)?.[0] ?? etapa;
 
 /** Salvedad sobre la calidad de los datos de 2025 (primer año de uso del sistema). Va arriba del tablero y en todos los reportes. */
 export const SALVEDAD_DATOS = {
-  titulo: "Sobre los datos de 2025",
-  texto: "2025 fue el año en que se empezó a usar el sistema, por lo que no se cargó toda la información de ese año. Los cursos que figuran efectivamente se dictaron, pero puede faltar información, así que conviene tomar las cifras de 2025 con cautela. Los datos de 2026 son confiables y están completos.",
+  titulo: "Sobre los datos de la Etapa 2025",
+  texto: "El año de cada curso es el de su etapa (Etapa 2025 y Etapa 2026). En 2025 se empezó a usar el sistema y no se cargó toda la información: los cursos que figuran se dictaron, pero puede faltar información, por lo que las cifras de la Etapa 2025 deben tomarse con cautela. Los datos de la Etapa 2026 son confiables y completos.",
 };
 
 /** «OTROS» y «SIN DATO» van siempre al final de las listas y los rankings; el resto se ordena con `cmp`. */

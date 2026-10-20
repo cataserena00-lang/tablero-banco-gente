@@ -146,7 +146,7 @@ export default function ExportarCmc({ datos: d, verPersonas }: { datos: DatosCmc
               <button type="button" aria-pressed={periodo === "agregado"} onClick={() => setPeriodo("agregado")}>Agregado</button>
               <button type="button" aria-pressed={periodo === "anual"} onClick={() => setPeriodo("anual")}>Anual</button>
             </div>
-            <p className="nota">{periodo === "agregado" ? `Un solo resumen con los datos de ${d.etapas.map(e => anioDeEtapa(e)).join(" y ")} juntos.` : `El resumen se genera por separado para cada año (${d.etapas.map(e => anioDeEtapa(e)).join(" y ")}).`} Todos los reportes incluyen la aclaración sobre los datos de 2025.</p>
+            <p className="nota">{periodo === "agregado" ? `Un solo resumen con los datos de ${d.etapas.map(e => anioDeEtapa(e)).join(" y ")} juntos.` : `El resumen se genera por separado para cada año (${d.etapas.map(e => anioDeEtapa(e)).join(" y ")}).`} Todos los reportes incluyen la aclaración sobre los datos de la Etapa 2025.</p>
           </section>
 
           <section className="card" aria-label="Qué se exporta" aria-live="polite">
