@@ -68,8 +68,8 @@ def test_procesar_filtra_2024_y_descarta_desaprobados(tmp_path):
     assert "20000000001" not in texto and "20111111111" not in texto
 
 
-def test_inscripto_de_etapa_cerrada_cuenta_como_baja():
-    assert p.ultimo_anio(["ETAPA 2025", "ETAPA 2026"]) == 2026
-    assert p.estado_efectivo("INSCRIPTO ", "ETAPA 2025", 2026) == "BAJA"        # curso terminado: cierre no cargado
-    assert p.estado_efectivo("INSCRIPTO", "ETAPA 2026", 2026) == "INSCRIPTO"    # etapa vigente: curso que todavía no empezó
-    assert p.estado_efectivo("EGRESADO", "ETAPA 2025", 2026) == "EGRESADO"      # los demás estados no cambian
+def test_inscripto_de_la_etapa_2025_cuenta_como_baja():
+    assert p.estado_efectivo("INSCRIPTO ", "ETAPA 2025") == "BAJA"             # curso terminado: cierre no cargado
+    assert p.estado_efectivo("INSCRIPTO", "ETAPA 2026") == "INSCRIPTO"         # 2026 en adelante: se respeta (curso que todavía no empezó)
+    assert p.estado_efectivo("INSCRIPTO", "ETAPA 2027") == "INSCRIPTO"
+    assert p.estado_efectivo("EGRESADO", "ETAPA 2025") == "EGRESADO"           # los demás estados no cambian
