@@ -112,6 +112,7 @@ def armar(dfc: pd.DataFrame, dfa: pd.DataFrame):
     cur, *_ = pc.cursos_validos(dfc)
     ids = set(cur["id"])
     zona = {r.id: (r.dep, r.loc) for r in cur.itertuples()}
+    etapa_de, ultimo = {r.id: r.etapa for r in cur.itertuples()}, pc.ultimo_anio(cur["etapa"])
     a = dfa[pd.to_numeric(dfa["ID Curso"], errors="coerce").isin(ids)].copy()
     a["id_curso"] = pd.to_numeric(a["ID Curso"]).astype(int)
     insc = a.groupby("id_curso").size()
@@ -141,7 +142,7 @@ def armar(dfc: pd.DataFrame, dfa: pd.DataFrame):
         cid = cols["id_curso"][k]
         dep, loc = zona[cid]
         filas_p.append((
-            cid, txt(cols["Estado"][k]), txt(cols["Apellido"][k]), txt(cols["Nombre"][k]), num_texto(cols["CUIL"][k]), num_texto(cols["Nro. Documento"][k]),
+            cid, pc.estado_efectivo(cols["Estado"][k], etapa_de[cid], ultimo) if pc.clave(cols["Estado"][k]) == "INSCRIPTO" else txt(cols["Estado"][k]), txt(cols["Apellido"][k]), txt(cols["Nombre"][k]), num_texto(cols["CUIL"][k]), num_texto(cols["Nro. Documento"][k]),
             fecha(nacs[k]), edad_valida(cols["Edad"][k]), txt(cols["Sexo"][k]), num_texto(cols["Teléfono"][k]), num_texto(cols["Teléfono Alt."][k]),
             txt(cols["Mail"][k]), txt(cols["Educación"][k]), txt(cols["Asiste Establecimiento Educativo"][k]), txt(cols["Ámbito Educativo"][k]),
             txt(cols["Posee Discapacidad"][k]), txt(cols["Tipo Discapacidad"][k]), txt(cols["Tipo Trabajo"][k]), dep, loc,
