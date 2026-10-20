@@ -73,3 +73,10 @@ def test_inscripto_de_la_etapa_2025_cuenta_como_baja():
     assert p.estado_efectivo("INSCRIPTO", "ETAPA 2026") == "INSCRIPTO"         # 2026 en adelante: se respeta (curso que todavía no empezó)
     assert p.estado_efectivo("INSCRIPTO", "ETAPA 2027") == "INSCRIPTO"
     assert p.estado_efectivo("EGRESADO", "ETAPA 2025") == "EGRESADO"           # los demás estados no cambian
+
+
+def test_planificacion_editando_admin_no_entra():
+    df = _cursos()
+    df.loc[0, "Estado Planif."] = "Editando Admin"
+    cur, *_ = p.cursos_validos(df)
+    assert 1 not in set(cur["id"])
