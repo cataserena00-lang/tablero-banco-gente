@@ -9,7 +9,7 @@ y escribe en data/cba_me_capacita/:
 
 Reglas:
   - Solo cursos que empiezan desde 2024 (si no tienen fecha de inicio, se usa el año de la etapa). Lo anterior no se usa.
-  - Se descartan las planificaciones DESAPROBADAS o CANCELADAS: esos cursos no se dictaron.
+  - Se descartan las planificaciones DESAPROBADAS, CANCELADAS o en «EDITANDO ADMIN»: no son cursos dictados.
   - Las inscripciones salen de ASECOR; el curso se une por «ID Curso». La zona es la del CURSO (no la del domicilio de la persona).
   - No se guarda ninguna fila ni dato de persona: cada curso lleva solo conteos (por estado, sexo, edad, estudios, trabajo, discapacidad).
     Los datos nominales los carga cargar_nominal.py a Neon, nunca a este repositorio ni a los logs.
@@ -45,6 +45,7 @@ DESDE = 2024
 VERSION = 1
 SIN_DATO = "SIN DATO"
 EXCLUIR_PLANIF = {"DESAPROBADO", "CANCELADO"}
+EXCLUIR_PLANIF_CONTIENE = ("EDITANDO",)   # «EDITANDO ADMIN»: planificaciones que todavía se están editando, no son cursos confirmados
 
 # ── categorías del perfil (el orden define los índices del vector; el tablero usa los mismos nombres) ───────────────
 ESTADOS = ["INSCRIPTO", "CURSANDO", "APROBADO", "EGRESADO", "NO APROBADO", "BAJA"]
@@ -188,7 +189,7 @@ def anio_efectivo(inicio: pd.Series, etapa: pd.Series) -> pd.Series:
 
 
 def cursos_validos(dfc: pd.DataFrame) -> tuple[pd.DataFrame, int, int, int]:
-    """Cursos que entran al tablero: desde 2024 y sin planificaciones desaprobadas o canceladas.
+    """Cursos que entran al tablero: desde 2024 y sin planificaciones desaprobadas, canceladas o en edición.
     Devuelve (cursos, total en el archivo, desde 2024, descartados por estado). La usa también la carga nominal (cargar_nominal_cmc.py),
     para que los números del tablero y los listados coincidan."""
     cur = preparar_cursos(dfc)
@@ -196,8 +197,8 @@ def cursos_validos(dfc: pd.DataFrame) -> tuple[pd.DataFrame, int, int, int]:
     n_total = len(cur)
     cur = cur[cur["anio"].fillna(0) >= DESDE]
     n_desde = len(cur)
-    n_excl = int(cur["planif"].isin(EXCLUIR_PLANIF).sum())
-    return cur[~cur["planif"].isin(EXCLUIR_PLANIF)].copy(), n_total, n_desde, n_excl
+    excluir = cur["planif"].isin(EXCLUIR_PLANIF) | cur["planif"].str.contains("|".join(EXCLUIR_PLANIF_CONTIENE), regex=True, na=False)
+    return cur[~excluir].copy(), n_total, n_desde, int(excluir.sum())
 
 
 def procesar(cursos_xlsx: Path, asecor_xlsx: Path, actualizado: str) -> tuple[dict, dict]:

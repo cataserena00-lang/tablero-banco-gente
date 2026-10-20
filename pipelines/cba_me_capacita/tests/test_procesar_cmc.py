@@ -73,3 +73,10 @@ def test_inscripto_de_etapa_cerrada_cuenta_como_baja():
     assert p.estado_efectivo("INSCRIPTO ", "ETAPA 2025", 2026) == "BAJA"        # curso terminado: cierre no cargado
     assert p.estado_efectivo("INSCRIPTO", "ETAPA 2026", 2026) == "INSCRIPTO"    # etapa vigente: curso que todavía no empezó
     assert p.estado_efectivo("EGRESADO", "ETAPA 2025", 2026) == "EGRESADO"      # los demás estados no cambian
+
+
+def test_planificacion_editando_admin_no_entra():
+    df = _cursos()
+    df.loc[0, "Estado Planif."] = "Editando Admin"
+    cur, *_ = p.cursos_validos(df)
+    assert 1 not in set(cur["id"])
