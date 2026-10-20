@@ -1,7 +1,7 @@
 "use client";
 import { BarraPartes, BarrasH, ColumnasApiladas, colorSerie } from "../graficos";
 import { fmtF, miles, nombreDep } from "@/lib/formato";
-import { C, COLOR_ESTADO, aniosTexto, conAlFinal, GRUPOS_PERFIL, TITULO_ESTADO, TITULO_SEXO, mesTexto, nEstado, pct, type Contexto, type DatosCmc, type Resumen } from "@/lib/cmc";
+import { C, COLOR_ESTADO, NOTA_INSCRIPTOS, aniosTexto, conAlFinal, GRUPOS_PERFIL, TITULO_ESTADO, TITULO_SEXO, mesTexto, nEstado, pct, type Contexto, type DatosCmc, type Resumen } from "@/lib/cmc";
 import AvisoDatos from "./AvisoDatos";
 import HojasFlujo, { type Bloque } from "./HojasFlujo";
 
@@ -64,7 +64,8 @@ export default function HojasResumenCmc({ d, r, cx, nivel, titulo, ambito, filtr
       </div>) },
     { id: "estados", nodo: (
       <><h3 className="acto-sub">Inscripciones por estado</h3>
-        <BarraPartes unidad="inscripciones" etiquetas items={r.estados.map(e => ({ clave: e.c, etiqueta: TITULO_ESTADO[e.c] ?? e.c, valor: e.v, color: COLOR_ESTADO[e.c] ?? "#9aa3b2" }))} /></>) },
+        <BarraPartes unidad="inscripciones" etiquetas items={r.estados.map(e => ({ clave: e.c, etiqueta: TITULO_ESTADO[e.c] ?? e.c, valor: e.v, color: COLOR_ESTADO[e.c] ?? "#9aa3b2" }))} />
+        <p className="cmc-nota">{NOTA_INSCRIPTOS}</p></>) },
     { id: "perfil1", nodo: (<><h3 className="acto-sub">Características de los participantes de los cursos</h3><div className="hoja-dos-col">{GRUPOS_PERFIL.slice(0, 2).map(([k, t], gi) => perfil(k, t, gi))}</div></>) },
     { id: "perfil2", nodo: (<div className="hoja-dos-col">{GRUPOS_PERFIL.slice(2).map(([k, t], gi) => perfil(k, t, gi + 2))}</div>) },
     { id: "sectores", nodo: (<><h3 className="acto-sub">Top 10 de sectores productivos con más cursos</h3><BarrasH unidad="cursos" items={sectores} /></>) },

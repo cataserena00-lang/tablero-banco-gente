@@ -44,6 +44,9 @@ export const SALVEDAD_DATOS = {
   texto: "El año de cada curso es el de su etapa (Etapa 2025 y Etapa 2026). En 2025 se empezó a usar el sistema y no se cargó toda la información: los cursos que figuran se dictaron, pero puede faltar información, por lo que las cifras de la Etapa 2025 deben tomarse con cautela. Los datos de la Etapa 2026 son confiables y completos.",
 };
 
+/** Aclaración que va debajo del gráfico de estados (el pipeline cuenta como baja al «Inscripto» de una etapa ya cerrada). */
+export const NOTA_INSCRIPTOS = "«Inscripto»: cursos de la Etapa 2026 que aún no comenzaron su dictado. En la Etapa 2025 (cursos terminados) figuran como «Baja».";
+
 /** «OTROS» y «SIN DATO» van siempre al final de las listas y los rankings; el resto se ordena con `cmp`. */
 const AL_FINAL = new Set(["OTROS", "SIN DATO"]);
 export const alFinal = (nombre: string) => AL_FINAL.has(nombre.trim().toUpperCase());

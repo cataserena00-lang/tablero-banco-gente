@@ -6,7 +6,7 @@ import { BarraPartes, BarrasH, ColumnasApiladas, colorSerie } from "../graficos"
 import { LogoCmc } from "../Marca";
 import { fmtF, miles, nombreDep } from "@/lib/formato";
 import {
-  C, COLOR_ESTADO, GRUPOS_PERFIL, anioDeEtapa, SIN_FILTRO, TITULO_ESTADO, TITULO_SEXO, aniosTexto, calcular, conAlFinal, contexto, mesTexto, nEstado, normaliza, pct, type DatosCmc, type Filtro,
+  C, COLOR_ESTADO, GRUPOS_PERFIL, NOTA_INSCRIPTOS, anioDeEtapa, SIN_FILTRO, TITULO_ESTADO, TITULO_SEXO, aniosTexto, calcular, conAlFinal, contexto, mesTexto, nEstado, normaliza, pct, type DatosCmc, type Filtro,
 } from "@/lib/cmc";
 import type { GeoData } from "../Tablero";
 import HojasResumenCmc, { type Nivel } from "./HojasResumenCmc";
@@ -233,6 +233,7 @@ export default function TableroCmc({ datos: d, geo, verPersonas = false }: { dat
           <section className="card">
             <header><div><h2>Inscripciones por estado</h2><p className="sub">Situación actual de cada inscripción</p></div></header>
             <BarraPartes unidad="inscripciones" etiquetas items={r.estados.map(e => ({ clave: e.c, etiqueta: TITULO_ESTADO[e.c] ?? e.c, valor: e.v, color: COLOR_ESTADO[e.c] ?? "#9aa3b2" }))} />
+            <p className="cmc-nota">{NOTA_INSCRIPTOS}</p>
           </section>
           <section className="card">
             <header><div><h2>{verTodosSectores ? "Cursos por sector productivo" : "Top 10 de sectores productivos con más cursos"}</h2><p className="sub">Clic en un sector para filtrar todo el tablero</p></div></header>

@@ -71,6 +71,21 @@ def estado_alumno(s) -> int | None:
     return ESTADOS.index(k) if k in ESTADOS else None
 
 
+def ultimo_anio(etapas) -> int | None:
+    """Año de la etapa más reciente que hay en los cursos."""
+    anios = [a for a in (anio_etapa(e) for e in set(etapas)) if a is not None]
+    return max(anios) if anios else None
+
+
+def estado_efectivo(estado, etapa, ultimo: int | None) -> str:
+    """Una inscripción que sigue «INSCRIPTO» en un curso de una etapa anterior a la última ya no puede estar pendiente: el curso terminó y es un cierre
+    que no se cargó (confirmado con el equipo del programa para la Etapa 2025). Se cuenta como BAJA. En la etapa vigente se respeta tal cual:
+    son personas de cursos que todavía no empezaron."""
+    k = clave(estado)
+    a = anio_etapa(etapa)
+    return "BAJA" if k == "INSCRIPTO" and a is not None and ultimo is not None and a < ultimo else k
+
+
 def edad_tramo(e) -> int:
     try:
         e = float(e)
@@ -204,6 +219,12 @@ def procesar(cursos_xlsx: Path, asecor_xlsx: Path, actualizado: str) -> tuple[di
     a["curso_id"] = a["curso_id"].astype(int)
     n_insc_total = len(a)
     a = a[a["curso_id"].isin(set(cur["id"]))]
+    # «Inscripto» en un curso de una etapa ya cerrada = baja no cargada (ver estado_efectivo)
+    ultimo = ultimo_anio(cur["etapa"])
+    etapa_de = dict(zip(cur["id"], cur["etapa"]))
+    cerrado = (a["estado"] == ESTADOS.index("INSCRIPTO")) & a["curso_id"].map(lambda c: (anio_etapa(etapa_de[c]) or 9999) < (ultimo or 0))
+    n_insc_a_baja = int(cerrado.sum())
+    a.loc[cerrado, "estado"] = ESTADOS.index("BAJA")
     sin_estado = int(a["estado"].isna().sum())
     a = a[a["estado"].notna()].copy()
     a["estado"] = a["estado"].astype(int)
@@ -285,7 +306,7 @@ def procesar(cursos_xlsx: Path, asecor_xlsx: Path, actualizado: str) -> tuple[di
         "actualizado": actualizado, "desde": DESDE, "cursos": len(cur), "inscripciones": int(len(a)),
         "personas": unicos[(-1, -1)][0], "capacitadores": unicos[(-1, -1)][1],
         "control": {"cursos_en_archivo": n_total, "cursos_desde_2024": n_desde, "cursos_descartados_desaprobados_o_cancelados": n_excl,
-                    "inscripciones_en_archivo": n_insc_total, "inscripciones_de_cursos_usados": int(len(a)) + sin_estado, "inscripciones_sin_estado": sin_estado,
+                    "inscripciones_en_archivo": n_insc_total, "inscripciones_de_cursos_usados": int(len(a)) + sin_estado, "inscripciones_sin_estado": sin_estado, "inscriptos_de_etapas_cerradas_contados_como_baja": n_insc_a_baja,
                     "cursos_sin_inscripciones": int(sum(1 for v in perfil if v[0] == 0)), "cursos_sin_fecha_de_inicio": int(cur["inicio"].isna().sum())},
     }
     return datos, meta
