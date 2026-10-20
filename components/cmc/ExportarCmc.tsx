@@ -1,11 +1,12 @@
 "use client";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { LogoCmc } from "../Marca";
 import { fmtF, miles, nombreDep } from "@/lib/formato";
-import { SIN_FILTRO, calcular, conAlFinal, contexto, nEstado, pct, type DatosCmc } from "@/lib/cmc";
+import { SIN_FILTRO, anioDeEtapa, calcular, conAlFinal, contexto, nEstado, pct, type DatosCmc } from "@/lib/cmc";
 import { descargarExcelCmc, parametros } from "@/lib/clienteCmc";
+import AvisoDatos from "./AvisoDatos";
 import HojasResumenCmc from "./HojasResumenCmc";
 import { useImprimir } from "./useImprimir";
 
@@ -23,6 +24,7 @@ export default function ExportarCmc({ datos: d, verPersonas }: { datos: DatosCmc
   const [tipo, setTipo] = useState<Tipo>("dep");
   const [busq, setBusq] = useState(""), [depFiltro, setDepFiltro] = useState(-1);
   const [sel, setSel] = useState<Map<string, Zona>>(new Map());
+  const [periodo, setPeriodo] = useState<"agregado" | "anual">("agregado");   // anual: 2025 y 2026 por separado
   const [bajando, setBajando] = useState<string | null>(null), [aviso, setAviso] = useState<string | null>(null);
   const cx = useMemo(() => contexto(d), [d]);
   const general = useMemo(() => calcular(d, SIN_FILTRO, cx), [d, cx]);
@@ -46,6 +48,14 @@ export default function ExportarCmc({ datos: d, verPersonas }: { datos: DatosCmc
   const zonaIds = useMemo(() => [...new Set(efectivas.flatMap(z => (z.tipo === "loc" ? [z.zona!] : d.zonas.map((x, i) => (x[0] === z.dep ? i : -1)).filter(i => i >= 0))))], [efectivas, d]);
   const conjunto = useMemo(() => calcular(d, { ...SIN_FILTRO, zonaIds }, cx), [d, zonaIds, cx]);
   const porZona = useMemo(() => elegidas.slice(0, MAX_ZONAS_PDF).map(z => ({ z, r: calcular(d, { ...SIN_FILTRO, dep: z.dep, zona: z.tipo === "loc" ? z.zona! : -1 }, cx) })), [elegidas, d, cx]);
+  // Resumen anual: las mismas zonas, una vez por año (etapa); se omiten los años sin cursos en esas zonas
+  const etapasPdf = useMemo(() => (periodo === "anual" ? d.etapas.map((_, i) => i) : [-1]), [periodo, d]);
+  const porAnio = useMemo(() => etapasPdf.map(e => ({
+    etapa: e, anio: e >= 0 ? anioDeEtapa(d.etapas[e]) : undefined,
+    general: calcular(d, { ...SIN_FILTRO, etapa: e }, cx),
+    conjunto: calcular(d, { ...SIN_FILTRO, etapa: e, zonaIds }, cx),
+    porZona: elegidas.slice(0, MAX_ZONAS_PDF).map(z => ({ z, r: calcular(d, { ...SIN_FILTRO, etapa: e, dep: z.dep, zona: z.tipo === "loc" ? z.zona! : -1 }, cx) })),
+  })).filter(x => x.etapa < 0 || (modo === "todo" ? x.general.ag.cursos : x.conjunto.ag.cursos) > 0), [etapasPdf, d, cx, zonaIds, elegidas, modo]);
   const excede = elegidas.length > MAX_ZONAS_PDF;
 
   const alternar = (z: Zona) => setSel(a => { const m = new Map(a); if (m.has(z.clave)) m.delete(z.clave); else m.set(z.clave, z); return m; });
@@ -53,7 +63,7 @@ export default function ExportarCmc({ datos: d, verPersonas }: { datos: DatosCmc
   const quitarTodos = () => setSel(new Map());
 
   const nombresArchivo = modo === "todo" ? "cordoba" : elegidas.length === 1 ? plano(elegidas[0].nombre).replace(/[^a-z0-9]+/g, "-") : `${elegidas.length}-zonas`;
-  const { imprimiendo, imprimir } = useImprimir(`resumen-${nombresArchivo}-cba-me-capacita`, modo === "todo" ? ["Todo Córdoba"] : elegidas.map(nombreZona));
+  const { imprimiendo, imprimir } = useImprimir(`resumen-${nombresArchivo}${periodo === "anual" ? "-anual" : ""}-cba-me-capacita`, modo === "todo" ? ["Todo Córdoba"] : elegidas.map(nombreZona));
   const listoPdf = modo === "todo" || (elegidas.length > 0 && !excede);
   const alcanceExcel = modo === "todo" ? {} : { zonas: efectivas.map(z => ({ dep: d.dep[z.dep], loc: z.tipo === "loc" ? z.nombre : undefined })) };
   const bajar = async (t: "participantes" | "capacitadores") => { setBajando(t); setAviso(await descargarExcelCmc(t, alcanceExcel)); setBajando(null); };
@@ -75,6 +85,7 @@ export default function ExportarCmc({ datos: d, verPersonas }: { datos: DatosCmc
         </div></header>
 
         <main className="dash"><div className="wrap">
+          <AvisoDatos />
           <h2 className="vista-titulo">Exportar</h2>
           <p className="acto-intro">
             Elegí todo Córdoba o tildá los departamentos y localidades que querés incluir. Se genera un resumen por zona y, si elegiste más de una, un resumen conjunto.
@@ -130,6 +141,14 @@ export default function ExportarCmc({ datos: d, verPersonas }: { datos: DatosCmc
             )}
           </section>
 
+          <section className="card acto-selector" aria-label="Tipo de resumen">
+            <div className="seg" role="group" aria-label="Tipo de resumen">
+              <button type="button" aria-pressed={periodo === "agregado"} onClick={() => setPeriodo("agregado")}>Agregado</button>
+              <button type="button" aria-pressed={periodo === "anual"} onClick={() => setPeriodo("anual")}>Anual</button>
+            </div>
+            <p className="nota">{periodo === "agregado" ? `Un solo resumen con los datos de ${d.etapas.map(e => anioDeEtapa(e)).join(" y ")} juntos.` : `El resumen se genera por separado para cada año (${d.etapas.map(e => anioDeEtapa(e)).join(" y ")}).`} Todos los reportes incluyen la aclaración sobre los datos de la Etapa 2025.</p>
+          </section>
+
           <section className="card" aria-label="Qué se exporta" aria-live="polite">
             <h3 className="acto-sub">{modo === "todo" ? "Se exporta: todo Córdoba" : `Zonas elegidas: ${elegidas.length}`}</h3>
             {modo === "zonas" && (sinZonas ? <p className="nota">Todavía no elegiste ninguna zona.</p> : (
@@ -155,7 +174,7 @@ export default function ExportarCmc({ datos: d, verPersonas }: { datos: DatosCmc
             <h3 className="acto-sub" style={{ marginTop: 18 }}>Descargá</h3>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center" }}>
               <button type="button" className="volver" style={{ marginBottom: 0 }} disabled={!listoPdf || imprimiendo || demasiadas} onClick={imprimir}>
-                {imprimiendo ? "Preparando…" : modo === "zonas" && elegidas.length > 1 ? `Resumen en PDF (${elegidas.length} zonas + conjunto)` : "Resumen en PDF"}</button>
+                {imprimiendo ? "Preparando…" : `${periodo === "anual" ? "Resumen anual en PDF" : "Resumen en PDF"}${modo === "zonas" && elegidas.length > 1 ? ` (${elegidas.length} zonas + conjunto)` : ""}`}</button>
               {verPersonas && (
                 <>
                   <button type="button" className="acto-link" disabled={!!bajando || modo === "todo" || sinZonas || demasiadas} onClick={() => bajar("participantes")}
@@ -183,22 +202,26 @@ export default function ExportarCmc({ datos: d, verPersonas }: { datos: DatosCmc
       {imprimiendo && listoPdf && typeof document !== "undefined" && createPortal(
         <div className="hojas-impresion">
           <style>{"@page{size:A4 portrait;margin:0}"}</style>
-          {modo === "todo" ? (
-            <HojasResumenCmc d={d} r={general} cx={cx} nivel="general" titulo="Resumen general" ambito="Todo Córdoba" filtros={[]} depSel={-1} />
-          ) : (
-            <>
-              {elegidas.length > 1 && (
-                <HojasResumenCmc d={d} r={conjunto} cx={cx} nivel="zonas" titulo={`Resumen conjunto · ${elegidas.length} zonas`} ambito={`${elegidas.length} zonas elegidas`} filtros={[]} depSel={-1}
-                  zonasTabla={porZona.filter(({ z }) => efectivas.includes(z)).map(({ z, r }) => ({ nombre: nombreZona(z), cursos: r.ag.cursos, insc: r.insc, egr: nEstado(r, "EGRESADO") }))}
-                  nota={hayRepetidas ? `Las localidades que están dentro de un departamento elegido (${elegidas.filter(z => !efectivas.includes(z)).map(nombreZona).join(", ")}) se cuentan una sola vez, dentro del departamento. Cada una tiene además su propio resumen.` : undefined} />
+          {porAnio.map(({ etapa, anio, general: g, conjunto: cj, porZona: pz }) => (
+            <Fragment key={etapa}>
+              {modo === "todo" ? (
+                <HojasResumenCmc d={d} r={g} cx={cx} nivel="general" titulo={anio ? `Resumen general · ${anio}` : "Resumen general"} ambito="Todo Córdoba" filtros={anio ? [`Año: ${anio}`] : []} depSel={-1} periodo={anio} />
+              ) : (
+                <>
+                  {elegidas.length > 1 && (
+                    <HojasResumenCmc d={d} r={cj} cx={cx} nivel="zonas" titulo={`Resumen conjunto · ${elegidas.length} zonas${anio ? ` · ${anio}` : ""}`} ambito={`${elegidas.length} zonas elegidas`} filtros={anio ? [`Año: ${anio}`] : []} depSel={-1} periodo={anio}
+                      zonasTabla={pz.filter(({ z }) => efectivas.includes(z)).map(({ z, r }) => ({ nombre: nombreZona(z), cursos: r.ag.cursos, insc: r.insc, egr: nEstado(r, "EGRESADO") }))}
+                      nota={hayRepetidas ? `Las localidades que están dentro de un departamento elegido (${elegidas.filter(z => !efectivas.includes(z)).map(nombreZona).join(", ")}) se cuentan una sola vez, dentro del departamento. Cada una tiene además su propio resumen.` : undefined} />
+                  )}
+                  {pz.filter(({ r }) => !anio || r.ag.cursos > 0).map(({ z, r }) => (
+                    <HojasResumenCmc key={z.clave} d={d} r={r} cx={cx} nivel={z.tipo} depSel={z.dep} filtros={anio ? [`Año: ${anio}`] : []} periodo={anio}
+                      titulo={`${z.tipo === "dep" ? `Departamento ${nombreDep(z.nombre)}` : `Localidad ${nombreDep(z.nombre)}`}${anio ? ` · ${anio}` : ""}`}
+                      ambito={z.tipo === "dep" ? `Departamento ${nombreDep(z.nombre)}` : `${nombreDep(z.nombre)}, ${nombreDep(d.dep[z.dep])}`} />
+                  ))}
+                </>
               )}
-              {porZona.map(({ z, r }) => (
-                <HojasResumenCmc key={z.clave} d={d} r={r} cx={cx} nivel={z.tipo} depSel={z.dep} filtros={[]}
-                  titulo={z.tipo === "dep" ? `Departamento ${nombreDep(z.nombre)}` : `Localidad ${nombreDep(z.nombre)}`}
-                  ambito={z.tipo === "dep" ? `Departamento ${nombreDep(z.nombre)}` : `${nombreDep(z.nombre)}, ${nombreDep(d.dep[z.dep])}`} />
-              ))}
-            </>
-          )}
+            </Fragment>
+          ))}
         </div>, document.body)}
     </>
   );

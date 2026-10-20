@@ -6,8 +6,9 @@ import { descargarExcelCmc, parametros, type AlcanceCliente } from "@/lib/client
 /* Menú «Exportar» de cada vista de Córdoba me capacita (general, departamento o localidad), como en las fichas de Banco de la Gente:
    el resumen en PDF lo ven todos los perfiles; las bases de participantes y capacitadores (datos personales) solo el perfil completo y admin,
    y el servidor lo vuelve a verificar en cada descarga. */
-export default function MenuExportarCmc({ alcance, verPersonas, onPdf, preparando }: {
-  alcance: AlcanceCliente; verPersonas: boolean; onPdf: () => void; preparando: boolean;
+export default function MenuExportarCmc({ alcance, verPersonas, onPdf, preparando, anioElegido = null }: {
+  alcance: AlcanceCliente; verPersonas: boolean; onPdf: (modo: "agregado" | "anual") => void; preparando: boolean;
+  anioElegido?: string | null;   // año del filtro rápido: el resumen «agregado» es el de lo que se está viendo
 }) {
   const [abierto, setAbierto] = useState(false);
   const [bajando, setBajando] = useState<string | null>(null);
@@ -24,7 +25,9 @@ export default function MenuExportarCmc({ alcance, verPersonas, onPdf, preparand
         {preparando || bajando ? "Preparando…" : "Exportar ▾"}</button>
       {abierto && (
         <div className="ficha-export-menu" role="menu">
-          <button type="button" role="menuitem" onClick={() => { setAbierto(false); onPdf(); }}>Resumen {donde} (PDF)</button>
+          <button type="button" role="menuitem" onClick={() => { setAbierto(false); onPdf("agregado"); }}>
+            Resumen {donde}{anioElegido ? ` de ${anioElegido}` : " agregado"} (PDF)</button>
+          <button type="button" role="menuitem" onClick={() => { setAbierto(false); onPdf("anual"); }}>Resumen {donde} anual: cada año por separado (PDF)</button>
           {verPersonas && (
             <>
               <button type="button" role="menuitem" disabled={!alcance.dep} title={alcance.dep ? undefined : "Elegí un departamento: la base de todo Córdoba es demasiado grande para un Excel"} onClick={() => bajar("participantes")}>

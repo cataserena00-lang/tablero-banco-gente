@@ -2,6 +2,7 @@
 import { BarraPartes, BarrasH, ColumnasApiladas, colorSerie } from "../graficos";
 import { fmtF, miles, nombreDep } from "@/lib/formato";
 import { C, COLOR_ESTADO, aniosTexto, conAlFinal, GRUPOS_PERFIL, TITULO_ESTADO, TITULO_SEXO, mesTexto, nEstado, pct, type Contexto, type DatosCmc, type Resumen } from "@/lib/cmc";
+import AvisoDatos from "./AvisoDatos";
 import HojasFlujo, { type Bloque } from "./HojasFlujo";
 
 /* Hojas impresas del resumen de Córdoba me capacita (general, de un departamento, de una localidad o de varias zonas): páginas A4 con cabecera y pie
@@ -13,12 +14,15 @@ import HojasFlujo, { type Bloque } from "./HojasFlujo";
 export type Nivel = "general" | "dep" | "loc" | "zonas";   // "zonas": varias zonas elegidas a la vez (resumen conjunto)
 const MAX_CURSOS = 40;
 
-export default function HojasResumenCmc({ d, r, cx, nivel, titulo, ambito, filtros, depSel, zonasTabla = [], nota }: {
+export default function HojasResumenCmc({ d, r, cx, nivel, titulo, ambito, filtros: filtrosTodos, depSel, zonasTabla = [], nota, periodo }: {
   d: DatosCmc; r: Resumen; cx: Contexto; nivel: Nivel; titulo: string; ambito: string; filtros: string[]; depSel: number;
   zonasTabla?: { nombre: string; cursos: number; insc: number; egr: number }[];   // solo para nivel «zonas»
   nota?: string;                                                      // aclaración al pie de la tabla de detalle
+  periodo?: string;                                                   // años que cubre el resumen (por defecto, todos los de los datos)
 }) {
+  const filtros = filtrosTodos.filter(t => !t.startsWith("Año:"));   // el año ya está en «Datos de …»
   const hayFiltros = filtros.length > 0;
+  const anios = periodo ?? aniosTexto(d);
   const off = cx.off;
   const sectores = r.porSector.map((g, i) => ({ clave: d.sectores[i], etiqueta: d.sectores[i], valor: g.cursos, color: colorSerie(i), detalle: `${miles(g.insc)} insc.` }))
     .filter(x => x.valor > 0).sort((a, b) => b.valor - a.valor).slice(0, 10).sort(conAlFinal(x => x.etiqueta, (a, b) => b.valor - a.valor));
@@ -47,11 +51,12 @@ export default function HojasResumenCmc({ d, r, cx, nivel, titulo, ambito, filtr
       <header><div>
         <p className="zona-etiqueta">{etiquetaNivel}</p>
         <h2>{titulo}</h2>
-        <p className="sub">Datos de {aniosTexto(d)}{hayFiltros ? ` · Filtros: ${filtros.join(" · ")}` : " · Sin filtros"}</p>
+        <p className="sub">Datos de {anios}{hayFiltros ? ` · Filtros: ${filtros.join(" · ")}` : " · Sin filtros"}</p>
       </div></header>) },
+    { id: "salvedad", nodo: <AvisoDatos /> },
     { id: "kpis", nodo: (
       <div className="kpis kpis-5">
-        <div className="kpi"><span>Cursos</span><b>{miles(r.ag.cursos)}</b><small>dictados en {aniosTexto(d)}</small></div>
+        <div className="kpi"><span>Cursos</span><b>{miles(r.ag.cursos)}</b><small>dictados en {anios}</small></div>
         <div className="kpi"><span>Inscripciones</span><b>{miles(r.insc)}</b><small>{r.unicos ? `${miles(r.unicos.personas)} personas distintas` : "según los filtros elegidos"}</small></div>
         <div className="kpi"><span>Egresados</span><b>{miles(nEstado(r, "EGRESADO"))}</b><small>{pct(nEstado(r, "EGRESADO"), r.insc)} de las inscripciones</small></div>
         <div className="kpi"><span>Bajas</span><b>{miles(nEstado(r, "BAJA"))}</b><small>{pct(nEstado(r, "BAJA"), r.insc)} de las inscripciones</small></div>
