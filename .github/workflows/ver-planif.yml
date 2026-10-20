@@ -1,0 +1,19 @@
+name: Ver estados de planificación (temporal)
+on:
+  push:
+    branches: [claude/tmp-planif]
+    paths: [".github/workflows/ver-planif.yml", "pipelines/cba_me_capacita/ver_planif.py"]
+permissions:
+  contents: read
+jobs:
+  ver:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install pandas openpyxl google-api-python-client google-auth
+      - env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          CBA_DRIVE_CARPETA_ID: 1181tR00Do2Qb1pR1bYP0ouo2rerhPlS2
+        run: python pipelines/cba_me_capacita/ver_planif.py
