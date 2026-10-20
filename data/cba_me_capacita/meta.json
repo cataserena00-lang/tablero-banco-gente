@@ -12,6 +12,7 @@
   "inscripciones_en_archivo": 99255,
   "inscripciones_de_cursos_usados": 97777,
   "inscripciones_sin_estado": 0,
+  "inscriptos_de_etapas_cerradas_contados_como_baja": 7,
   "cursos_sin_inscripciones": 840,
   "cursos_sin_fecha_de_inicio": 0
  }
