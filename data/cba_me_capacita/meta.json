@@ -1,19 +1,19 @@
 {
  "actualizado": "2026-10-20",
  "desde": 2024,
- "cursos": 4609,
- "inscripciones": 97777,
- "personas": 70070,
- "capacitadores": 1325,
+ "cursos": 4593,
+ "inscripciones": 97540,
+ "personas": 69907,
+ "capacitadores": 1322,
  "control": {
   "cursos_en_archivo": 5030,
   "cursos_desde_2024": 5030,
-  "cursos_descartados_desaprobados_o_cancelados": 421,
+  "cursos_descartados_desaprobados_o_cancelados": 437,
   "inscripciones_en_archivo": 99255,
-  "inscripciones_de_cursos_usados": 97777,
+  "inscripciones_de_cursos_usados": 97540,
   "inscripciones_sin_estado": 0,
-  "inscriptos_de_etapas_cerradas_contados_como_baja": 7,
-  "cursos_sin_inscripciones": 840,
+  "inscriptos_de_la_etapa_2025_contados_como_baja": 7,
+  "cursos_sin_inscripciones": 832,
   "cursos_sin_fecha_de_inicio": 0
  }
 }
