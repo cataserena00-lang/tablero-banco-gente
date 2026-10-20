@@ -1,11 +1,11 @@
 name: Actualizar Córdoba me capacita
 
 # Lee REPORTE CURSOS y REPORTE ASECOR de la carpeta de Drive, genera los agregados (sin datos personales) en
-# data/cba_me_capacita/ y los commitea (eso dispara el deploy en Vercel). Mismos días y horas que Banco de la Gente.
+# data/cba_me_capacita/ y los commitea (eso dispara el deploy en Vercel). Se actualiza martes y miércoles.
 on:
   schedule:
-    # Lunes 16:00 y miércoles 14:00, hora de Argentina (UTC-3)
-    - cron: "0 19 * * 1"
+    # Martes y miércoles 14:00, hora de Argentina (UTC-3)
+    - cron: "0 17 * * 2"
     - cron: "0 17 * * 3"
   workflow_dispatch:
     inputs:

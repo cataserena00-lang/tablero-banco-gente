@@ -6,10 +6,11 @@ import { BarraPartes, BarrasH, ColumnasApiladas, colorSerie } from "../graficos"
 import { LogoCmc } from "../Marca";
 import { fmtF, miles, nombreDep } from "@/lib/formato";
 import {
-  C, COLOR_ESTADO, GRUPOS_PERFIL, SIN_FILTRO, TITULO_ESTADO, TITULO_SEXO, aniosTexto, calcular, conAlFinal, contexto, mesTexto, nEstado, normaliza, pct, type DatosCmc, type Filtro,
+  C, COLOR_ESTADO, GRUPOS_PERFIL, anioDeEtapa, SIN_FILTRO, TITULO_ESTADO, TITULO_SEXO, aniosTexto, calcular, conAlFinal, contexto, mesTexto, nEstado, normaliza, pct, type DatosCmc, type Filtro,
 } from "@/lib/cmc";
 import type { GeoData } from "../Tablero";
 import HojasResumenCmc, { type Nivel } from "./HojasResumenCmc";
+import AvisoDatos from "./AvisoDatos";
 import MenuExportarCmc from "./MenuExportarCmc";
 import { useImprimir } from "./useImprimir";
 
@@ -30,6 +31,7 @@ const MAX_FILAS = 100;
 export default function TableroCmc({ datos: d, geo, verPersonas = false }: { datos: DatosCmc; geo: GeoData | null; verPersonas?: boolean }) {
   const [f, setF] = useState<Filtro>(SIN_FILTRO);
   const [verTodosSectores, setVerTodosSectores] = useState(false);
+  const [modoPdf, setModoPdf] = useState<"agregado" | "anual">("agregado");   // anual: 2025 y 2026 por separado
   const [metMapa, setMetMapa] = useState<"insc" | "cursos">("insc");
   const tituloRef = useRef<HTMLHeadingElement>(null);
   const set = (p: Partial<Filtro>) => { setF(x => ({ ...x, ...p })); setTimeout(() => tituloRef.current?.focus(), 0); };
@@ -40,6 +42,7 @@ export default function TableroCmc({ datos: d, geo, verPersonas = false }: { dat
   // Por defecto el top 10 por cantidad de cursos (el sector elegido se mantiene a la vista); «OTROS» y «Sin dato» siempre al final
   const itemsSectores = (verTodosSectores ? sectoresTodos : sectoresTodos.filter((x, i) => i < 10 || (f.sector >= 0 && x.clave === d.sectores[f.sector])))
     .sort(conAlFinal(x => x.etiqueta, (a, b) => b.valor - a.valor));
+  const periodoTexto = f.etapa >= 0 ? anioDeEtapa(d.etapas[f.etapa]) : aniosTexto(d);
   const nivel: Nivel = f.zona >= 0 ? "loc" : f.dep >= 0 ? "dep" : "general";
   const depSel = f.dep >= 0 ? d.dep[f.dep] : null;
   const zonaSel = f.zona >= 0 ? d.zonas[f.zona] : null;
@@ -85,13 +88,13 @@ export default function TableroCmc({ datos: d, geo, verPersonas = false }: { dat
   const titulo = nivel === "general" ? "Resumen general" : nivel === "dep" ? `Departamento ${nombreDep(depSel!)}` : `Localidad ${nombreDep(zonaSel![1])}`;
   const ambito = nivel === "general" ? "Todo Córdoba" : nivel === "dep" ? `Departamento ${nombreDep(depSel!)}` : `${nombreDep(zonaSel![1])}, ${nombreDep(depSel!)}`;
   const filtrosTexto: string[] = [];
-  if (f.etapa >= 0) filtrosTexto.push(`Etapa: ${d.etapas[f.etapa]}`);
+  if (f.etapa >= 0) filtrosTexto.push(`Año: ${anioDeEtapa(d.etapas[f.etapa])}`);
   if (f.sector >= 0) filtrosTexto.push(`Sector: ${d.sectores[f.sector]}`);
   if (f.tipo >= 0) filtrosTexto.push(`Institución: ${d.tipos[f.tipo]}`);
   if (f.modalidad >= 0) filtrosTexto.push(`Modalidad: ${d.modalidades[f.modalidad]}`);
   if (f.desde >= 0) filtrosTexto.push(`Desde: ${mesTexto(d.meses[f.desde])}`);
   if (f.hasta >= 0) filtrosTexto.push(`Hasta: ${mesTexto(d.meses[f.hasta])}`);
-  const { imprimiendo, imprimir } = useImprimir(`resumen-${nivel === "general" ? "cordoba" : (zonaSel ? zonaSel[1] : depSel!).toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, "-")}-cba-me-capacita`, [ambito]);
+  const { imprimiendo, imprimir } = useImprimir(`resumen-${nivel === "general" ? "cordoba" : (zonaSel ? zonaSel[1] : depSel!).toLowerCase().normalize("NFD").replace(/\p{M}/gu, "").replace(/[^a-z0-9]+/g, "-")}${modoPdf === "anual" ? "-anual" : f.etapa >= 0 ? `-${anioDeEtapa(d.etapas[f.etapa])}` : ""}-cba-me-capacita`, [ambito]);
 
   const sel = (nombre: string, valor: number, lista: string[], onChange: (i: number) => void, todos: string) => (
     <div className="filtro-sel">
@@ -122,8 +125,15 @@ export default function TableroCmc({ datos: d, geo, verPersonas = false }: { dat
             <span aria-hidden="true">←</span> {nivel === "loc" ? `Volver a ${nombreDep(depSel!)}` : "Volver al resumen general"}
           </button>
         )}
+        <AvisoDatos />
+        <div className="filtro-anio" role="group" aria-label="Año">
+          <span>Año</span>
+          <div className="seg">
+            <button type="button" aria-pressed={f.etapa < 0} onClick={() => set({ etapa: -1 })}>2025 y 2026</button>
+            {d.etapas.map((e, i) => <button key={e} type="button" aria-pressed={f.etapa === i} onClick={() => set({ etapa: i })}>{anioDeEtapa(e)}</button>)}
+          </div>
+        </div>
         <section className="filtros" aria-label="Filtros">
-          {sel("Etapa", f.etapa, d.etapas, i => set({ etapa: i }), "Todas")}
           {sel("Sector productivo", f.sector, d.sectores, i => set({ sector: i }), "Todos")}
           {sel("Tipo de institución", f.tipo, d.tipos, i => set({ tipo: i }), "Todos")}
           {sel("Modalidad", f.modalidad, d.modalidades, i => set({ modalidad: i }), "Todas")}
@@ -145,11 +155,11 @@ export default function TableroCmc({ datos: d, geo, verPersonas = false }: { dat
 
         <div className="vista-titulo-fila">
           <h2 className="vista-titulo" ref={tituloRef} tabIndex={-1}>{titulo}</h2>
-          <MenuExportarCmc alcance={{ dep: depSel, loc: zonaSel ? zonaSel[1] : null }} verPersonas={verPersonas} onPdf={imprimir} preparando={imprimiendo} />
+          <MenuExportarCmc alcance={{ dep: depSel, loc: zonaSel ? zonaSel[1] : null }} verPersonas={verPersonas} onPdf={m => { setModoPdf(m); imprimir(); }} anioElegido={f.etapa >= 0 ? anioDeEtapa(d.etapas[f.etapa]) : null} preparando={imprimiendo} />
         </div>
 
         <section className="kpis" aria-label="Indicadores" style={{ marginTop: 14 }}>
-          <div className="kpi"><span>Cursos</span><b>{miles(r.ag.cursos)}</b><small>dictados en {aniosTexto(d)}</small></div>
+          <div className="kpi"><span>Cursos</span><b>{miles(r.ag.cursos)}</b><small>dictados en {periodoTexto}</small></div>
           <div className="kpi"><span>Inscripciones</span><b>{miles(r.insc)}</b>
             <small>{r.unicos ? `${miles(r.unicos.personas)} personas distintas` : "personas distintas: se calcula sin filtros de sector, tipo, modalidad ni período"}</small></div>
           <div className="kpi"><span>Egresados</span><b>{miles(nEstado(r, "EGRESADO"))}</b><small>{pct(nEstado(r, "EGRESADO"), r.insc)} de las inscripciones</small></div>
@@ -297,7 +307,12 @@ export default function TableroCmc({ datos: d, geo, verPersonas = false }: { dat
       {imprimiendo && typeof document !== "undefined" && createPortal(
         <div className="hojas-impresion">
           <style>{"@page{size:A4 portrait;margin:0}"}</style>
-          <HojasResumenCmc d={d} r={r} cx={cx} nivel={nivel} titulo={titulo} ambito={ambito} filtros={filtrosTexto} depSel={f.dep} />
+          {modoPdf === "anual"
+            ? d.etapas.map((e, i) => ({ i, anio: anioDeEtapa(e), ra: calcular(d, { ...f, etapa: i }, cx) })).filter(x => x.ra.ag.cursos > 0).map(({ i, anio, ra }) => (
+              <HojasResumenCmc key={i} d={d} r={ra} cx={cx} nivel={nivel} titulo={`${titulo} · ${anio}`} ambito={ambito} depSel={f.dep} periodo={anio}
+                filtros={[`Año: ${anio}`, ...filtrosTexto.filter(t => !t.startsWith("Año:"))]} />))
+            : <HojasResumenCmc d={d} r={r} cx={cx} nivel={nivel} titulo={titulo} ambito={ambito} filtros={filtrosTexto} depSel={f.dep}
+                periodo={f.etapa >= 0 ? anioDeEtapa(d.etapas[f.etapa]) : undefined} />}
         </div>, document.body)}
     </>
   );

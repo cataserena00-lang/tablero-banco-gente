@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import { SALVEDAD_DATOS } from "./cmc";
 
 /* Excel (.xlsx) de Córdoba me capacita con datos NOMINALES: lo genera el servidor y solo lo reciben los perfiles completo y admin
    (ver /api/cmc/exportar). */
@@ -25,6 +26,8 @@ export async function armarExcelCmc(d: { hoja: string; alcance: string; columnas
   info.columns = [{ width: 24 }, { width: 70 }];
   info.addRows([["Alcance", d.alcance], ["Filas", d.filas.length], ["Generado", d.fecha], ["Generado por", d.usuario],
     ["Aviso", "Información confidencial: contiene datos personales. Uso interno del Ministerio de Desarrollo Social y Promoción del Empleo."]]);
+  info.addRow([SALVEDAD_DATOS.titulo, SALVEDAD_DATOS.texto]);
+  info.getColumn(2).alignment = { wrapText: true, vertical: "top" };
   info.getColumn(1).font = { bold: true };
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
