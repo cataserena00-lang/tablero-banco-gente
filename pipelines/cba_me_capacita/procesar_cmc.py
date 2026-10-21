@@ -148,6 +148,17 @@ def digitos(v) -> str:
     return re.sub(r"\D", "", str(int(v)) if isinstance(v, float) and pd.notna(v) else str(v)) if pd.notna(v) else ""
 
 
+def persona_id(cuil, dni) -> str:
+    """Identifica a la persona para contar personas distintas: el DNI (es el dato que casi siempre está cargado; el CUIL falta con frecuencia).
+    Sin DNI se usa el que lleva el CUIL en el medio (11 dígitos: 2 de tipo + 8 de DNI + 1 verificador), así la misma persona no se cuenta dos veces.
+    Se descartan ceros a la izquierda para que «09123456» y «9123456» sean la misma persona."""
+    d = digitos(dni).lstrip("0")
+    if d:
+        return d
+    c = digitos(cuil)
+    return c[2:10].lstrip("0") if len(c) == 11 else c
+
+
 def cuiles(v) -> list[str]:
     """Uno o varios CUIL (11 dígitos) de una celda de capacitador (con o sin guiones, separados por salto de línea o coma)."""
     t = re.sub(r"(?<=\d)[-.](?=\d)", "", str(v)) if pd.notna(v) else ""
@@ -210,7 +221,7 @@ def procesar(cursos_xlsx: Path, asecor_xlsx: Path, actualizado: str) -> tuple[di
         "estudios": dfa["Educación"].map(estudios_cat),
         "trabajo": dfa["Tipo Trabajo"].map(trabajo_cat),
         "disc": dfa["Posee Discapacidad"].map(discapacidad_cat),
-        "persona": [digitos(cu) or digitos(dn) for cu, dn in zip(dfa["CUIL"], dfa["Nro. Documento"])],
+        "persona": [persona_id(cu, dn) for cu, dn in zip(dfa["CUIL"], dfa["Nro. Documento"])],
     })
     a = a.dropna(subset=["curso_id"]).copy()
     a["curso_id"] = a["curso_id"].astype(int)

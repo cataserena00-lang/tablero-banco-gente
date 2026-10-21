@@ -40,7 +40,11 @@ const sql = () => { const c = conexion(); if (!c) throw new Error("sin_base"); r
 const COLS_LISTA = "p.apellido, p.nombre, p.cuil, p.dni, p.sexo, p.edad, p.telefono, p.mail, p.estado, c.curso, c.institucion, p.zona_loc AS localidad, p.zona_dep AS departamento";   // Excel: una fila por inscripción
 
 /** Clave de persona: CUIL, si no DNI, si no apellido, nombre y fecha de nacimiento. Una persona puede tener muchas inscripciones (una por curso). */
-const PERSONA = "COALESCE(NULLIF(p.cuil, ''), NULLIF(p.dni, ''), p.apellido || '|' || p.nombre || '|' || COALESCE(p.fecha_nacimiento::text, ''))";
+// Una persona = su DNI (casi siempre cargado; el CUIL falta con frecuencia). Sin DNI, el que lleva el CUIL en el medio; sin ninguno, nombre y fecha de nacimiento.
+// Mismo criterio que `persona_id` en procesar_cmc.py, así los números del tablero y de los listados coinciden.
+const SOLO_DNI = "ltrim(regexp_replace(COALESCE(p.dni, ''), '\\D', '', 'g'), '0')";
+const SOLO_CUIL = "regexp_replace(COALESCE(p.cuil, ''), '\\D', '', 'g')";
+const PERSONA = `COALESCE(NULLIF(${SOLO_DNI}, ''), CASE WHEN length(${SOLO_CUIL}) = 11 THEN NULLIF(ltrim(substr(${SOLO_CUIL}, 3, 8), '0'), '') END, NULLIF(${SOLO_CUIL}, ''), p.apellido || '|' || p.nombre || '|' || COALESCE(p.fecha_nacimiento::text, ''))`;
 
 /** Una fila por PERSONA (no por inscripción), con sus datos y la cantidad de cursos; entra si tiene al menos una inscripción que cumpla los filtros.
     `cursos` y `egresados` cuentan solo las inscripciones que cumplen los filtros del listado. */
