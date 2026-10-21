@@ -80,3 +80,11 @@ def test_planificacion_editando_admin_no_entra():
     df.loc[0, "Estado Planif."] = "Editando Admin"
     cur, *_ = p.cursos_validos(df)
     assert 1 not in set(cur["id"])
+
+
+def test_persona_se_identifica_por_dni():
+    assert p.persona_id("", "12.345.678") == "12345678"                  # sin CUIL: vale el DNI
+    assert p.persona_id("20-12345678-3", "12345678") == "12345678"       # con los dos: el DNI
+    assert p.persona_id("20-12345678-3", "") == "12345678"               # sin DNI: el que lleva el CUIL, para no contarla dos veces
+    assert p.persona_id("", "09123456") == p.persona_id("20-09123456-1", "") == "9123456"   # ceros a la izquierda
+    assert p.persona_id("", "") == "" and p.persona_id(float("nan"), float("nan")) == ""
