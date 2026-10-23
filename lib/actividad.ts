@@ -11,6 +11,8 @@ export const GRUPOS = {
   ingreso: ["ingreso"],
   exportable: ["exportacion", "exportable"],     // PDF de personas (servidor) y fichas/resúmenes impresos (navegador)
   consulta: ["busqueda", "ficha"],
+  seguridad: ["ingreso_fallido", "codigo_incorrecto", "codigo_bloqueado", "clave_cambiada", "autenticador_alta", "dispositivo_confiado", "cierre_sesion",
+    "admin_usuario_creado", "admin_usuario_editado", "admin_2fa_reiniciado", "admin_sesiones_cerradas", "admin_dispositivos_quitados", "cuenta_codigos_nuevos", "cuenta_dispositivos_quitados"],
 } as const;
 export type Grupo = keyof typeof GRUPOS;
 

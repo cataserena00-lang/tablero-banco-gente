@@ -575,3 +575,28 @@ a.prog-card:hover{box-shadow:0 6px 18px rgba(0,0,0,.09);transform:translateY(-2p
 .filtro-anio{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:0 0 12px}
 .filtro-anio>span{font-size:13.5px;font-weight:600;color:var(--tx2)}
 .hoja .cmc-nota{font-size:9px;margin:1px 0 0;line-height:1.25;white-space:nowrap}
+
+/* Acceso v2: alta del autenticador, códigos de recuperación, cuenta y administración de usuarios */
+.login .configurar{max-width:420px}
+.login .pasos{margin:0;padding-left:20px;display:grid;gap:4px;font-size:13.5px;color:var(--tx2)}
+.login .qr{width:200px;height:200px;margin:4px auto;background:#fff;padding:6px;border:1px solid var(--borde);border-radius:8px}
+.login .qr img{width:100%;height:100%;display:block}
+.login code.secreto{display:block;margin-top:4px;font-size:15px;letter-spacing:.06em;word-break:break-all;color:var(--tx)}
+.login .confiar{display:flex;gap:8px;align-items:flex-start;font-size:13px}
+.login .confiar input{margin-top:2px}
+.login .nota{font-size:12.5px;color:var(--tx2);margin:0}
+.login .limpiar{background:none;border:0;color:var(--primario);text-decoration:underline;cursor:pointer;font:inherit;font-size:13px;margin-top:8px}
+.codigos-recuperacion{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.codigos-recuperacion code{display:block;text-align:center;padding:6px;border:1px dashed var(--borde);border-radius:6px;font-size:14px;letter-spacing:.05em}
+.login .acciones{display:flex;gap:12px}
+.boton-link{display:block;text-align:center;background:var(--primario);color:#fff;border-radius:8px;padding:10px;font-weight:600;text-decoration:none}
+.cuenta{max-width:760px}
+.form-cuenta{display:grid;gap:10px;max-width:420px}
+.form-cuenta label{display:grid;gap:4px;font-size:13px;color:var(--tx2)}
+.form-cuenta input,.form-cuenta select{font:inherit;color:var(--tx);border:1px solid var(--borde);border-radius:8px;padding:8px 12px}
+.admin-acciones{display:flex;flex-wrap:wrap;gap:6px 10px}
+.admin-acciones button{font-size:12.5px}
+.etiqueta-estado{display:inline-block;padding:1px 8px;border-radius:99px;font-size:12px;background:var(--celeste-claro);color:var(--tx)}
+.etiqueta-estado.mal{background:#fde8e8;color:#8a1c1c}
+.etiqueta-estado.ok{background:#e4f5ea;color:#17613a}
+.login .cancelar button[type=submit]{background:none;border:0;color:var(--primario);text-decoration:underline;padding:6px;font-weight:400;font-size:13px}

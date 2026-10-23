@@ -84,6 +84,22 @@ export async function verificarCredenciales(usuario: string, clave: string): Pro
   if (!rol) console.warn("login fallido", { usuarioExiste: candidatos.length > 0, formatosDelUsuario: candidatos });
   return rol ? { rol } : null;
 }
+/** Usuarios que todavía están en las variables de Vercel (usuario, perfil y nombre; nunca el hash). Para el panel de administración del acceso v2. */
+export function usuariosDeVariables(): { usuario: string; rol: Rol; nombre: string | null }[] {
+  const comunes = [process.env.DASHBOARD_USERS, process.env.DASHBOARD_USERS_EXTRA].flatMap(v => (v ?? "").split(",")).map(x => x.trim()).filter(Boolean).map(par => ({ par, forzado: undefined as Rol | undefined }));
+  const completos = (process.env.DASHBOARD_COMPLETOS ?? "").split(",").map(x => x.trim()).filter(Boolean).map(par => ({ par, forzado: "completo" as Rol }));
+  const admins = (process.env.DASHBOARD_ADMIN ?? "").split(",").map(x => x.trim()).filter(Boolean).map(par => ({ par, forzado: "admin" as Rol }));
+  const vistos = new Map<string, { usuario: string; rol: Rol; nombre: string | null }>();
+  for (const { par, forzado } of [...comunes, ...completos, ...admins]) {
+    const i = par.indexOf(":"); if (i < 1) continue;
+    const [, rolTxt, nombre] = par.slice(i + 1).split("|");
+    const usuario = normalizarUsuario(par.slice(0, i)).toLowerCase(), rol = forzado ?? aRol(rolTxt);
+    const previo = vistos.get(usuario);
+    if (!previo || RANGO[rol] > RANGO[previo.rol]) vistos.set(usuario, { usuario, rol, nombre: nombre?.trim() || previo?.nombre || null });
+  }
+  return [...vistos.values()];
+}
+
 /** Nombre de la persona (para el saludo), si la entrada del usuario lo trae. Solo lee las variables de entorno. */
 export function nombreDe(usuario: string): string | null {
   const todas = [process.env.DASHBOARD_USERS, process.env.DASHBOARD_USERS_EXTRA, process.env.DASHBOARD_COMPLETOS, process.env.DASHBOARD_ADMIN]
