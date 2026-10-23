@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { exigirRol } from "@/lib/sesion";
 import { baseConfigurada, registrarAcceso, tablaFaltante } from "@/lib/personas";
 import { nombreDe } from "@/lib/auth";
+import { modoV2 } from "@/lib/auth2/config";
+import { nombresDe } from "@/lib/auth2/usuarios";
 import { listarEventos, resumenActividad } from "@/lib/actividad";
 
 export const dynamic = "force-dynamic";
@@ -20,9 +22,10 @@ export async function GET(req: Request) {
       resumenActividad(dias),
     ]);
     // El usuario es el CUIL: se agrega el nombre de la persona (de las variables de Vercel) para que el listado se entienda
-    const nombres: Record<string, string> = {};
-    for (const u of [...eventos.filas.map(f => f.usuario), ...resumen.usuarios.map(x => x.usuario), ...resumen.todosLosUsuarios]) {
-      const n = nombreDe(u);
+    const lista = [...new Set([...eventos.filas.map(f => f.usuario), ...resumen.usuarios.map(x => x.usuario), ...resumen.todosLosUsuarios])];
+    const nombres: Record<string, string> = modoV2() ? await nombresDe(lista).catch(() => ({})) : {};
+    for (const u of lista) {   // los que todavía no se migraron a la base conservan el nombre de las variables de Vercel
+      const n = nombres[u] ?? nombreDe(u);
       if (n) nombres[u] = n;
     }
     return NextResponse.json({ ...eventos, resumen, nombres }, { headers: SIN_CACHE });

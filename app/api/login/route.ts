@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { COOKIE, SESION_SEGUNDOS, crearSesion, normalizarUsuario, verificarCredenciales } from "@/lib/auth";
 import { registrarAcceso } from "@/lib/personas";
+import { modoV2 } from "@/lib/auth2/config";
+import { loginV2 } from "@/lib/auth2/handlers";
 
 export async function POST(req: Request) {
+  if (modoV2()) return loginV2(req);
   const f = await req.formData();
   const u = normalizarUsuario(String(f.get("usuario") ?? "")), c = String(f.get("clave") ?? "");
   const base = new URL(req.url);

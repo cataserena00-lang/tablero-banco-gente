@@ -15,8 +15,15 @@ interface Respuesta {
 }
 
 const PERFIL: Record<string, string> = { admin: "Administración", completo: "Completo", agregado: "Agregado" };
-const ACCION: Record<string, string> = { ingreso: "Ingreso", busqueda: "Búsqueda de personas", ficha: "Ficha de persona", exportacion: "Exportación (PDF/Excel)", exportable: "Exportable" };
-const GRUPOS: [string, string][] = [["", "Todas las acciones"], ["ingreso", "Ingresos"], ["exportable", "Exportables"], ["consulta", "Consultas de personas"]];
+const SEGURIDAD: Record<string, string> = {
+  ingreso_fallido: "Intento de ingreso fallido", codigo_incorrecto: "Código del autenticador incorrecto", codigo_bloqueado: "Demasiados códigos incorrectos (pausa)",
+  clave_cambiada: "Cambió su contraseña", autenticador_alta: "Configuró el autenticador", dispositivo_confiado: "Confió en un dispositivo", cierre_sesion: "Cerró la sesión",
+  admin_usuario_creado: "Admin: creó un usuario", admin_usuario_editado: "Admin: modificó un usuario", admin_2fa_reiniciado: "Admin: reinició el autenticador de un usuario",
+  admin_sesiones_cerradas: "Admin: cerró las sesiones de un usuario", admin_dispositivos_quitados: "Admin: quitó los dispositivos de un usuario",
+  cuenta_codigos_nuevos: "Generó códigos de recuperación nuevos", cuenta_dispositivos_quitados: "Quitó dispositivos de confianza",
+};
+const ACCION: Record<string, string> = { ...SEGURIDAD, ingreso: "Ingreso", busqueda: "Búsqueda de personas", ficha: "Ficha de persona", exportacion: "Exportación (PDF/Excel)", exportable: "Exportable" };
+const GRUPOS: [string, string][] = [["", "Todas las acciones"], ["ingreso", "Ingresos"], ["exportable", "Exportables"], ["consulta", "Consultas de personas"], ["seguridad", "Seguridad y cuentas"]];
 const PERIODOS: [number, string][] = [[7, "Últimos 7 días"], [30, "Últimos 30 días"], [90, "Últimos 90 días"]];
 const ETQ_FILTRO: Record<string, string> = { zdep: "Zona", q: "Búsqueda", departamento: "Departamento", localidad: "Localidad", categoria: "Estado", estado: "Estado puntual", linea: "Línea" };
 
@@ -26,7 +33,12 @@ const texto = (v: unknown) => (typeof v === "string" || typeof v === "number" ? 
 /** Qué hizo el usuario, en una línea y sin volcar datos de más. */
 function describir(e: Evento): string {
   const d = e.detalle ?? {};
-  if (e.accion === "ingreso") return "Ingresó al tablero";
+  if (SEGURIDAD[e.accion]) {
+    const x = e.detalle ?? {};
+    const quien = texto(x.objetivo) ? ` · ${texto(x.objetivo)}` : "";
+    return SEGURIDAD[e.accion] + quien;
+  }
+  if (e.accion === "ingreso") return d.dispositivoDeConfianza ? "Ingresó (dispositivo de confianza)" : d.codigoDeRecuperacion ? "Ingresó con un código de recuperación" : "Ingresó al tablero";
   if (e.accion === "exportable") {
     const zonas = Array.isArray(d.zonas) ? (d.zonas as unknown[]).map(texto).filter(Boolean) : [];
     const cont = d.contenido === "completa+personas" ? "ficha completa con personas" : d.contenido === "completa" ? "ficha completa" : "solo pendientes";

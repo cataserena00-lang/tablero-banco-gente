@@ -15,6 +15,7 @@ const ICONOS: Record<string, ReactNode> = {
   exportar: <><path d="M6 2h6l4 4v12H6z" /><path d="M12 2v4h4M9 11h5M9 14h5" /></>,
   actividad: <><path d="M3 15l4-5 3 3 4-7 3 4" /><path d="M3 18h14" /></>,
   personas: <><circle cx="8" cy="7" r="3" /><path d="M2.5 17c0-3 2.5-5 5.5-5s5.5 2 5.5 5M14 4.5a3 3 0 010 5.5M16 12c1.5.7 2.5 2.2 2.5 4.5" /></>,
+  cuenta: <><circle cx="10" cy="7" r="3.2" /><path d="M3.5 17c.6-3.2 3.2-5 6.5-5s5.9 1.8 6.5 5" /></>,
   salir: <path d="M8 3H4v14h4M12 6l4 4-4 4M16 10H8" />,
   inicio: <path d="M3 9l7-6 7 6v8H3zM8 17v-5h4v5" />,
   cursos: <><path d="M3 4.5C5.5 3.5 8 3.5 10 5c2-1.5 4.5-1.5 7-.5V16c-2.5-1-5-1-7 .5-2-1.5-4.5-1.5-7-.5z" /><path d="M10 5v11.5" /></>,
@@ -45,8 +46,8 @@ const MARCAS: Record<ProgramaNav, { logo: typeof logoBanco; alt: string; items: 
 };
 const CLAVE = "bg_menu_colapsado";   // el mismo valor para todos los programas
 
-export default function Navegacion({ completo, admin = false, usuario, nombre = null, programa = "bg", variosProgramas = false }:
-  { completo: boolean; admin?: boolean; usuario: string; nombre?: string | null; programa?: ProgramaNav; variosProgramas?: boolean }) {
+export default function Navegacion({ completo, admin = false, usuario, nombre = null, programa = "bg", variosProgramas = false, cuenta = false }:
+  { completo: boolean; admin?: boolean; usuario: string; nombre?: string | null; programa?: ProgramaNav; variosProgramas?: boolean; cuenta?: boolean }) {
   const marca = MARCAS[programa];
   const ruta = usePathname() ?? "";
   const [colapsado, setColapsado] = useState(false);
@@ -78,6 +79,7 @@ export default function Navegacion({ completo, admin = false, usuario, nombre = 
           </ul>
         </nav>
         <div className="menu-pie">
+          {cuenta && <Link href="/cuenta" className="menu-item" title={colapsado ? "Mi cuenta" : undefined} aria-label="Mi cuenta"><Icono k="cuenta" /><span className="menu-texto">Mi cuenta</span></Link>}
           <form method="post" action="/api/logout">
             <button type="submit" className="menu-item" title={colapsado ? "Salir" : undefined} aria-label="Salir"><Icono k="salir" /><span className="menu-texto">Salir</span></button>
           </form>

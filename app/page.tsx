@@ -2,8 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { cargarOpcional } from "@/lib/datos";
 import { sesionActual } from "@/lib/sesion";
-import { nombreDe } from "@/lib/auth";
-import { PROGRAMAS, programasDe, type Programa } from "@/lib/programas";
+import { PROGRAMAS, type Programa } from "@/lib/programas";
+import { modoV2 } from "@/lib/auth2/config";
 import { LogoCmc, LogoBanco, LogoMinisterio, LogoPrimerPaso } from "@/components/Marca";
 
 export const dynamic = "force-dynamic";
@@ -21,15 +21,18 @@ const CARPETAS: Partial<Record<Programa, string>> = { bg: "banco_gente", cmc: "c
 export default async function Inicio() {
   const s = await sesionActual();
   if (!s) redirect("/login");
-  const visibles = PROGRAMAS.filter(p => programasDe(s.usuario, s.rol).includes(p.id));
+  const visibles = PROGRAMAS.filter(p => s.programas.includes(p.id));
   const activos = visibles.filter(p => p.disponible);
   if (activos.length === 1 && visibles.length === 1) redirect(activos[0].ruta);
-  const nombre = nombreDe(s.usuario);
+  const nombre = s.nombre;
   return (
     <main className="wrap inicio-min">
       <header className="inicio-cab">
         <LogoMinisterio />
-        <form method="post" action="/api/logout"><button className="salir" type="submit">Salir</button></form>
+        <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
+          {modoV2() && <Link href="/cuenta" className="salir" style={{ textDecoration: "none" }}>Mi cuenta</Link>}
+          <form method="post" action="/api/logout"><button className="salir" type="submit">Salir</button></form>
+        </div>
       </header>
       <section className="inicio-saludo">
         <p>{nombre ? <>Bienvenido/a, <b>{nombre}</b></> : "Bienvenido/a"}</p>
@@ -52,6 +55,13 @@ export default async function Inicio() {
             ? <Link key={p.id} href={p.ruta} className={`card prog-card prog-${p.id}`}>{cuerpo}</Link>
             : <div key={p.id} className={`card prog-card prog-${p.id} prog-pronto`} aria-disabled="true">{cuerpo}</div>;
         })}
+        {s.rol === "admin" && modoV2() && (
+          <Link href="/admin/usuarios" className="card prog-card prog-admin">
+            <div className="prog-logo"><span className="prog-sin-logo">Administración</span></div>
+            <h2>Usuarios y seguridad</h2>
+            <p>Altas, perfiles, programas y autenticadores de cada persona. Solo lo ven los administradores.</p>
+          </Link>
+        )}
         {s.rol === "admin" && (
           <Link href="/actividad" className="card prog-card prog-admin">
             <div className="prog-logo"><span className="prog-sin-logo">Administración</span></div>
