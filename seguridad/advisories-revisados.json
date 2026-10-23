@@ -1,0 +1,24 @@
+{
+  "revisado": "2026-10-23",
+  "nota": "Avisos de npm audit (--omit=dev) revisados a mano: se documenta si realmente afectan a este proyecto.",
+  "avisos": [
+    {
+      "paquete": "next",
+      "avisos": ["GHSA-2464-fhr4-w9xw", "GHSA-p3m5-59mp-jv5r"],
+      "estado": "corregido",
+      "detalle": "Se actualizó a next 15.5.28 (los avisos alcanzaban hasta 15.5.27). Además /_next/image ya no queda fuera del login."
+    },
+    {
+      "paquete": "postcss",
+      "avisos": ["GHSA-qx2v-qp2m-jg93", "GHSA-6g55-p6wh-862q", "GHSA-fxqj-rqcc-2cmp"],
+      "estado": "no aplica",
+      "detalle": "Dependencia transitiva de next que solo procesa el CSS propio durante el build. El proyecto no procesa CSS ni source maps de terceros ni en tiempo de ejecución."
+    },
+    {
+      "paquete": "uuid (vía exceljs)",
+      "avisos": ["GHSA-w5hq-g745-h8pq"],
+      "estado": "no aplica",
+      "detalle": "Falla de límites solo cuando se pasa un buffer propio a uuid v3/v5/v6; exceljs no lo hace así. La corrección implica bajar exceljs a 3.4.0 (cambio incompatible), que no se justifica."
+    }
+  ]
+}
