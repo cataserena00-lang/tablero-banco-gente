@@ -80,8 +80,8 @@ export async function verificarCredenciales(usuario: string, clave: string): Pro
       if (!rol || RANGO[r] > RANGO[rol]) rol = r;   // si hay dos entradas válidas, vale el perfil más alto que alguna declare
     }
   }
-  // Solo metadatos: nunca la clave ni los hashes
-  if (!rol) console.warn("login fallido", { usuario, entradasConfiguradas: entradas.length, formatosDelUsuario: candidatos });
+  // Solo metadatos: nunca la clave, los hashes ni el usuario (es un CUIL: dato personal que no debe quedar en los logs)
+  if (!rol) console.warn("login fallido", { usuarioExiste: candidatos.length > 0, formatosDelUsuario: candidatos });
   return rol ? { rol } : null;
 }
 /** Nombre de la persona (para el saludo), si la entrada del usuario lo trae. Solo lee las variables de entorno. */
